@@ -26,12 +26,12 @@
 -type http_method() :: binary().
 
 -type endpoint_kind() ::
-    create_room
-  | enter_room.
+    all_rooms
+  | specific_room.
 
 -type endpoint() ::
-    create_room
-  | {enter_room, RoomId :: tianjiupai_room:room_id()}.
+    all_rooms
+  | {specific_room, RoomId :: tianjiupai_room:room_id()}.
 
 -record(state, {
     method   :: http_method(),
@@ -48,8 +48,8 @@ init(Req, EndpointKind) ->
     %% Endpoint :: endpoint()
     Endpoint =
         case {EndpointKind, cowboy_req:binding(room_id, Req, undefined)} of
-            {create_room, undefined} -> create_room;
-            {enter_room,  RoomId}    -> {enter_room, RoomId}
+            {all_rooms,     undefined} -> all_rooms;
+            {specific_room, RoomId}    -> {specific_room, RoomId}
             %% Should the `case_clause' exception happen here,
             %% it is due to this implementation being inconsistent with the dispatch table.
         end,
@@ -65,8 +65,8 @@ allowed_methods(Req, State) ->
     } = State,
     Methods =
         case Endpoint of
-            create_room     -> [<<"POST">>];
-            {enter_room, _} -> [<<"PUT">>]
+            all_rooms          -> [<<"POST">>];
+            {specific_room, _} -> [<<"PUT">>]
         end,
     {Methods, Req, State}.
 
@@ -87,8 +87,8 @@ content_types_accepted(Req, State) ->
 accept_request_body(Req0, State) ->
     {IsSuccess, Req1} =
         case State of
-            #state{method = <<"POST">>, endpoint = create_room} ->
-                handle_create_room(Req0);
+            #state{method = <<"POST">>, endpoint = all_rooms} ->
+                handle_room_creation(Req0);
             _ ->
                 {false, Req0}
         end,
@@ -98,8 +98,8 @@ accept_request_body(Req0, State) ->
 %% Internal Functions
 %%====================================================================================================
 %% @doc `POST /rooms'
--spec handle_create_room(cowboy_req:req()) -> {boolean(), cowboy_req:req()}.
-handle_create_room(Req0) ->
+-spec handle_room_creation(cowboy_req:req()) -> {boolean(), cowboy_req:req()}.
+handle_room_creation(Req0) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
     case jsone:decode(ReqBody) of
         #{
