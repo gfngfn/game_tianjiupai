@@ -1,0 +1,16 @@
+{application, tianjiupai, [
+    {description, "A Tian Jiu Pai game server"},
+    {vsn, "0.0.1"},
+    {registered, []},
+    {mod, {tianjiupai_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        cowboy
+    ]},
+    {env, []},
+    {modules, []},
+
+    {licenses, ["MIT"]},
+    {links, []}
+]}.
