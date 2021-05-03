@@ -14,9 +14,12 @@
 %%====================================================================================================
 start(_StartType, _StartArgs) ->
     cowboy_session:start(),
+    IndexFileSpec = {file, "public/index.html", [{mimetypes, {<<"text">>, <<"html">>, []}}]},
     Dispatch =
         cowboy_router:compile([
             {'_', [
+                {<<"/">>,               cowboy_static, IndexFileSpec},
+                {<<"/assets/[...]">>,   cowboy_static, {dir, "public/assets"}},
                 {<<"/users">>,          tianjiupai_room_rest, all_users},
                 {<<"/rooms">>,          tianjiupai_room_rest, all_rooms},
                 {<<"/rooms/:room_id">>, tianjiupai_room_rest, specific_room}
