@@ -13,12 +13,12 @@
  {<<"quickrand">>,
   {git,"https://github.com/okeuday/quickrand.git",
        {ref,"c80077162f32c10002219f70e0afadb71e05f88c"}},
-  2},
+  1},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.7.1">>},1},
  {<<"uuid">>,
   {git,"https://github.com/okeuday/uuid.git",
        {ref,"9312cc158a94c76e40c82ca45fd5056fb191c889"}},
-  1}]}.
+  0}]}.
 [
 {pkg_hash,[
  {<<"cowboy">>, <<"F3DC62E35797ECD9AC1B50DB74611193C29815401E53BAC9A5C0577BD7BC667D">>},

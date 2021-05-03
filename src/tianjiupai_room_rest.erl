@@ -113,10 +113,14 @@ handle_room_creation(Req0) ->
         #{
             <<"room_name">> := RoomName
         } when is_binary(RoomName) ->
-            RoomId = tianjiupai_room:create(RoomName),
-            RespBody = jsone:encode(#{room_id => RoomId}),
-            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-            {true, Req2};
+            case tianjiupai_room:create(RoomName) of
+                {ok, RoomId} ->
+                    RespBody = jsone:encode(#{room_id => RoomId}),
+                    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+                    {true, Req2};
+                {error, _Reason} ->
+                    {false, Req1}
+            end;
         _ ->
             {false, Req1}
     catch
@@ -125,17 +129,23 @@ handle_room_creation(Req0) ->
             {false, Req1}
     end.
 
+%% @doc `PUT /rooms/<RoomId>'
 -spec handle_attending(cowboy_req:req(), tianjiupai_room:room_id()) -> {boolean(), cowboy_req:req()}.
 handle_attending(Req0, RoomId) ->
-    case tianjiupai_room:attend(RoomId) of
-        error ->
-            {false, Req0};
-        {ok, PlayerIndex} ->
-            Info =
-                #{
-                    belongs_to   => RoomId,
-                    player_index => PlayerIndex
-                },
-            Req1 = tianjiupai_session:set(Info, Req0),
-            {true, Req1}
+    {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
+    try
+        json:encode(ReqBody)
+    of
+        #{
+          <<"user_id">> := UserId
+        } when is_binary(UserId) ->
+            %% TODO: validate user ID here
+            case tianjiupai_room:attend(RoomId, UserId) of
+                {error, _Reason} -> {false, Req1};
+                ok               -> {true, Req1}
+            end
+    catch
+        Class:Reason ->
+            io:format("Failed to decode JSON (class: ~p, reason: ~p, body: ~p)~n", [Class, Reason, ReqBody]),
+            {false, Req1}
     end.

@@ -9,7 +9,7 @@
 ]).
 -export([
     create/1,
-    attend/1
+    attend/2
 ]).
 
 %%====================================================================================================
@@ -22,12 +22,22 @@
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec create(RoomName :: binary()) -> room_id().
-create(_RoomName) ->
-    %% TODO: registers rooms
-    <<"hoge">>.
+-spec create(RoomName :: binary()) -> {ok, room_id()} | {error, Reason :: term()}.
+create(RoomName) ->
+    RoomId = generate_room_id(),
+    case tianjiupai_room_server_sup:start_child(RoomId, RoomName) of
+        {ok, _Pid}       -> {ok, RoomId};
+        {error, _} = Err -> Err
+    end.
 
--spec attend(room_id()) -> {ok, player_index()} | error.
-attend(_RoomId) ->
-    %% TODO: judge
-    error.
+-spec attend(room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
+attend(RoomId, UserId) ->
+    tianjiupai_room_server:attend(RoomId, UserId).
+
+%%====================================================================================================
+%% Internal Functions
+%%====================================================================================================
+-spec generate_room_id() -> binary().
+generate_room_id() ->
+    Uuid = uuid:get_v4(),
+    list_to_binary(uuid:uuid_to_string(Uuid)).
