@@ -68,7 +68,7 @@ handle_call(CallMsg, _From, State0) ->
                             {reply, Err, State0};
                         ok ->
                             erlang:demonitor(RoomMonitorRef0),
-                            RoomMonitorRef = tianjiupai_room:monitor_room(RoomId),
+                            RoomMonitorRef = tianjiupai_room:monitor(RoomId),
                             {reply, ok, State0#state{
                                 belongs_to = {value, {RoomId, RoomMonitorRef}}
                             }}

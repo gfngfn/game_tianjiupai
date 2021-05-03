@@ -166,10 +166,13 @@ exit(RoomId, UserId) ->
 
 -spec monitor(tianjiupai:room_id()) -> reference().
 monitor(RoomId) ->
-    erlang:monitor(name(RoomId)).
+    erlang:monitor(process, name_main(RoomId)).
 
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
 name(RoomId) ->
-    {global, {?MODULE, RoomId}}.
+    {global, name_main(RoomId)}.
+
+name_main(RoomId) ->
+    {?MODULE, RoomId}.
