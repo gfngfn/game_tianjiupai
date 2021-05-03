@@ -164,9 +164,12 @@ exit(RoomId, UserId) ->
             {error, {failed_to_attend, Class, Reason}}
     end.
 
--spec monitor(tianjiupai:room_id()) -> reference().
+-spec monitor(tianjiupai:room_id()) -> {ok, reference()} | {error, not_found}.
 monitor(RoomId) ->
-    erlang:monitor(process, name_main(RoomId)).
+    case global:whereis_name(name_main(RoomId)) of
+        undefined -> {error, not_found};
+        Pid       -> {ok, erlang:monitor(process, Pid)}
+    end.
 
 %%====================================================================================================
 %% Internal Functions

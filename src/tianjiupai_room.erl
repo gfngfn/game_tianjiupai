@@ -29,7 +29,7 @@ attend(RoomId, UserId) ->
 exit(RoomId, UserId) ->
     tianjiupai_room_server:exit(RoomId, UserId).
 
--spec monitor(tinajiupai:room_id()) -> reference().
+-spec monitor(tinajiupai:room_id()) -> {ok, reference()} | {error, not_found}.
 monitor(RoomId) ->
     tianjiupai_room_server:monitor(RoomId).
 

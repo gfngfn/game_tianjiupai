@@ -59,16 +59,31 @@ handle_call(CallMsg, _From, State0) ->
     } = State0,
     case CallMsg of
         {set_room, RoomId} ->
-            case BelongsTo0 of
-                none ->
-                    ok;
-                {value, {RoomId0, RoomMonitorRef0}} ->
-                    case tianjiupai_room:exit(RoomId0, UserId) of
-                        {error, _} = Err ->
-                            {reply, Err, State0};
-                        ok ->
-                            erlang:demonitor(RoomMonitorRef0),
-                            RoomMonitorRef = tianjiupai_room:monitor(RoomId),
+            Result =
+                case BelongsTo0 of
+                    none ->
+                        ok;
+                    {value, {RoomId0, RoomMonitorRef0}} ->
+                        case tianjiupai_room:exit(RoomId0, UserId) of
+                            {error, _} = Err ->
+                                Err;
+                            ok ->
+                                erlang:demonitor(RoomMonitorRef0),
+                                ok
+                        end
+                end,
+            case Result of
+                {error, _} = Err1 ->
+                    {reply, Err1, State0#state{
+                        belongs_to = none
+                    }};
+                ok ->
+                    case tianjiupai_room:monitor(RoomId) of
+                        {error, _} = Err2 ->
+                            {reply, Err2, State0#state{
+                                belongs_to = none
+                            }};
+                        {ok, RoomMonitorRef} ->
                             {reply, ok, State0#state{
                                 belongs_to = {value, {RoomId, RoomMonitorRef}}
                             }}
@@ -108,4 +123,7 @@ set_room(UserId, RoomId) ->
 %% Internal Functions
 %%====================================================================================================
 name(UserId) ->
-    {global, {?MODULE, UserId}}.
+    {global, name_main(UserId)}.
+
+name_main(UserId) ->
+    {?MODULE, UserId}.
