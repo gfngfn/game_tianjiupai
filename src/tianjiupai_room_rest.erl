@@ -89,6 +89,8 @@ accept_request_body(Req0, State) ->
         case State of
             #state{method = <<"POST">>, endpoint = all_rooms} ->
                 handle_room_creation(Req0);
+            #state{method = <<"PUT">>, endpoint = {specific_room, RoomId}} ->
+                handle_attending(Req0, RoomId);
             _ ->
                 {false, Req0}
         end,
@@ -101,14 +103,35 @@ accept_request_body(Req0, State) ->
 -spec handle_room_creation(cowboy_req:req()) -> {boolean(), cowboy_req:req()}.
 handle_room_creation(Req0) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-    case jsone:decode(ReqBody) of
+    try
+        jsone:decode(ReqBody)
+    of
         #{
             <<"room_name">> := RoomName
-        } ->
+        } when is_binary(RoomName) ->
             RoomId = tianjiupai_room:create(RoomName),
             RespBody = jsone:encode(#{room_id => RoomId}),
-            Req1 = cowboy_req:set_resp_body(RespBody, Req0),
-            {true, Req1};
+            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+            {true, Req2};
         _ ->
-            {false, Req0}
+            {false, Req1}
+    catch
+        Class:Reason ->
+            io:format("Failed to decode JSON (class: ~p, reason: ~p, body: ~p)~n", [Class, Reason, ReqBody]),
+            {false, Req1}
+    end.
+
+-spec handle_attending(cowboy_req:req(), tianjiupai_room:room_id()) -> {boolean(), cowboy_req:req()}.
+handle_attending(Req0, RoomId) ->
+    case tianjiupai_room:attend(RoomId) of
+        error ->
+            {false, Req0};
+        {ok, PlayerIndex} ->
+            Info =
+                #{
+                    belongs_to   => RoomId,
+                    player_index => PlayerIndex
+                },
+            Req1 = tianjiupai_session:set(Info, Req0),
+            {true, Req1}
     end.

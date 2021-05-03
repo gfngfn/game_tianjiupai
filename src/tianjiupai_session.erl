@@ -1,33 +1,32 @@
--module(tianjiupai_room).
+-module(tianjiupai_session).
 
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
 -export_type([
-    room_id/0,
-    player_index/0
+    info/0
 ]).
 -export([
-    create/1,
-    attend/1
+    set/2,
+    get/1
 ]).
 
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--type room_id() :: binary().
-
--type player_index() :: non_neg_integer().
+-type info() :: #{
+    belongs_to   := tianjiupai_room:room_id(),
+    player_index := non_neg_integer()
+}.
 
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec create(RoomName :: binary()) -> room_id().
-create(_RoomName) ->
-    %% TODO: registers rooms
-    <<"hoge">>.
+-spec set(info(), cowboy_req:req()) -> cowboy_req:req().
+set(Info, Req0) ->
+    {ok, Req1} = cowboy_session:set(info, Info, Req0),
+    Req1.
 
--spec attend(room_id()) -> {ok, player_index()} | error.
-attend(_RoomId) ->
-    %% TODO: judge
-    error.
+-spec get(cowboy_req:req()) -> {undefined | info(), cowboy_req:req()}.
+get(Req0) ->
+    cowboy_session:get(info, Req0).
