@@ -1,16 +1,15 @@
--module(tianjiupai).
+-module(tianjiupai_user).
 
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
--export_type([
-    user_id/0,
-    room_id/0
+-export([
+    set_room/2
 ]).
 
 %%====================================================================================================
-%% Macros & Types
+%% Exported Functions
 %%====================================================================================================
--type user_id() :: binary().
-
--type room_id() :: binary().
+-spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, Reason :: term()}.
+set_room(UserId, RoomId) ->
+    tianjiupai_user_server:set_room(UserId, RoomId).

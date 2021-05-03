@@ -134,18 +134,32 @@ handle_room_creation(Req0) ->
 handle_attending(Req0, RoomId) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
     try
-        json:encode(ReqBody)
+        jsone:decode(ReqBody)
     of
         #{
           <<"user_id">> := UserId
         } when is_binary(UserId) ->
-            %% TODO: validate user ID here
-            case tianjiupai_room:attend(RoomId, UserId) of
-                {error, _Reason} -> {false, Req1};
-                ok               -> {true, Req1}
+            case tianjiupai_user:set_room(UserId, RoomId) of
+                {error, Reason1} ->
+                    Req2 = set_failure_reason_to_resp_body(Reason1, Req1),
+                    {false, Req2};
+                ok ->
+                    case tianjiupai_room:attend(RoomId, UserId) of
+                        {error, Reason2} ->
+                            Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
+                            {false, Req2};
+                        ok ->
+                            {true, Req1}
+                    end
             end
     catch
         Class:Reason ->
             io:format("Failed to decode JSON (class: ~p, reason: ~p, body: ~p)~n", [Class, Reason, ReqBody]),
             {false, Req1}
     end.
+
+-spec set_failure_reason_to_resp_body(Reason :: term(), cowboy_req:req()) -> cowboy_req:req().
+set_failure_reason_to_resp_body(Reason, Req) ->
+    ReasonBin = erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))),
+    RespBody = jsone:encode(#{reason => ReasonBin}),
+    cowboy_req:set_resp_body(RespBody, Req).

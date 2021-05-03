@@ -3,26 +3,17 @@
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
--export_type([
-    room_id/0,
-    player_index/0
-]).
 -export([
     create/1,
-    attend/2
+    attend/2,
+    exit/2,
+    monitor/1
 ]).
-
-%%====================================================================================================
-%% Macros & Types
-%%====================================================================================================
--type room_id() :: binary().
-
--type player_index() :: non_neg_integer().
 
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec create(RoomName :: binary()) -> {ok, room_id()} | {error, Reason :: term()}.
+-spec create(RoomName :: binary()) -> {ok, tianjiupai:room_id()} | {error, Reason :: term()}.
 create(RoomName) ->
     RoomId = generate_room_id(),
     case tianjiupai_room_server_sup:start_child(RoomId, RoomName) of
@@ -30,9 +21,17 @@ create(RoomName) ->
         {error, _} = Err -> Err
     end.
 
--spec attend(room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
 attend(RoomId, UserId) ->
     tianjiupai_room_server:attend(RoomId, UserId).
+
+-spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
+exit(RoomId, UserId) ->
+    tianjiupai_room_server:exit(RoomId, UserId).
+
+-spec monitor(tinajiupai:room_id()) -> reference().
+monitor(RoomId) ->
+    tianjiupai_room_server:monitor(RoomId).
 
 %%====================================================================================================
 %% Internal Functions

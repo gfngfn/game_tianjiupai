@@ -45,7 +45,7 @@ start_link() ->
     supervisor:start_link(?SUP_REF, ?MODULE, {}).
 
 -spec start_child(
-    RoomId   :: tianjiupai_room:room_id(),
+    RoomId   :: tianjiupai:room_id(),
     RoomName :: binary()
 ) ->
     {ok, pid()}

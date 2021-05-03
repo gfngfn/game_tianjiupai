@@ -16,7 +16,9 @@
 %%====================================================================================================
 -export([
     start_link/2,
-    attend/2
+    attend/2,
+    exit/2,
+    monitor/1
 ]).
 
 %%====================================================================================================
@@ -68,7 +70,11 @@
 
 -type attend_reply() ::
     ok
-  | {error, full}.
+  | {error, full | {failed_to_attend, Class :: atom(), Reason :: term()}}.
+
+-type exit_reply() ::
+    ok
+  | {error, playing | {failed_to_exit, Class :: atom(), Reason :: term()}}.
 
 %%====================================================================================================
 %% `gen_server' Callback Functions
@@ -85,7 +91,8 @@ init({RoomId, RoomName}) ->
     }}.
 
 -spec handle_call
-    ({attend, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, attend_reply(), #state{}}.
+    ({attend, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, attend_reply(), #state{}};
+    ({exit, tianjiupai:user_id()},   {pid(), reference()}, #state{}) -> {reply, exit_reply(),   #state{}}.
 handle_call(CallMsg, _From, State0) ->
     #state{game_state = GameState0} = State0,
     case CallMsg of
@@ -104,7 +111,20 @@ handle_call(CallMsg, _From, State0) ->
                     {playing, _} ->
                         {GameState0, {error, full}}
                 end,
-            {reply, Reply, State0#state{game_state = GameState1}}
+            {reply, Reply, State0#state{game_state = GameState1}};
+        {exit, UserId} ->
+            case GameState0 of
+                {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
+                    WaitingMembers =
+                        lists:filter(
+                            fun(#waiting_member{user_id = UserId0}) ->
+                                UserId0 =/= UserId
+                            end,
+                            WaitingMembers0),
+                    {{waiting, #waiting_state{waiting_members = WaitingMembers}}, ok};
+                {playing, _} ->
+                    {GameState0, {error, playing}}
+            end
     end.
 
 handle_cast(CastMsg, State) ->
@@ -126,9 +146,27 @@ handle_info(Info, State) ->
 start_link(RoomId, RoomName) ->
     gen_server:start_link(name(RoomId), ?MODULE, {RoomId, RoomName}, []).
 
--spec attend(tianjiupai_room:room_id(), tianjiupai:user_id()) -> attend_reply().
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> attend_reply().
 attend(RoomId, UserId) ->
-    gen_server:call(name(RoomId), {attend, UserId}).
+    try
+        gen_server:call(name(RoomId), {attend, UserId})
+    catch
+        Class:Reason ->
+            {error, {failed_to_attend, Class, Reason}}
+    end.
+
+-spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> attend_reply().
+exit(RoomId, UserId) ->
+    try
+        gen_server:call(name(RoomId), {exit, UserId})
+    catch
+        Class:Reason ->
+            {error, {failed_to_attend, Class, Reason}}
+    end.
+
+-spec monitor(tianjiupai:room_id()) -> reference().
+monitor(RoomId) ->
+    erlang:monitor(name(RoomId)).
 
 %%====================================================================================================
 %% Internal Functions
