@@ -34,28 +34,32 @@
   | {specific_room, RoomId :: tianjiupai_room:room_id()}.
 
 -record(state, {
-    method   :: http_method(),
-    endpoint :: endpoint()
+    method       :: http_method(),
+    endpoint     :: endpoint(),
+    session_info :: undefined | tianjiupai_session:info()
 }).
 
 %%====================================================================================================
 %% `cowboy_rest' Callback Functions
 %%====================================================================================================
 -spec init(cowboy_req:req(), endpoint_kind()) -> {cowboy_rest, cowboy_req:req(), #state{}}.
-init(Req, EndpointKind) ->
+init(Req0, EndpointKind) ->
     %% Method :: http_method()
-    Method = cowboy_req:method(Req),
+    Method = cowboy_req:method(Req0),
+    %% MaybeInfo :: tianjiupai_session:info()
+    {MaybeInfo, Req1} = tianjiupai_session:get(Req0),
     %% Endpoint :: endpoint()
     Endpoint =
-        case {EndpointKind, cowboy_req:binding(room_id, Req, undefined)} of
+        case {EndpointKind, cowboy_req:binding(room_id, Req1, undefined)} of
             {all_rooms,     undefined} -> all_rooms;
             {specific_room, RoomId}    -> {specific_room, RoomId}
             %% Should the `case_clause' exception happen here,
             %% it is due to this implementation being inconsistent with the dispatch table.
         end,
-    {cowboy_rest, Req, #state{
-        method   = Method,
-        endpoint = Endpoint
+    {cowboy_rest, Req1, #state{
+        method       = Method,
+        endpoint     = Endpoint,
+        session_info = MaybeInfo
     }}.
 
 -spec allowed_methods(cowboy_req:req(), #state{}) -> {[http_method()], cowboy_req:req(), #state{}}.
