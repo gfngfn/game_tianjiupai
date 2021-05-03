@@ -26,11 +26,13 @@
 -type http_method() :: binary().
 
 -type endpoint_kind() ::
-    all_rooms
+    all_users
+  | all_rooms
   | specific_room.
 
 -type endpoint() ::
-    all_rooms
+    all_users
+  | all_rooms
   | {specific_room, RoomId :: tianjiupai_room:room_id()}.
 
 -record(state, {
@@ -51,6 +53,7 @@ init(Req0, EndpointKind) ->
     %% Endpoint :: endpoint()
     Endpoint =
         case {EndpointKind, cowboy_req:binding(room_id, Req1, undefined)} of
+            {all_users,     undefined} -> all_users;
             {all_rooms,     undefined} -> all_rooms;
             {specific_room, RoomId}    -> {specific_room, RoomId}
             %% Should the `case_clause' exception happen here,
@@ -69,6 +72,7 @@ allowed_methods(Req, State) ->
     } = State,
     Methods =
         case Endpoint of
+            all_users          -> [<<"POST">>];
             all_rooms          -> [<<"POST">>];
             {specific_room, _} -> [<<"PUT">>]
         end,
@@ -89,8 +93,10 @@ content_types_accepted(Req, State) ->
 %%====================================================================================================
 -spec accept_request_body(cowboy_req:req(), #state{}) -> {boolean(), cowboy_req:req(), #state{}}.
 accept_request_body(Req0, State) ->
-    {IsSuccess, Req1} =
+    {IsSuccess, Req} =
         case State of
+            #state{method = <<"POST">>, endpoint = all_users, session_info = MaybeInfo} ->
+                handle_user_creation(Req0, MaybeInfo);
             #state{method = <<"POST">>, endpoint = all_rooms} ->
                 handle_room_creation(Req0);
             #state{method = <<"PUT">>, endpoint = {specific_room, RoomId}} ->
@@ -98,11 +104,48 @@ accept_request_body(Req0, State) ->
             _ ->
                 {false, Req0}
         end,
-    {IsSuccess, Req1, State}.
+    {IsSuccess, Req, State}.
 
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
+%% @doc `POST /users'
+-spec handle_user_creation(
+    Req       :: cowboy_req:req(),
+    MaybeInfo :: undefined | tianjiupai_session:info()
+) ->
+    {boolean(), cowboy_req:req()}.
+handle_user_creation(Req0, MaybeInfo) ->
+    case MaybeInfo of
+        #{user_id := UserId} ->
+                RespBody = jsone:encode(#{user_id => UserId}),
+                Req1 = cowboy_req:set_resp_body(RespBody, Req0),
+                {true, Req1};
+        undefined ->
+            {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
+            try
+                jsone:decode(ReqBody)
+            of
+                #{
+                    <<"user_name">> := UserName
+                } when is_binary(UserName) ->
+                    case tianjiupai_user:create(UserName) of
+                        {ok, UserId} ->
+                            Req2 = tianjiupai_session:set(#{user_id => UserId}, Req1),
+                            RespBody = jsone:encode(#{user_id => UserId}),
+                            Req3 = cowboy_req:set_resp_body(RespBody, Req2),
+                            {true, Req3};
+                        {error, Reason} ->
+                            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
+                            {false, Req2}
+                    end
+            catch
+                Class:Reason ->
+                    Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
+                    {false, Req2}
+            end
+    end.
+
 %% @doc `POST /rooms'
 -spec handle_room_creation(cowboy_req:req()) -> {boolean(), cowboy_req:req()}.
 handle_room_creation(Req0) ->
@@ -125,8 +168,8 @@ handle_room_creation(Req0) ->
             {false, Req1}
     catch
         Class:Reason ->
-            io:format("Failed to decode JSON (class: ~p, reason: ~p, body: ~p)~n", [Class, Reason, ReqBody]),
-            {false, Req1}
+            Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
+            {false, Req2}
     end.
 
 %% @doc `PUT /rooms/<RoomId>'

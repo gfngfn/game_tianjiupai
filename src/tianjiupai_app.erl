@@ -17,6 +17,7 @@ start(_StartType, _StartArgs) ->
     Dispatch =
         cowboy_router:compile([
             {'_', [
+                {<<"/users">>,          tianjiupai_room_rest, all_users},
                 {<<"/rooms">>,          tianjiupai_room_rest, all_rooms},
                 {<<"/rooms/:room_id">>, tianjiupai_room_rest, specific_room}
             ]}
