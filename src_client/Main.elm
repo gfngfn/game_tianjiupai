@@ -8,7 +8,7 @@ import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
 
 
 type alias Flags = ()
@@ -18,11 +18,12 @@ type alias UserId = String
 type alias Model =
   { navigationKey : Navigation.Key
   , message       : String
+  , userName      : String
   , userId        : Maybe UserId
   }
 
 type Request
-  = CreateUser String
+  = CreateUser
 
 type Response
   = UserCreated (Result Http.Error String)
@@ -30,10 +31,12 @@ type Response
 type Msg
   = UrlChange Url
   | UrlRequest UrlRequest
+  | UpdateUserName String
   | Send Request
   | Receive Response
 
 
+host : String
 host =
   "localhost:8080"
 
@@ -56,6 +59,7 @@ init () url navKey =
     model =
       { navigationKey = navKey
       , message       = "(message will be displayed here)"
+      , userName      = ""
       , userId        = Nothing
       }
   in
@@ -65,8 +69,11 @@ init () url navKey =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
+    UpdateUserName userName ->
+      ( { model | userName = userName }, Cmd.none )
+
     Send req ->
-      let cmd = makeCmdFromRequest req in
+      let cmd = makeCmdFromRequest req model in
       ( model, Cmd.map Receive cmd )
 
     Receive response ->
@@ -105,7 +112,16 @@ viewBody model =
       case model.userId of
         Nothing ->
           div []
-            [ button [ onClick (Send (CreateUser "foo")) ] [ text "start" ] ]
+            [ input
+                [ type_ "text"
+                , placeholder "username"
+                , value model.userName
+                , onInput UpdateUserName
+                ] []
+            , button
+                [ onClick (Send CreateUser) ]
+                [ text "start" ]
+            ]
 
         Just userId ->
           div []
@@ -132,10 +148,11 @@ makeErrorMessage err =
   "[error] " ++ msg
 
 
-makeCmdFromRequest : Request -> Cmd Response
-makeCmdFromRequest req =
+makeCmdFromRequest : Request -> Model -> Cmd Response
+makeCmdFromRequest req model =
   case req of
-    CreateUser userName ->
+    CreateUser ->
+      let userName = model.userName in
       Http.post
         { url    = "http://" ++ host ++ "/users"
         , body   = Http.jsonBody (JE.object [ ( "user_name", JE.string userName ) ])
