@@ -14,11 +14,11 @@
 %%====================================================================================================
 start(_StartType, _StartArgs) ->
     cowboy_session:start(),
-    IndexFileSpec = {file, "public/index.html", [{mimetypes, {<<"text">>, <<"html">>, []}}]},
+    Template = bbmustache:parse_file(<<"./assets/index.mustache.html">>),
     Dispatch =
         cowboy_router:compile([
             {'_', [
-                {<<"/">>,               cowboy_static, IndexFileSpec},
+                {<<"/">>,               tianjiupai_rest, {page, Template}},
                 {<<"/assets/[...]">>,   cowboy_static, {dir, "public/assets"}},
                 {<<"/users">>,          tianjiupai_rest, all_users},
                 {<<"/rooms">>,          tianjiupai_rest, all_rooms},

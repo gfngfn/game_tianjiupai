@@ -1,5 +1,6 @@
 {"1.1.0",
-[{<<"cowboy">>,{pkg,<<"cowboy">>,<<"2.8.0">>},0},
+[{<<"bbmustache">>,{pkg,<<"bbmustache">>,<<"1.12.1">>},0},
+ {<<"cowboy">>,{pkg,<<"cowboy">>,<<"2.8.0">>},0},
  {<<"cowboy_session">>,
   {git,"https://github.com/gfngfn/cowboy_session.git",
        {ref,"d41622bf85c6239bcf5fdd530e033e0acb89181c"}},
@@ -21,6 +22,7 @@
   0}]}.
 [
 {pkg_hash,[
+ {<<"bbmustache">>, <<"857FBDF86BDA46D07201B0E7A969820CB763A7C174C485FD0780D7E033EFE9F0">>},
  {<<"cowboy">>, <<"F3DC62E35797ECD9AC1B50DB74611193C29815401E53BAC9A5C0577BD7BC667D">>},
  {<<"cowlib">>, <<"61A6C7C50CF07FDD24B2F45B89500BB93B6686579B069A89F88CB211E1125C78">>},
  {<<"jsone">>, <<"036EC290BF3B2B3348B2EEC199A0FCDA62CE296AB6B736A403A6A440C5203618">>},

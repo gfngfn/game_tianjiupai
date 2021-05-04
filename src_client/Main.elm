@@ -11,7 +11,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 
 
-type alias Flags = ()
+type alias Flags = String
 
 type alias UserId = String
 
@@ -53,12 +53,12 @@ main =
 
 
 init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init () url navKey =
+init flags url navKey =
   let
     model : Model
     model =
       { navigationKey = navKey
-      , message       = "(message will be displayed here)"
+      , message       = "flags: " ++ flags
       , userName      = ""
       , userId        = Nothing
       }
@@ -125,7 +125,7 @@ viewBody model =
 
         Just userId ->
           div []
-            [ text ("user ID: " ++ userId) ]
+            [ text ("Hi, " ++ model.userName ++ "! (your user ID: " ++ userId ++ ")") ]
   in
   [ div []
       [ div [] [ text model.message ]

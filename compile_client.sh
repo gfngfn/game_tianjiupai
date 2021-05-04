@@ -1,6 +1,6 @@
 #!/bin/bash
 
 SRC="src_client/Main.elm"
-TARGET="public/index.html"
+TARGET="public/assets/main.js"
 
 elm make "$SRC" --output "$TARGET"

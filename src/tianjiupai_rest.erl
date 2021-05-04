@@ -7,7 +7,8 @@
 -export([
     init/2,
     allowed_methods/2,
-    content_types_accepted/2
+    content_types_accepted/2,
+    content_types_provided/2
 ]).
 
 %%====================================================================================================
@@ -17,7 +18,8 @@
     endpoint_kind/0
 ]).
 -export([
-    accept_request_body/2
+    accept_request_body/2,
+    provide_page/2
 ]).
 
 %%====================================================================================================
@@ -26,7 +28,8 @@
 -type http_method() :: binary().
 
 -type endpoint_kind() ::
-    all_users
+    {page, bbmustache:template()}
+  | all_users
   | all_rooms
   | specific_room.
 
@@ -53,9 +56,10 @@ init(Req0, EndpointKind) ->
     %% Endpoint :: endpoint()
     Endpoint =
         case {EndpointKind, cowboy_req:binding(room_id, Req1, undefined)} of
-            {all_users,     undefined} -> all_users;
-            {all_rooms,     undefined} -> all_rooms;
-            {specific_room, RoomId}    -> {specific_room, RoomId}
+            {{page, Template}, undefined} -> {page, Template};
+            {all_users,        undefined} -> all_users;
+            {all_rooms,        undefined} -> all_rooms;
+            {specific_room,    RoomId}    -> {specific_room, RoomId}
             %% Should the `case_clause' exception happen here,
             %% it is due to this implementation being inconsistent with the dispatch table.
         end,
@@ -72,6 +76,7 @@ allowed_methods(Req, State) ->
     } = State,
     Methods =
         case Endpoint of
+            {page, _}          -> [<<"GET">>];
             all_users          -> [<<"POST">>];
             all_rooms          -> [<<"POST">>];
             {specific_room, _} -> [<<"PUT">>]
@@ -86,6 +91,15 @@ content_types_accepted(Req, State) ->
     Table = [
         {{<<"application">>, <<"json">>, '*'}, accept_request_body}
     ],
+    {Table, Req, State}.
+
+content_types_provided(Req, State) ->
+    #state{endpoint = Endpoint} = State,
+    Table =
+        case Endpoint of
+            {page, _} -> [{{<<"text">>, <<"html">>, '*'}, provide_page}];
+            _         -> [{{<<"application">>, <<"json">>, '*'}, undefined}]
+        end,
     {Table, Req, State}.
 
 %%====================================================================================================
@@ -106,9 +120,37 @@ accept_request_body(Req0, State) ->
         end,
     {IsSuccess, Req, State}.
 
+-spec provide_page(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
+provide_page(Req0, State) ->
+    RespBody =
+        case State of
+            #state{method = <<"GET">>, endpoint = {page, Template}, session_info = MaybeInfo} ->
+                handle_page(Template, MaybeInfo);
+            _ ->
+                <<"">>
+        end,
+    {RespBody, Req0, State}.
+
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
+%% @doc `GET /'
+-spec handle_page(
+    Template  :: bbmustache:template(),
+    MaybeInfo :: undefined | tianjiupai_session:info()
+) ->
+    binary().
+handle_page(Template, MaybeInfo) ->
+    Flags =
+        case MaybeInfo of
+            undefined ->
+                #{user_id => #{type => <<"nothing">>}};
+            #{user_id := UserId} ->
+                #{user_id => #{type => <<"just">>, value => UserId}}
+        end,
+    FlagsBin = jsone:encode(Flags),
+    bbmustache:compile(Template, #{"flags" => <<"'", FlagsBin/binary, "'">>}, [{escape_fun, fun(Bin) -> Bin end}]).
+
 %% @doc `POST /users'
 -spec handle_user_creation(
     Req       :: cowboy_req:req(),
