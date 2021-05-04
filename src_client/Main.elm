@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Json.Encode as JE
-import Json.Decode as JD
+import Json.Decode as JD exposing (Decoder)
 import Url exposing (Url)
 import Http
 import Browser exposing (UrlRequest)
@@ -52,15 +52,42 @@ main =
     }
 
 
-init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init flags url navKey =
+flagUserIdDecoder : Decoder (Maybe UserId)
+flagUserIdDecoder =
+  JD.field "type" JD.string
+    |> JD.andThen (\s ->
+      case s of
+        "nothing" ->
+          JD.succeed Nothing
+
+        "just" ->
+          JD.field "value" JD.string |> JD.map Just
+
+        _ ->
+          JD.fail "other than 'just' or 'nothing'"
+    )
+
+
+flagDecoder : Decoder (Maybe UserId)
+flagDecoder =
+  JD.field "user_id" flagUserIdDecoder
+
+
+init : String -> Url -> Navigation.Key -> ( Model, Cmd Msg )
+init flagString url navKey =
   let
+    maybeUserId : Maybe UserId
+    maybeUserId =
+      case JD.decodeString flagDecoder flagString of
+          Ok(maybeUserId0) -> maybeUserId0
+          Err(_)           -> Nothing
+
     model : Model
     model =
       { navigationKey = navKey
-      , message       = "flags: " ++ flags
+      , message       = "flags: " ++ flagString
       , userName      = ""
-      , userId        = Nothing
+      , userId        = maybeUserId
       }
   in
   ( model, Cmd.none )
