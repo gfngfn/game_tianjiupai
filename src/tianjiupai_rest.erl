@@ -1,4 +1,4 @@
--module(tianjiupai_room_rest).
+-module(tianjiupai_rest).
 -behaviour(cowboy_rest).
 
 %%====================================================================================================

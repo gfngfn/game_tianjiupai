@@ -20,9 +20,9 @@ start(_StartType, _StartArgs) ->
             {'_', [
                 {<<"/">>,               cowboy_static, IndexFileSpec},
                 {<<"/assets/[...]">>,   cowboy_static, {dir, "public/assets"}},
-                {<<"/users">>,          tianjiupai_room_rest, all_users},
-                {<<"/rooms">>,          tianjiupai_room_rest, all_rooms},
-                {<<"/rooms/:room_id">>, tianjiupai_room_rest, specific_room}
+                {<<"/users">>,          tianjiupai_rest, all_users},
+                {<<"/rooms">>,          tianjiupai_rest, all_rooms},
+                {<<"/rooms/:room_id">>, tianjiupai_rest, specific_room}
             ]}
         ]),
     {ok, _} =
