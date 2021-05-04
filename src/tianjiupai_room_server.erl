@@ -20,6 +20,9 @@
     exit/2,
     monitor/1
 ]).
+-export_type([
+    error_reason/0
+]).
 
 %%====================================================================================================
 %% Macros & Types
@@ -68,13 +71,10 @@
     game_state :: game_state()
 }).
 
--type attend_reply() ::
-    ok
-  | {error, full | {failed_to_attend, Class :: atom(), Reason :: term()}}.
-
--type exit_reply() ::
-    ok
-  | {error, playing | {failed_to_exit, Class :: atom(), Reason :: term()}}.
+-type error_reason() ::
+    playing
+  | {room_not_found, tianjiupai:room_id()}
+  | {failed_to_call, Class :: throw | error | exit, Reason :: term()}.
 
 %%====================================================================================================
 %% `gen_server' Callback Functions
@@ -91,8 +91,10 @@ init({RoomId, RoomName}) ->
     }}.
 
 -spec handle_call
-    ({attend, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, attend_reply(), #state{}};
-    ({exit, tianjiupai:user_id()},   {pid(), reference()}, #state{}) -> {reply, exit_reply(),   #state{}}.
+    ({attend, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, AttendReply, #state{}} when
+        AttendReply :: ok | {error, error_reason()};
+    ({exit, tianjiupai:user_id()},   {pid(), reference()}, #state{}) -> {reply, ExitReply, #state{}} when
+        ExitReply :: ok | {error, error_reason()}.
 handle_call(CallMsg, _From, State0) ->
     #state{game_state = GameState0} = State0,
     case CallMsg of
@@ -109,7 +111,7 @@ handle_call(CallMsg, _From, State0) ->
                             },
                         {{waiting, #waiting_state{waiting_members = [WaitingMember | WaitingMembers0]}}, ok};
                     {playing, _} ->
-                        {GameState0, {error, full}}
+                        {GameState0, {error, playing}}
                 end,
             {reply, Reply, State0#state{game_state = GameState1}};
         {exit, UserId} ->
@@ -146,28 +148,38 @@ handle_info(Info, State) ->
 start_link(RoomId, RoomName) ->
     gen_server:start_link(name(RoomId), ?MODULE, {RoomId, RoomName}, []).
 
--spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> attend_reply().
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, error_reason()}.
 attend(RoomId, UserId) ->
-    try
-        gen_server:call(name(RoomId), {attend, UserId})
-    catch
-        Class:Reason ->
-            {error, {failed_to_attend, Class, Reason}}
+    case get_pid(RoomId) of
+        undefined ->
+            {error, {room_not_found, RoomId}};
+        Pid ->
+            try
+                gen_server:call(Pid, {attend, UserId})
+            catch
+                Class:Reason ->
+                    {error, {failed_to_call, Class, Reason}}
+            end
     end.
 
--spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> attend_reply().
+-spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, error_reason()}.
 exit(RoomId, UserId) ->
-    try
-        gen_server:call(name(RoomId), {exit, UserId})
-    catch
-        Class:Reason ->
-            {error, {failed_to_attend, Class, Reason}}
+    case get_pid(RoomId) of
+        undefined ->
+            {error, {room_not_found, RoomId}};
+        Pid ->
+            try
+                gen_server:call(Pid, {exit, UserId})
+            catch
+                Class:Reason ->
+                    {error, {failed_to_call, Class, Reason}}
+            end
     end.
 
--spec monitor(tianjiupai:room_id()) -> {ok, reference()} | {error, not_found}.
+-spec monitor(tianjiupai:room_id()) -> {ok, reference()} | {error, {room_not_found, tianjiupai:room_id()}}.
 monitor(RoomId) ->
-    case global:whereis_name(name_main(RoomId)) of
-        undefined -> {error, not_found};
+    case get_pid(RoomId) of
+        undefined -> {error, {room_not_found, RoomId}};
         Pid       -> {ok, erlang:monitor(process, Pid)}
     end.
 
@@ -179,3 +191,7 @@ name(RoomId) ->
 
 name_main(RoomId) ->
     {?MODULE, RoomId}.
+
+-spec get_pid(tianjiupai:room_id()) -> undefined | pid().
+get_pid(RoomId) ->
+    global:whereis_name(name_main(RoomId)).

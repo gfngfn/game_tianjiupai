@@ -197,8 +197,8 @@ handle_attending(Req0, RoomId) ->
             end
     catch
         Class:Reason ->
-            io:format("Failed to decode JSON (class: ~p, reason: ~p, body: ~p)~n", [Class, Reason, ReqBody]),
-            {false, Req1}
+            Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
+            {false, Req2}
     end.
 
 -spec set_failure_reason_to_resp_body(Reason :: term(), cowboy_req:req()) -> cowboy_req:req().
