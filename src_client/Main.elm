@@ -15,25 +15,36 @@ type alias Flags = String
 
 type alias UserId = String
 
+type alias UserName = String
+
+type alias InputModel =
+  { userName : String
+  }
+
 type alias Model =
   { navigationKey : Navigation.Key
   , message       : String
-  , userName      : String
-  , userId        : Maybe UserId
+  , inputs        : InputModel
+  , user          : Maybe User
   }
 
 type Request
   = CreateUser
 
 type Response
-  = UserCreated (Result Http.Error String)
+  = UserCreated UserName (Result Http.Error UserId)
 
 type Msg
   = UrlChange Url
   | UrlRequest UrlRequest
-  | UpdateUserName String
+  | UpdateUserName UserName
   | Send Request
   | Receive Response
+
+type alias User =
+  { id   : UserId
+  , name : UserName
+  }
 
 
 host : String
@@ -52,8 +63,16 @@ main =
     }
 
 
-flagUserIdDecoder : Decoder (Maybe UserId)
-flagUserIdDecoder =
+flagUserDecoder : Decoder User
+flagUserDecoder =
+    JD.map2
+      (\userId userName -> { id = userId, name = userName })
+      (JD.field "id" JD.string)
+      (JD.field "name" JD.string)
+
+
+flagMaybeUserDecoder : Decoder (Maybe User)
+flagMaybeUserDecoder =
   JD.field "type" JD.string
     |> JD.andThen (\s ->
       case s of
@@ -61,33 +80,38 @@ flagUserIdDecoder =
           JD.succeed Nothing
 
         "just" ->
-          JD.field "value" JD.string |> JD.map Just
+          JD.field "value" flagUserDecoder |> JD.map Just
 
         _ ->
           JD.fail "other than 'just' or 'nothing'"
     )
 
 
-flagDecoder : Decoder (Maybe UserId)
+flagDecoder : Decoder (Maybe User)
 flagDecoder =
-  JD.field "user_id" flagUserIdDecoder
+  JD.field "user" flagMaybeUserDecoder
+
+
+initInputs : InputModel
+initInputs =
+  { userName = "" }
 
 
 init : String -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init flagString url navKey =
   let
-    maybeUserId : Maybe UserId
-    maybeUserId =
+    maybeUser : Maybe User
+    maybeUser =
       case JD.decodeString flagDecoder flagString of
-          Ok(maybeUserId0) -> maybeUserId0
-          Err(_)           -> Nothing
+          Ok(maybeUser0) -> maybeUser0
+          Err(_)         -> Nothing
 
     model : Model
     model =
       { navigationKey = navKey
       , message       = "flags: " ++ flagString
-      , userName      = ""
-      , userId        = maybeUserId
+      , inputs        = initInputs
+      , user          = maybeUser
       }
   in
   ( model, Cmd.none )
@@ -97,7 +121,8 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     UpdateUserName userName ->
-      ( { model | userName = userName }, Cmd.none )
+      let inputs = model.inputs in
+      ( { model | inputs = { inputs | userName = userName } }, Cmd.none )
 
     Send req ->
       let cmd = makeCmdFromRequest req model in
@@ -105,10 +130,11 @@ update msg model =
 
     Receive response ->
       case response of
-        UserCreated result ->
+        UserCreated userName result ->
           case result of
             Ok userId ->
-              ( { model | userId = Just userId }, Cmd.none )
+              let user = { id = userId, name = userName } in
+              ( { model | user = Just user }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
@@ -136,13 +162,13 @@ viewBody : Model -> List (Html Msg)
 viewBody model =
   let
     elemMain =
-      case model.userId of
+      case model.user of
         Nothing ->
           div []
             [ input
                 [ type_ "text"
                 , placeholder "username"
-                , value model.userName
+                , value model.inputs.userName
                 , onInput UpdateUserName
                 ] []
             , button
@@ -150,9 +176,9 @@ viewBody model =
                 [ text "start" ]
             ]
 
-        Just userId ->
+        Just user ->
           div []
-            [ text ("Hi, " ++ model.userName ++ "! (your user ID: " ++ userId ++ ")") ]
+            [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
   in
   [ div []
       [ div [] [ text model.message ]
@@ -179,11 +205,11 @@ makeCmdFromRequest : Request -> Model -> Cmd Response
 makeCmdFromRequest req model =
   case req of
     CreateUser ->
-      let userName = model.userName in
+      let userName = model.inputs.userName in
       Http.post
         { url    = "http://" ++ host ++ "/users"
         , body   = Http.jsonBody (JE.object [ ( "user_name", JE.string userName ) ])
-        , expect = Http.expectJson UserCreated (JD.field "user_id" JD.string)
+        , expect = Http.expectJson (UserCreated userName) (JD.field "user_id" JD.string)
         }
 
 

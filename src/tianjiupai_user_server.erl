@@ -16,7 +16,11 @@
 %%====================================================================================================
 -export([
     start_link/2,
+    get_name/1,
     set_room/2
+]).
+-export_type([
+    error_reason/0
 ]).
 
 %%====================================================================================================
@@ -32,9 +36,9 @@
     belongs_to :: none | {value, {tianjiupai:room_id(), reference()}}
 }).
 
--type set_room_reply() ::
-    ok
-  | {error, Reason :: {set_room_failed, Class :: atom(), Reason :: term()} | term()}.
+-type error_reason() ::
+    tianjiupai_room_server:error_reason()
+  | {failed_to_call, Class :: atom(), Reason :: term()}.
 
 %%====================================================================================================
 %% `gen_server' Callback Functions
@@ -51,13 +55,18 @@ init({UserId, UserName}) ->
     }}.
 
 -spec handle_call
-    ({set_room, tianjiupai:room_id()}, {pid(), reference()}, #state{}) -> {reply, set_room_reply(), #state{}}.
+    ({set_room, tianjiupai:room_id()}, {pid(), reference()}, #state{}) -> {reply, SetRoomReply, #state{}} when
+        SetRoomReply :: ok | {error, error_reason()};
+    (get_name, {pid(), reference()}, #state{}) -> {reply, GetNameReply, #state{}} when
+        GetNameReply :: {ok, binary()} | {error, error_reason()}.
 handle_call(CallMsg, _From, State0) ->
     #state{
-       settings   = #settings{user_id = UserId},
+       settings   = #settings{user_id = UserId, user_name = UserName},
        belongs_to = BelongsTo0
     } = State0,
     case CallMsg of
+        get_name ->
+            {reply, {ok, UserName}, State0};
         {set_room, RoomId} ->
             Result =
                 case BelongsTo0 of
@@ -110,13 +119,32 @@ handle_info(Info, State) ->
 start_link(UserId, UserName) ->
     gen_server:start_link(name(UserId), ?MODULE, {UserId, UserName}, []).
 
--spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> set_room_reply().
+-spec get_name(tianjiupai:user_id()) -> {ok, binary()} | {error, error_reason()}.
+get_name(UserId) ->
+    case get_pid(UserId) of
+        undefined ->
+            {error, user_not_found};
+        Pid ->
+            try
+                gen_server:call(Pid, get_name)
+            catch
+                Class:Reason ->
+                    {error, {failed_to_call, Class, Reason}}
+            end
+    end.
+
+-spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, error_reason()}.
 set_room(UserId, RoomId) ->
-    try
-        gen_server:call(name(UserId), {set_room, RoomId})
-    catch
-        Class:Reason ->
-            {error, {set_room_failed, Class, Reason}}
+    case get_pid(UserId) of
+        undefined ->
+            {error, user_not_found};
+        Pid ->
+            try
+                gen_server:call(Pid, {set_room, RoomId})
+            catch
+                Class:Reason ->
+                    {error, {failed_to_call, Class, Reason}}
+            end
     end.
 
 %%====================================================================================================
@@ -127,3 +155,7 @@ name(UserId) ->
 
 name_main(UserId) ->
     {?MODULE, UserId}.
+
+-spec get_pid(tianjiupai:user_id()) -> undefined | pid().
+get_pid(UserId) ->
+    global:whereis_name(name_main(UserId)).

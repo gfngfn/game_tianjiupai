@@ -299,9 +299,14 @@ make_flags_from_cookie(MaybeInfo) ->
     Flags =
         case MaybeInfo of
             undefined ->
-                #{user_id => #{type => <<"nothing">>}};
+                #{user => #{type => <<"nothing">>}};
             #{user_id := UserId} ->
-                #{user_id => #{type => <<"just">>, value => UserId}}
+                case tianjiupai_user:get_name(UserId) of
+                    {ok, UserName} ->
+                        #{user => #{type => <<"just">>, value => #{id => UserId, name => UserName}}};
+                    {error, _} ->
+                        #{user => #{type => <<"nothing">>}}
+                end
         end,
     JsonBin = jsone:encode(Flags),
     <<"'", JsonBin/binary, "'">>.
