@@ -18,8 +18,9 @@
     endpoint_kind/0
 ]).
 -export([
-    accept_request_body/2,
-    provide_page/2
+    accept_json/2,
+    provide_json/2,
+    provide_html/2
 ]).
 
 %%====================================================================================================
@@ -79,7 +80,7 @@ allowed_methods(Req, State) ->
         case Endpoint of
             {page, _}          -> [<<"GET">>];
             all_users          -> [<<"POST">>];
-            all_rooms          -> [<<"POST">>];
+            all_rooms          -> [<<"GET">>, <<"POST">>];
             {specific_room, _} -> [<<"PUT">>]
         end,
     {Methods, Req, State}.
@@ -90,24 +91,32 @@ allowed_methods(Req, State) ->
     Params     :: [{Key :: binary(), Value :: binary()}].
 content_types_accepted(Req, State) ->
     Table = [
-        {{<<"application">>, <<"json">>, '*'}, accept_request_body}
+        {{<<"application">>, <<"json">>, '*'}, accept_json}
     ],
     {Table, Req, State}.
 
 content_types_provided(Req, State) ->
-    #state{endpoint = Endpoint} = State,
+    MimeJson = {<<"application">>, <<"json">>, '*'},
+    MimeHtml = {<<"text">>, <<"html">>, '*'},
+    #state{method = Method, endpoint = Endpoint} = State,
     Table =
-        case Endpoint of
-            {page, _} -> [{{<<"text">>, <<"html">>, '*'}, provide_page}];
-            _         -> [{{<<"application">>, <<"json">>, '*'}, undefined}]
+        case Method of
+            <<"GET">> ->
+                case Endpoint of
+                    {page, _} -> [{MimeHtml, provide_html}];
+                    all_rooms -> [{MimeJson, provide_json}];
+                    _         -> []
+                end;
+            _ ->
+                [{MimeJson, undefined}]
         end,
     {Table, Req, State}.
 
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec accept_request_body(cowboy_req:req(), #state{}) -> {boolean(), cowboy_req:req(), #state{}}.
-accept_request_body(Req0, State) ->
+-spec accept_json(cowboy_req:req(), #state{}) -> {boolean(), cowboy_req:req(), #state{}}.
+accept_json(Req0, State) ->
     {IsSuccess, Req} =
         case State of
             #state{
@@ -133,8 +142,22 @@ accept_request_body(Req0, State) ->
         end,
     {IsSuccess, Req, State}.
 
--spec provide_page(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
-provide_page(Req0, State) ->
+-spec provide_json(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
+provide_json(Req0, State) ->
+    RespBody =
+        case State of
+            #state{method = <<"GET">>, endpoint = all_rooms} ->
+                %% Rooms :: [tianjiupai_room:room_state()]
+                Rooms = tianjiupai_room:get_all_rooms(),
+                RoomObjs = Rooms,
+                jsone:encode(#{rooms => RoomObjs});
+            _ ->
+                <<"">>
+        end,
+    {RespBody, Req0, State}.
+
+-spec provide_html(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
+provide_html(Req0, State) ->
     RespBody =
         case State of
             #state{method = <<"GET">>, endpoint = {page, Template}, session_info = MaybeInfo} ->

@@ -5,10 +5,19 @@
 %%====================================================================================================
 -export([
     create/1,
+    get_all_rooms/0,
     attend/2,
     exit/2,
     monitor/1
 ]).
+-export_type([
+    room_state/0
+]).
+
+%%====================================================================================================
+%% Macros & Types
+%%====================================================================================================
+-type room_state() :: tianjiupai_room_server:room_state().
 
 %%====================================================================================================
 %% Exported Functions
@@ -20,6 +29,15 @@ create(RoomName) ->
         {ok, _Pid}       -> {ok, RoomId};
         {error, _} = Err -> Err
     end.
+
+-spec get_all_rooms() -> [room_state()].
+get_all_rooms() ->
+    RoomServerProcs = tianjiupai_room_server_sup:which_children(),
+    lists:map(
+        fun(RoomServerProc) ->
+            tianjiupai_room_server:get_state_by_proc(RoomServerProc)
+        end,
+        RoomServerProcs).
 
 -spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
 attend(RoomId, UserId) ->

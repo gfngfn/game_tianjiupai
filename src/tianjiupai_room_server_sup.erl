@@ -13,7 +13,8 @@
 %%====================================================================================================
 -export([
     start_link/0,
-    start_child/2
+    start_child/2,
+    which_children/0
 ]).
 
 %%====================================================================================================
@@ -52,3 +53,14 @@ start_link() ->
   | {error, Reason :: term()}.
 start_child(RoomId, RoomName) ->
     supervisor:start_child(?SUP_REF, [RoomId, RoomName]).
+
+-spec which_children() -> [tianjiupai_room_server:proc()].
+which_children() ->
+    Children = supervisor:which_children(?SUP_REF),
+    lists:filtermap(
+        fun({_Id, Pid, _Type, _Modules}) when is_pid(Pid) ->
+                {true, Pid};
+           (_Child) ->
+                false
+        end,
+        Children).

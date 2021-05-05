@@ -18,15 +18,27 @@
     start_link/2,
     attend/2,
     exit/2,
-    monitor/1
+    monitor/1,
+    get_state_by_proc/1
 ]).
 -export_type([
+    proc/0,
+    room_state/0,
     error_reason/0
 ]).
 
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
+-type proc() :: pid().
+
+-type room_state() :: #{
+    room_id    := tianjiupai:room_id(),
+    room_name  := binary(),
+    is_playing := boolean(),
+    members    := [tianjiupai:user_id()]
+}.
+
 -record(settings, {
     room_id   :: tianjiupai_room:room_id(),
     room_name :: binary()
@@ -58,8 +70,9 @@
 }).
 
 -record(playing_state, {
-    parent  :: 0 | 1 | 2 | 3,
-    players :: {#player{}, #player{}, #player{}, #player{}}
+    user_ids :: {tianjiupai:user_id(), tianjiupai:user_id(), tianjiupai:user_id(), tianjiupai:user_id()},
+    parent   :: 0 | 1 | 2 | 3,
+    players  :: {#player{}, #player{}, #player{}, #player{}}
 }).
 
 -type game_state() ::
@@ -91,13 +104,41 @@ init({RoomId, RoomName}) ->
     }}.
 
 -spec handle_call
+    (get_state, {pid(), reference()}, #state{}) -> {reply, GetStateReply, #state{}} when
+        GetStateReply :: {ok, room_state()};
     ({attend, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, AttendReply, #state{}} when
         AttendReply :: ok | {error, error_reason()};
     ({exit, tianjiupai:user_id()},   {pid(), reference()}, #state{}) -> {reply, ExitReply, #state{}} when
         ExitReply :: ok | {error, error_reason()}.
 handle_call(CallMsg, _From, State0) ->
-    #state{game_state = GameState0} = State0,
+    #state{
+        settings =
+            #settings{
+                room_id   = RoomId,
+                room_name = RoomName
+            },
+        game_state =
+            GameState0
+    } = State0,
     case CallMsg of
+        get_state ->
+            %% IsPlaying :: boolean()
+            %% Members :: [tianjiupai:user_id()]
+            {IsPlaying, Members} =
+                case GameState0 of
+                    {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
+                        {false, lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers)};
+                    {playing, #playing_state{user_ids = {U0, U1, U2, U3}}} ->
+                        {true, [U0, U1, U2, U3]}
+                end,
+            %% RoomState :: room_state()
+            RoomState = #{
+                room_id    => RoomId,
+                room_name  => RoomName,
+                is_playing => IsPlaying,
+                members    => Members
+            },
+            {reply, {ok, RoomState}, State0};
         {attend, UserId} ->
             %% GameState1 :: game_state()
             %% Reply :: attend_reply()
@@ -181,6 +222,15 @@ monitor(RoomId) ->
     case get_pid(RoomId) of
         undefined -> {error, {room_not_found, RoomId}};
         Pid       -> {ok, erlang:monitor(process, Pid)}
+    end.
+
+-spec get_state_by_proc(proc()) -> room_state().
+get_state_by_proc(RoomServerProc) ->
+    try
+        gen_server:call(RoomServerProc, get_state)
+    catch
+        Class:Reason ->
+            {error, {failed_to_call, Class, Reason}}
     end.
 
 %%====================================================================================================
