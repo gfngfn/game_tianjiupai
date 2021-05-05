@@ -38,6 +38,7 @@
 
 -type error_reason() ::
     tianjiupai_room_server:error_reason()
+  | {user_not_found, tianjiupai:user_id()}
   | {failed_to_call, Class :: atom(), Reason :: term()}.
 
 %%====================================================================================================
