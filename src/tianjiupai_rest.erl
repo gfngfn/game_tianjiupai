@@ -289,7 +289,7 @@ validate_cookie(MaybeInfo, UserId) ->
         #{user_id := UserId} ->
         %% Note that here `UserId' has already been bound.
         %% That is, this pattern includes equality testing.
-            true;
+            tianjiupai_user:exists(UserId);
         _ ->
             false
     end.

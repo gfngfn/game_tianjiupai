@@ -5,6 +5,7 @@
 %%====================================================================================================
 -export([
     create/1,
+    exists/1,
     get_name/1,
     set_room/2
 ]).
@@ -19,6 +20,10 @@ create(UserName) ->
         {ok, _Pid}       -> {ok, UserId};
         {error, _} = Err -> Err
     end.
+
+-spec exists(tianjiupai:user_id()) -> boolean().
+exists(UserId) ->
+    tianjiupai_user_server:exists(UserId).
 
 -spec get_name(tianjiupai:user_id()) -> {ok, binary()} | {error, Reason :: term()}.
 get_name(UserId) ->

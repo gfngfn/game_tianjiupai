@@ -16,6 +16,7 @@
 %%====================================================================================================
 -export([
     start_link/2,
+    exists/1,
     get_name/1,
     set_room/2
 ]).
@@ -119,6 +120,13 @@ handle_info(Info, State) ->
     {ok, pid()} | {error, Reason :: term()}.
 start_link(UserId, UserName) ->
     gen_server:start_link(name(UserId), ?MODULE, {UserId, UserName}, []).
+
+-spec exists(tianjiupai:user_id()) -> boolean().
+exists(UserId) ->
+    case get_pid(UserId) of
+        undefined -> false;
+        _Pid      -> true
+    end.
 
 -spec get_name(tianjiupai:user_id()) -> {ok, binary()} | {error, error_reason()}.
 get_name(UserId) ->
