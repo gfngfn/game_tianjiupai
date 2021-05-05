@@ -110,10 +110,18 @@ content_types_provided(Req, State) ->
 accept_request_body(Req0, State) ->
     {IsSuccess, Req} =
         case State of
-            #state{method = <<"POST">>, endpoint = all_users, session_info = MaybeInfo} ->
+            #state{
+                method       = <<"POST">>,
+                endpoint     = all_users,
+                session_info = MaybeInfo
+            } ->
                 handle_user_creation(Req0, MaybeInfo);
-            #state{method = <<"POST">>, endpoint = all_rooms} ->
-                handle_room_creation(Req0);
+            #state{
+                method       = <<"POST">>,
+                endpoint     = all_rooms,
+                session_info = MaybeInfo
+            } ->
+                handle_room_creation(Req0, MaybeInfo);
             #state{
                 method       = <<"PUT">>,
                 endpoint     = {specific_room, RoomId},
@@ -187,25 +195,38 @@ handle_user_creation(Req0, MaybeInfo) ->
     end.
 
 %% @doc `POST /rooms'
--spec handle_room_creation(cowboy_req:req()) -> {boolean(), cowboy_req:req()}.
-handle_room_creation(Req0) ->
+-spec handle_room_creation(
+    Req       :: cowboy_req:req(),
+    MaybeInfo :: undefined | tianjiupai_session:info()
+) ->
+    {boolean(), cowboy_req:req()}.
+handle_room_creation(Req0, MaybeInfo) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
     try
         jsone:decode(ReqBody)
     of
         #{
+            <<"user_id">>   := UserId,
             <<"room_name">> := RoomName
-        } when is_binary(RoomName) ->
-            case tianjiupai_room:create(RoomName) of
-                {ok, RoomId} ->
-                    RespBody = jsone:encode(#{room_id => RoomId}),
-                    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-                    {true, Req2};
-                {error, _Reason} ->
-                    {false, Req1}
+        } when is_binary(RoomName) andalso is_binary(UserId) ->
+            case validate_cookie(MaybeInfo, UserId) of
+                true ->
+                    case tianjiupai_room:create(RoomName) of
+                        {ok, RoomId} ->
+                            RespBody = jsone:encode(#{room_id => RoomId}),
+                            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+                            {true, Req2};
+                        {error, Reason} ->
+                            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
+                            {false, Req2}
+                    end;
+                false ->
+                    Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
+                    {false, Req2}
             end;
         _ ->
-            {false, Req1}
+            Req2 = set_failure_reason_to_resp_body(invalid_request_body, Req1),
+            {false, Req2}
     catch
         Class:Reason ->
             Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
@@ -227,10 +248,8 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
         #{
           <<"user_id">> := UserId
         } when is_binary(UserId) ->
-            case MaybeInfo of
-                #{user_id := UserId} ->
-                %% Note that here `UserId' has already been bound.
-                %% That is, this pattern includes equality testing.
+            case validate_cookie(MaybeInfo, UserId) of
+                true ->
                     case tianjiupai_user:set_room(UserId, RoomId) of
                         {error, Reason1} ->
                             Req2 = set_failure_reason_to_resp_body(Reason1, Req1),
@@ -244,7 +263,7 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                                     {true, Req1}
                             end
                     end;
-                _ ->
+                false ->
                     Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
                     {false, Req2}
             end
@@ -259,6 +278,21 @@ set_failure_reason_to_resp_body(Reason, Req) ->
     ReasonBin = erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))),
     RespBody = jsone:encode(#{reason => ReasonBin}),
     cowboy_req:set_resp_body(RespBody, Req).
+
+-spec validate_cookie(
+    MaybeInfo :: undefined | tianjiupai_session:info(),
+    UserId    :: tianjiupai:user_id()
+) ->
+    boolean().
+validate_cookie(MaybeInfo, UserId) ->
+    case MaybeInfo of
+        #{user_id := UserId} ->
+        %% Note that here `UserId' has already been bound.
+        %% That is, this pattern includes equality testing.
+            true;
+        _ ->
+            false
+    end.
 
 -spec make_flags_from_cookie(undefined | tianjiupai_session:info()) -> binary().
 make_flags_from_cookie(MaybeInfo) ->
