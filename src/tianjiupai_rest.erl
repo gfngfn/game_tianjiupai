@@ -34,7 +34,8 @@
   | specific_room.
 
 -type endpoint() ::
-    all_users
+    {page, bbmustache:template()}
+  | all_users
   | all_rooms
   | {specific_room, RoomId :: tianjiupai_room:room_id()}.
 
@@ -141,15 +142,8 @@ provide_page(Req0, State) ->
 ) ->
     binary().
 handle_page(Template, MaybeInfo) ->
-    Flags =
-        case MaybeInfo of
-            undefined ->
-                #{user_id => #{type => <<"nothing">>}};
-            #{user_id := UserId} ->
-                #{user_id => #{type => <<"just">>, value => UserId}}
-        end,
-    FlagsBin = jsone:encode(Flags),
-    bbmustache:compile(Template, #{"flags" => <<"'", FlagsBin/binary, "'">>}, [{escape_fun, fun(Bin) -> Bin end}]).
+    FlagsBin = make_flags_from_cookie(MaybeInfo),
+    bbmustache:compile(Template, #{"flags" => FlagsBin}, [{escape_fun, fun(Bin) -> Bin end}]).
 
 %% @doc `POST /users'
 -spec handle_user_creation(
@@ -248,3 +242,15 @@ set_failure_reason_to_resp_body(Reason, Req) ->
     ReasonBin = erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))),
     RespBody = jsone:encode(#{reason => ReasonBin}),
     cowboy_req:set_resp_body(RespBody, Req).
+
+-spec make_flags_from_cookie(undefined | tianjiupai_session:info()) -> binary().
+make_flags_from_cookie(MaybeInfo) ->
+    Flags =
+        case MaybeInfo of
+            undefined ->
+                #{user_id => #{type => <<"nothing">>}};
+            #{user_id := UserId} ->
+                #{user_id => #{type => <<"just">>, value => UserId}}
+        end,
+    JsonBin = jsone:encode(Flags),
+    <<"'", JsonBin/binary, "'">>.
