@@ -114,8 +114,12 @@ accept_request_body(Req0, State) ->
                 handle_user_creation(Req0, MaybeInfo);
             #state{method = <<"POST">>, endpoint = all_rooms} ->
                 handle_room_creation(Req0);
-            #state{method = <<"PUT">>, endpoint = {specific_room, RoomId}} ->
-                handle_attending(Req0, RoomId);
+            #state{
+                method       = <<"PUT">>,
+                endpoint     = {specific_room, RoomId},
+                session_info = MaybeInfo
+            } ->
+                handle_attending(Req0, MaybeInfo, RoomId);
             _ ->
                 {false, Req0}
         end,
@@ -209,8 +213,13 @@ handle_room_creation(Req0) ->
     end.
 
 %% @doc `PUT /rooms/<RoomId>'
--spec handle_attending(cowboy_req:req(), tianjiupai_room:room_id()) -> {boolean(), cowboy_req:req()}.
-handle_attending(Req0, RoomId) ->
+-spec handle_attending(
+    Req       :: cowboy_req:req(),
+    MaybeInfo :: undefined | tinajiupai_session:info(),
+    RoomId    :: tianjiupai_room:room_id()
+) ->
+    {boolean(), cowboy_req:req()}.
+handle_attending(Req0, MaybeInfo, RoomId) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
     try
         jsone:decode(ReqBody)
@@ -218,18 +227,26 @@ handle_attending(Req0, RoomId) ->
         #{
           <<"user_id">> := UserId
         } when is_binary(UserId) ->
-            case tianjiupai_user:set_room(UserId, RoomId) of
-                {error, Reason1} ->
-                    Req2 = set_failure_reason_to_resp_body(Reason1, Req1),
-                    {false, Req2};
-                ok ->
-                    case tianjiupai_room:attend(RoomId, UserId) of
-                        {error, Reason2} ->
-                            Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
+            case MaybeInfo of
+                #{user_id := UserId} ->
+                %% Note that here `UserId' has already been bound.
+                %% That is, this pattern includes equality testing.
+                    case tianjiupai_user:set_room(UserId, RoomId) of
+                        {error, Reason1} ->
+                            Req2 = set_failure_reason_to_resp_body(Reason1, Req1),
                             {false, Req2};
                         ok ->
-                            {true, Req1}
-                    end
+                            case tianjiupai_room:attend(RoomId, UserId) of
+                                {error, Reason2} ->
+                                    Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
+                                    {false, Req2};
+                                ok ->
+                                    {true, Req1}
+                            end
+                    end;
+                _ ->
+                    Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
+                    {false, Req2}
             end
     catch
         Class:Reason ->
