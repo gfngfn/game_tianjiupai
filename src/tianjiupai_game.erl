@@ -47,8 +47,8 @@
 %%====================================================================================================
 -spec get_user_ids(playing_state()) -> [tianjiupai:user_id()].
 get_user_ids(Play) ->
-    #playing_state{players = {P0, P1, P2, P3}} = Play,
-    lists:map(fun(#player{user_id = U}) -> U end, [P0, P1, P2, P3]).
+    #playing_state{players = Players} = Play,
+    lists:map(fun(#player{user_id = U}) -> U end, Players).
 
 -spec initial_state(player_index(), [{tianjiupai:user_id(), [card()]}]) -> playing_state().
 initial_state(Parent, UserIdsAndHands) ->

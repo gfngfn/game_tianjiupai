@@ -149,13 +149,13 @@ handle_call(CallMsg, _From, State0) ->
         {exit, UserId} ->
             case GameState0 of
                 {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
-                    WaitingMembers =
+                    WaitingMembers1 =
                         lists:filter(
                             fun(#waiting_member{user_id = UserId0}) ->
                                 UserId0 =/= UserId
                             end,
                             WaitingMembers0),
-                    {{waiting, #waiting_state{waiting_members = WaitingMembers}}, ok};
+                    {{waiting, #waiting_state{waiting_members = WaitingMembers1}}, ok};
                 {playing, _} ->
                     {GameState0, {error, playing}}
             end
