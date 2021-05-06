@@ -53,31 +53,9 @@
     waiting_members :: [#waiting_member{}]
 }).
 
--type card() ::
-    {wen, non_neg_integer()}
-  | {wu, non_neg_integer()}.
-
--type submit() ::
-    {single, card()}
-  | {double, card(), card()}
-  | {triple, card(), card(), card()}
-  | {quadruple, card(), card(), card(), card()}.
-
--record(player, {
-    hands     :: [card()],
-    gained    :: [card()],
-    submitted :: submit()
-}).
-
--record(playing_state, {
-    user_ids :: {tianjiupai:user_id(), tianjiupai:user_id(), tianjiupai:user_id(), tianjiupai:user_id()},
-    parent   :: 0 | 1 | 2 | 3,
-    players  :: {#player{}, #player{}, #player{}, #player{}}
-}).
-
 -type game_state() ::
     {waiting, #waiting_state{}}
-  | {playing, #playing_state{}}.
+  | {playing, tianjiupai_game:playing_state()}.
 
 -record(state, {
     settings   :: #settings{},
@@ -128,8 +106,9 @@ handle_call(CallMsg, _From, State0) ->
                 case GameState0 of
                     {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
                         {false, lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers)};
-                    {playing, #playing_state{user_ids = {U0, U1, U2, U3}}} ->
-                        {true, [U0, U1, U2, U3]}
+                    {playing, Play} ->
+                        UserIds = tianjiupai_game:get_user_ids(Play),
+                        {true, UserIds}
                 end,
             %% RoomState :: room_state()
             RoomState = #{
@@ -145,12 +124,24 @@ handle_call(CallMsg, _From, State0) ->
             {GameState1, Reply} =
                 case GameState0 of
                     {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
-                        WaitingMember =
-                            #waiting_member{
-                                user_id  = UserId,
-                                is_ready = false
-                            },
-                        {{waiting, #waiting_state{waiting_members = [WaitingMember | WaitingMembers0]}}, ok};
+                        case
+                            lists:any(
+                                fun(#waiting_member{user_id = UserId0}) ->
+                                    UserId0 =:= UserId
+                                end,
+                                WaitingMembers0)
+                        of
+                            true ->
+                                {GameState0, ok};
+                            false ->
+                                WaitingMember =
+                                    #waiting_member{
+                                        user_id  = UserId,
+                                        is_ready = false
+                                    },
+                                WaitingMembers1 = [WaitingMember | WaitingMembers0],
+                                {{waiting, #waiting_state{waiting_members = WaitingMembers1}}, ok}
+                        end;
                     {playing, _} ->
                         {GameState0, {error, playing}}
                 end,
