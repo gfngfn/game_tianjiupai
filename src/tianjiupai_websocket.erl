@@ -38,27 +38,53 @@
 %% `cowboy_websocket' Callback Functions
 %%====================================================================================================
 init(Req0, _) ->
+    io:format("~p, init~n", [?MODULE]), % TODO
     {MaybeInfo, Req1} = tianjiupai_session:get(Req0),
     State = #state{session_info = MaybeInfo},
     {cowboy_websocket, Req1, State}.
 
 websocket_init(State) ->
     #state{session_info = MaybeInfo} = State,
+    io:format("~p, websocket_init (info: ~p)~n", [?MODULE, MaybeInfo]), % TODO
     case MaybeInfo of
         undefined ->
             {ok, State};
         #{user_id := UserId} ->
             case register_name(UserId) of
                 yes ->
+                    io:format("~p, succeeded in registration~n", [?MODULE]), % TODO
                     {ok, State};
                 no ->
                 %% If `UserId' has already have a connection
+                    io:format("~p, failed in registration~n", [?MODULE]), % TODO
                     {ok, State} %% TODO: emit an error
             end
     end.
 
-websocket_handle(_Data, State) ->
-    {ok, State}.
+websocket_handle(Data, State) ->
+    case Data of
+        {text, Text} ->
+            try
+                jsone:decode(Text)
+            of
+                #{
+                    <<"command">> := <<"set_user_id">>,
+                    <<"user_id">> := UserId
+                } when is_binary(UserId) ->
+                    io:format("~p: receive (user_id: ~p)~n", [?MODULE, UserId]), % TODO
+                    Info = #{user_id => UserId},
+                    {ok, State#state{session_info = Info}};
+                _ ->
+                    io:format("~p: receive (text: ~p)~n", [?MODULE, Text]), % TODO
+                    {ok, State}
+            catch
+                _:_ ->
+                    io:format("~p: receive (text: ~p)~n", [?MODULE, Text]), % TODO
+                    {ok, State}
+            end;
+        _ ->
+            {ok, State}
+    end.
 
 -spec websocket_info(message(), #state{}) -> {reply, [cow_ws:frame()], #state{}}.
 websocket_info(Msg, State) ->
@@ -79,7 +105,22 @@ notify_game_start(UserId) ->
 %%====================================================================================================
 -spec register_name(tianjiupai:user_id()) -> yes | no.
 register_name(UserId) ->
-    global:register_name(name(UserId), self(), fun(_Name, _Pid1, _Pid2) -> none end).
+    Self = self(),
+    global:register_name(
+        name(UserId),
+        Self,
+        fun(_Name, Pid1, Pid2) ->
+                case {Pid1, Pid2} of
+                    {Self, _} ->
+                        erlang:exit(Pid2),
+                        Self;
+                    {_, Self} ->
+                        erlang:exit(Pid1),
+                        Self;
+                    _ ->
+                        none
+                end
+        end).
 
 name(UserId) ->
     {?MODULE, UserId}.

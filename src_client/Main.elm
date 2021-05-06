@@ -10,6 +10,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 
+import Port
+
 
 type alias Flags = String
 
@@ -40,6 +42,7 @@ type Msg
   | UpdateUserName UserName
   | Send Request
   | Receive Response
+  | ReceiveWebSocketMessage String
 
 type alias User =
   { id   : UserId
@@ -92,6 +95,14 @@ flagDecoder =
   JD.field "user" flagMaybeUserDecoder
 
 
+setUserIdCommandEncoder : User -> JE.Value
+setUserIdCommandEncoder user =
+  JE.object
+    [ ( "command", JE.string "set_user_id" )
+    , ( "user_id", JE.string user.id )
+    ]
+
+
 initInputs : InputModel
 initInputs =
   { userName = "" }
@@ -113,8 +124,18 @@ init flagString url navKey =
       , inputs        = initInputs
       , user          = maybeUser
       }
+
+    cmd : Cmd Msg
+    cmd =
+      case maybeUser of
+          Nothing ->
+              Cmd.none
+
+          Just user ->
+              let s = JE.encode 0 (setUserIdCommandEncoder user) in
+              Port.sendWebSocketMessage s
   in
-  ( model, Cmd.none )
+  ( model, cmd )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -138,6 +159,9 @@ update msg model =
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
+
+    ReceiveWebSocketMessage s ->
+        ( {model | message = "[websocket] " ++ s }, Cmd.none )
 
     UrlChange url ->
       ( model, Cmd.none )
@@ -215,4 +239,4 @@ makeCmdFromRequest req model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Port.receiveWebSocketMessage ReceiveWebSocketMessage
