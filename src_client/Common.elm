@@ -30,12 +30,25 @@ type alias InputModel =
   , chatText : String
   }
 
+type alias RoomState =
+  () -- TODO
+
+type State
+  = AtEntrance
+  | AtPlaza { user : User, rooms : List Room }
+  | InRoom { user : User, room : Room, roomState : RoomState }
+
+type Preparation
+  = NoPreparation
+  | MovingToPlaza { user : Maybe User, rooms : Maybe (List Room) }
+  | EnteringRoom
+
 type alias Model =
   { navigationKey : Navigation.Key
   , message       : String
   , inputs        : InputModel
-  , user          : Maybe User
-  , rooms         : Maybe (List Room)
+  , state         : State
+  , preparation   : Preparation
   }
 
 type Request
@@ -46,8 +59,8 @@ type Request
 type Response
   = UserCreated UserName (Result Http.Error UserId)
   | RoomCreated RoomName (Result Http.Error RoomId)
-  | RoomEntered RoomId (Result Http.Error ())
-  | RoomsGot (Result Http.Error (List Room))
+  | RoomEntered RoomId (Result Http.Error Room)
+  | AllRoomsGot (Result Http.Error (List Room))
 
 type WebSocketRequest
   = SendChat

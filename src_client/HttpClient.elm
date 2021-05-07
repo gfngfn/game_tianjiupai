@@ -1,4 +1,4 @@
-module HttpClient exposing (createUser, createRoom, enterRoom, getRooms)
+module HttpClient exposing (createUser, createRoom, enterRoom, getRoom, getAllRooms)
 
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
@@ -80,15 +80,23 @@ enterRoom userId roomId =
     , headers = []
     , url     = "http://" ++ host ++ "/rooms/" ++ roomId
     , body    = Http.jsonBody (enterRoomBodyEncoder userId)
-    , expect  = Http.expectWhatever (RoomEntered roomId)
+    , expect  = Http.expectJson (RoomEntered roomId) roomDecoder
     , timeout = Nothing
     , tracker = Nothing
     }
 
 
-getRooms : Cmd Response
-getRooms =
+getAllRooms : Cmd Response
+getAllRooms =
   Http.get
     { url    = "http://" ++ host ++ "/rooms"
-    , expect = Http.expectJson RoomsGot roomsDecoder
+    , expect = Http.expectJson AllRoomsGot roomsDecoder
+    }
+
+
+getRoom : RoomId -> Cmd Response
+getRoom roomId =
+  Http.get
+    { url    = "http://" ++ host ++ "/rooms/" ++ roomId
+    , expect = Http.expectJson (RoomEntered roomId) roomDecoder
     }

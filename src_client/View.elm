@@ -11,17 +11,15 @@ viewBody : Model -> List (Html Msg)
 viewBody model =
   let
     elemMain =
-      case model.user of
-        Nothing ->
+      case model.state of
+        AtEntrance ->
           viewEntrance model
 
-        Just user ->
-          case user.belongsTo of
-            Nothing ->
-              viewRoomListPage model user
+        AtPlaza r ->
+          viewPlaza model r.user r.rooms
 
-            Just roomId ->
-              viewRoomPage model roomId
+        InRoom r ->
+          viewRoom model r.user r.room r.roomState
   in
   [ div []
       [ div [] [ text model.message ]
@@ -45,12 +43,12 @@ viewEntrance model =
     ]
 
 
-viewRoomListPage : Model -> User -> Html Msg
-viewRoomListPage model user =
+viewPlaza : Model -> User -> List Room -> Html Msg
+viewPlaza model user rooms =
   div []
     [ div []
         [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
-    , viewRoomList model
+    , viewRoomList rooms
     , div []
         [ input
             [ type_ "text"
@@ -65,45 +63,33 @@ viewRoomListPage model user =
     ]
 
 
-viewRoomList : Model -> Html Msg
-viewRoomList model =
-  case model.rooms of
-    Nothing ->
-      div [] [ text "(Rooms will be shown here)" ]
-
-    Just rooms ->
-      let
-        elems =
-          List.map (\room ->
-            let members = String.join ", " room.members in
-            li []
-            [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")")
-            , button
-                [ onClick (Send (EnterRoom room.id)) ]
-                [ text "enter" ]
-            ]
-          ) rooms
-      in
-      ul [] elems
+viewRoomList : List Room -> Html Msg
+viewRoomList rooms =
+  let
+    elems =
+      List.map (\room ->
+        let members = String.join ", " room.members in
+        li []
+        [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")")
+        , button
+            [ onClick (Send (EnterRoom room.id)) ]
+            [ text "enter" ]
+        ]
+      ) rooms
+  in
+  ul [] elems
 
 
-viewRoomPage : Model -> RoomId -> Html Msg
-viewRoomPage model roomId =
+viewRoom : Model -> User -> Room -> RoomState -> Html Msg
+viewRoom model user room roomState =
   let
     members =
-      case model.rooms of
-        Nothing ->
-          "(Cannot find the room. Please reload the page)"
-
-        Just rooms ->
-          case List.filter (\room -> room.id == roomId) rooms of
-            []        -> "(Cannot find the room. Please reload the page)"
-            room :: _ -> String.join ", " room.members
+      String.join ", " room.members
   in
   div []
     [ div []
         [ div []
-            [ text ("Room (ID: " ++ roomId ++ ", members: " ++ members ++ ")") ]
+            [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")") ]
         ]
     , div []
         [ div []
