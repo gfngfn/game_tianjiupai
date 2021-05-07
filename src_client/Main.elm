@@ -128,7 +128,28 @@ update msg model =
                   ( model, Cmd.none )
 
                 Just user ->
-                  ( { model | user = Just { user | belongsTo = Just roomId } }, Cmd.none )
+                  let
+                    rooms =
+                      case model.rooms of
+                        Nothing ->
+                          Nothing
+
+                        Just rooms0 ->
+                          let
+                            rooms1 =
+                              rooms0 |> List.map (\room ->
+                                if room.id == roomId then
+                                  if List.member user.id room.members then
+                                    room
+                                  else
+                                    { room | members = room.members ++ [user.id] }
+                                else
+                                  room
+                              )
+                          in
+                          Just rooms1
+                  in
+                  ( { model | rooms = rooms, user = Just { user | belongsTo = Just roomId } }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
@@ -167,7 +188,12 @@ viewBody model =
           viewEntrance model
 
         Just user ->
-          viewRoomListPage model user
+          case user.belongsTo of
+            Nothing ->
+              viewRoomListPage model user
+
+            Just roomId ->
+              viewRoomPage model roomId
   in
   [ div []
       [ div [] [ text model.message ]
@@ -208,17 +234,6 @@ viewRoomListPage model user =
             [ onClick (Send CreateRoom) ]
             [ text "create" ]
         ]
-    , div []
-        [ input
-            [ type_ "text"
-            , placeholder "comment"
-            , value model.inputs.chatText
-            , onInput (UpdateInput << ChatInput)
-            ] []
-        , button
-            [ onClick (SendWebSocketMessage SendChat) ]
-            [ text "send" ]
-        ]
     ]
 
 
@@ -242,6 +257,41 @@ viewRoomList model =
           ) rooms
       in
       ul [] elems
+
+
+viewRoomPage : Model -> RoomId -> Html Msg
+viewRoomPage model roomId =
+  let
+    members =
+      case model.rooms of
+        Nothing ->
+          "(Cannot find the room. Please reload the page)"
+
+        Just rooms ->
+          case List.filter (\room -> room.id == roomId) rooms of
+            []        -> "(Cannot find the room. Please reload the page)"
+            room :: _ -> String.join ", " room.members
+  in
+  div []
+    [ div []
+        [ div []
+            [ text ("Room (ID: " ++ roomId ++ ", members: " ++ members ++ ")") ]
+        ]
+    , div []
+        [ div []
+            [ input
+                [ type_ "text"
+                , placeholder "comment"
+                , value model.inputs.chatText
+                , onInput (UpdateInput << ChatInput)
+                ] []
+            , button
+                [ onClick (SendWebSocketMessage SendChat) ]
+                [ text "send" ]
+            ]
+        ]
+    ]
+
 
 
 makeErrorMessage : Http.Error -> String
