@@ -6,16 +6,8 @@ import Json.Decode as JD exposing (Decoder)
 import Common exposing (..)
 
 
-flagUserDecoder : Decoder User
-flagUserDecoder =
-    JD.map2
-      (\userId userName -> { id = userId, name = userName })
-      (JD.field "id" JD.string)
-      (JD.field "name" JD.string)
-
-
-flagMaybeUserDecoder : Decoder (Maybe User)
-flagMaybeUserDecoder =
+maybeDecoder : Decoder a -> Decoder (Maybe a)
+maybeDecoder jd =
   JD.field "type" JD.string
     |> JD.andThen (\s ->
       case s of
@@ -23,16 +15,26 @@ flagMaybeUserDecoder =
           JD.succeed Nothing
 
         "just" ->
-          JD.field "value" flagUserDecoder |> JD.map Just
+          JD.field "value" jd |> JD.map Just
 
         _ ->
           JD.fail "other than 'just' or 'nothing'"
     )
 
 
+flagUserDecoder : Decoder User
+flagUserDecoder =
+    JD.map3
+      (\userId userName belongsTo -> { id = userId, name = userName, belongsTo = belongsTo })
+      (JD.field "id" JD.string)
+      (JD.field "name" JD.string)
+      (JD.field "belongs_to" (maybeDecoder JD.string))
+
+
+
 flagDecoder : Decoder (Maybe User)
 flagDecoder =
-  JD.field "user" flagMaybeUserDecoder
+  JD.field "user" (maybeDecoder flagUserDecoder)
 
 
 decode : String -> Result JD.Error (Maybe User)

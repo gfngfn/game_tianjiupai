@@ -13,8 +13,9 @@ type alias RoomId = String
 type alias RoomName = String
 
 type alias User =
-  { id   : UserId
-  , name : UserName
+  { id        : UserId
+  , name      : UserName
+  , belongsTo : Maybe RoomId
   }
 
 type alias Room =
@@ -40,10 +41,12 @@ type alias Model =
 type Request
   = CreateUser
   | CreateRoom
+  | EnterRoom RoomId
 
 type Response
   = UserCreated UserName (Result Http.Error UserId)
   | RoomCreated RoomName (Result Http.Error RoomId)
+  | RoomEntered RoomId (Result Http.Error ())
   | RoomsGot (Result Http.Error (List Room))
 
 type WebSocketRequest

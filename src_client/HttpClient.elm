@@ -1,4 +1,4 @@
-module HttpClient exposing (createUser, createRoom, getRooms)
+module HttpClient exposing (createUser, createRoom, enterRoom, getRooms)
 
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
@@ -48,6 +48,13 @@ createRoomBodyEncoder userId roomName =
     , ( "room_name", JE.string roomName )
     ]
 
+
+enterRoomBodyEncoder : UserId -> JE.Value
+enterRoomBodyEncoder userId =
+  JE.object
+    [ ( "user_id", JE.string userId ) ]
+
+
 createUser : UserName -> Cmd Response
 createUser userName =
   Http.post
@@ -63,6 +70,19 @@ createRoom userId roomName =
     { url    = "http://" ++ host ++ "/rooms"
     , body   = Http.jsonBody (createRoomBodyEncoder userId roomName)
     , expect = Http.expectJson (RoomCreated roomName) roomIdDecoder
+    }
+
+
+enterRoom : UserId -> RoomId -> Cmd Response
+enterRoom userId roomId =
+  Http.request
+    { method  = "PUT"
+    , headers = []
+    , url     = "http://" ++ host ++ "/rooms/" ++ roomId
+    , body    = Http.jsonBody (enterRoomBodyEncoder userId)
+    , expect  = Http.expectWhatever (RoomEntered roomId)
+    , timeout = Nothing
+    , tracker = Nothing
     }
 
 

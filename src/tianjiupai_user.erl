@@ -3,14 +3,23 @@
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
+-export_type([
+    info/0
+]).
 -export([
     create/1,
     exists/1,
     get_name/1,
+    get_info/1,
     set_room/2,
     send_chat/2,
     notify_chat/3
 ]).
+
+%%====================================================================================================
+%% Macros & Types
+%%====================================================================================================
+-type info() :: tianjiupai_user_server:info().
 
 %%====================================================================================================
 %% Exported Functions
@@ -30,6 +39,10 @@ exists(UserId) ->
 -spec get_name(tianjiupai:user_id()) -> {ok, binary()} | {error, Reason :: term()}.
 get_name(UserId) ->
     tianjiupai_user_server:get_name(UserId).
+
+-spec get_info(tianjiupai:user_id()) -> {ok, info()} | {error, Reason :: term()}.
+get_info(UserId) ->
+    tianjiupai_user_server:get_info(UserId).
 
 -spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, Reason :: term()}.
 set_room(UserId, RoomId) ->

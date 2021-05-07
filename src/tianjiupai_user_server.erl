@@ -14,15 +14,17 @@
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
+-export_type([
+    info/0,
+    error_reason/0
+]).
 -export([
     start_link/2,
     exists/1,
     get_name/1,
     get_room/1,
+    get_info/1,
     set_room/2
-]).
--export_type([
-    error_reason/0
 ]).
 
 %%====================================================================================================
@@ -37,6 +39,11 @@
     settings   :: #settings{},
     belongs_to :: none | {value, {tianjiupai:room_id(), reference()}}
 }).
+
+-type info() :: #{
+    user_name  := binary(),
+    belongs_to := none | {value, tianjiupai:room_id()}
+}.
 
 -type error_reason() ::
     tianjiupai_room_server:error_reason()
@@ -63,7 +70,9 @@ init({UserId, UserName}) ->
     (get_room, {pid(), reference()}, #state{}) -> {reply, GetRoomReply, #state{}} when
         GetRoomReply :: {ok, none | {value, tianjiupai:room_id()}, #state{}};
     (get_name, {pid(), reference()}, #state{}) -> {reply, GetNameReply, #state{}} when
-        GetNameReply :: {ok, binary()} | {error, error_reason()}.
+        GetNameReply :: {ok, binary()} | {error, error_reason()};
+    (get_info, {pid(), reference()}, #state{}) -> {reply, GetInfoReply, #state{}} when
+        GetInfoReply :: {ok, info()} | {error, error_reason()}.
 handle_call(CallMsg, _From, State0) ->
     #state{
        settings   = #settings{user_id = UserId, user_name = UserName},
@@ -79,6 +88,17 @@ handle_call(CallMsg, _From, State0) ->
                     {value, {RoomId, _MonitorRef}} -> {value, RoomId}
                 end,
             {reply, {ok, Content}, State0};
+        get_info ->
+            MaybeRoomId =
+                case BelongsTo0 of
+                    none                           -> none;
+                    {value, {RoomId, _MonitorRef}} -> {value, RoomId}
+                end,
+            Info = #{
+                user_name  => UserName,
+                belongs_to => MaybeRoomId
+            },
+            {reply, {ok, Info}, State0};
         {set_room, RoomId} ->
             Result =
                 case BelongsTo0 of
@@ -145,6 +165,10 @@ get_name(UserId) ->
 -spec get_room(tianjiupai:user_id()) -> {ok, none | {value, tianjiupai:room_id()}} | {error, error_reason()}.
 get_room(UserId) ->
     call(UserId, get_room).
+
+-spec get_info(tianjiupai:user_id()) -> {ok, info()} | {error, error_reason()}.
+get_info(UserId) ->
+    call(UserId, get_info).
 
 -spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, error_reason()}.
 set_room(UserId, RoomId) ->

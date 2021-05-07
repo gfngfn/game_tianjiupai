@@ -324,9 +324,26 @@ make_flags_from_cookie(MaybeInfo) ->
             undefined ->
                 #{user => #{type => <<"nothing">>}};
             #{user_id := UserId} ->
-                case tianjiupai_user:get_name(UserId) of
-                    {ok, UserName} ->
-                        #{user => #{type => <<"just">>, value => #{id => UserId, name => UserName}}};
+                case tianjiupai_user:get_info(UserId) of
+                    {ok, Info} ->
+                        #{user_name := UserName, belongs_to := MaybeRoomId} = Info,
+                        BelongsToMap =
+                            case MaybeRoomId of
+                                none ->
+                                    #{type => <<"nothing">>};
+                                {value, RoomId} ->
+                                    #{type  => <<"just">>, value => RoomId}
+                            end,
+                        #{
+                            user => #{
+                                type => <<"just">>,
+                                value => #{
+                                    id         => UserId,
+                                    name       => UserName,
+                                    belongs_to => BelongsToMap
+                                }
+                            }
+                        };
                     {error, _} ->
                         #{user => #{type => <<"nothing">>}}
                 end

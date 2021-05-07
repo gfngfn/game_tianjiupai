@@ -99,7 +99,7 @@ update msg model =
         UserCreated userName result ->
           case result of
             Ok userId ->
-              let user = { id = userId, name = userName } in
+              let user = { id = userId, name = userName, belongsTo = Nothing } in
               let cmd = WebSocketClient.setUserId userId in
               ( { model | user = Just user }, cmd )
 
@@ -116,6 +116,19 @@ update msg model =
 
                   Just rooms ->
                     ( { model | rooms = Just (room :: rooms) }, Cmd.none )
+
+            Err err ->
+              ( { model | message = makeErrorMessage err }, Cmd.none )
+
+        RoomEntered roomId result ->
+          case result of
+            Ok () ->
+              case model.user of
+                Nothing ->
+                  ( model, Cmd.none )
+
+                Just user ->
+                  ( { model | user = Just { user | belongsTo = Just roomId } }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
@@ -187,7 +200,7 @@ viewRoomListPage model user =
     , div []
         [ input
             [ type_ "text"
-            , placeholder "room name"
+            , placeholder "new room name"
             , value model.inputs.roomName
             , onInput (UpdateInput << RoomNameInput)
             ] []
@@ -220,7 +233,12 @@ viewRoomList model =
         elems =
           List.map (\room ->
             let members = String.join ", " room.members in
-            li [] [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")") ]
+            li []
+            [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")")
+            , button
+                [ onClick (Send (EnterRoom room.id)) ]
+                [ text "enter" ]
+            ]
           ) rooms
       in
       ul [] elems
@@ -257,6 +275,15 @@ updateByHttpRequest req model =
           let inputs = model.inputs in
           let cmd = HttpClient.createRoom user.id inputs.roomName in
           ( { model | inputs = { inputs | roomName = "" } }, cmd )
+
+    EnterRoom roomId ->
+      case model.user of
+        Nothing ->
+          ( model, Cmd.none )
+
+        Just user ->
+          let cmd = HttpClient.enterRoom user.id roomId in
+          ( model, cmd )
 
 
 updateByWebSocketRequest : WebSocketRequest -> Model -> ( Model, Cmd Msg )
