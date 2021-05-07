@@ -7,7 +7,9 @@
     create/1,
     exists/1,
     get_name/1,
-    set_room/2
+    set_room/2,
+    send_chat/2,
+    notify_chat/3
 ]).
 
 %%====================================================================================================
@@ -32,6 +34,30 @@ get_name(UserId) ->
 -spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, Reason :: term()}.
 set_room(UserId, RoomId) ->
     tianjiupai_user_server:set_room(UserId, RoomId).
+
+-spec send_chat(tianjiupai:user_id(), binary()) -> ok | {error, Reason :: term()}.
+send_chat(UserId, Text) ->
+    case tianjiupai_user_server:get_room(UserId) of
+        {error, _} = Err      -> Err;
+        {ok, none}            -> {error, {does_not_belong_to_any_room, UserId}};
+        {ok, {value, RoomId}} -> tianjiupai_room:send_chat(RoomId, UserId, Text)
+    end.
+
+-spec notify_chat(
+    To   :: tianjiupai:user_id(),
+    From :: tianjiupai:user_id(),
+    Text :: binary()
+) ->
+    ok.
+notify_chat(UserId, From, Text) ->
+    case tianjiupai_websocket:notify_chat(UserId, From, Text) of
+        ok ->
+            ok;
+        {error, Reason} ->
+            io:format("~p, notify_chat failed (reason: ~p, to: ~p, from: ~p, text: ~p)",
+                [?MODULE, Reason, UserId, From, Text]),
+            ok
+    end.
 
 %%====================================================================================================
 %% Internal Functions

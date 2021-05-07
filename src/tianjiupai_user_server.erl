@@ -18,6 +18,7 @@
     start_link/2,
     exists/1,
     get_name/1,
+    get_room/1,
     set_room/2
 ]).
 -export_type([
@@ -59,6 +60,8 @@ init({UserId, UserName}) ->
 -spec handle_call
     ({set_room, tianjiupai:room_id()}, {pid(), reference()}, #state{}) -> {reply, SetRoomReply, #state{}} when
         SetRoomReply :: ok | {error, error_reason()};
+    (get_room, {pid(), reference()}, #state{}) -> {reply, GetRoomReply, #state{}} when
+        GetRoomReply :: {ok, none | {value, tianjiupai:room_id()}, #state{}};
     (get_name, {pid(), reference()}, #state{}) -> {reply, GetNameReply, #state{}} when
         GetNameReply :: {ok, binary()} | {error, error_reason()}.
 handle_call(CallMsg, _From, State0) ->
@@ -69,6 +72,13 @@ handle_call(CallMsg, _From, State0) ->
     case CallMsg of
         get_name ->
             {reply, {ok, UserName}, State0};
+        get_room ->
+            Content =
+                case BelongsTo0 of
+                    none                           -> none;
+                    {value, {RoomId, _MonitorRef}} -> {value, RoomId}
+                end,
+            {reply, {ok, Content}, State0};
         {set_room, RoomId} ->
             Result =
                 case BelongsTo0 of
@@ -130,35 +140,32 @@ exists(UserId) ->
 
 -spec get_name(tianjiupai:user_id()) -> {ok, binary()} | {error, error_reason()}.
 get_name(UserId) ->
-    case get_pid(UserId) of
-        undefined ->
-            {error, user_not_found};
-        Pid ->
-            try
-                gen_server:call(Pid, get_name)
-            catch
-                Class:Reason ->
-                    {error, {failed_to_call, Class, Reason}}
-            end
-    end.
+    call(UserId, get_name).
+
+-spec get_room(tianjiupai:user_id()) -> {ok, none | {value, tianjiupai:room_id()}} | {error, error_reason()}.
+get_room(UserId) ->
+    call(UserId, get_room).
 
 -spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, error_reason()}.
 set_room(UserId, RoomId) ->
-    case get_pid(UserId) of
-        undefined ->
-            {error, user_not_found};
-        Pid ->
-            try
-                gen_server:call(Pid, {set_room, RoomId})
-            catch
-                Class:Reason ->
-                    {error, {failed_to_call, Class, Reason}}
-            end
-    end.
+    call(UserId, {set_room, RoomId}).
 
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
+call(UserId, Msg) ->
+    case get_pid(UserId) of
+        undefined ->
+            {error, user_not_found};
+        Pid ->
+            try
+                gen_server:call(Pid, Msg)
+            catch
+                Class:Reason ->
+                    {error, {failed_to_call, Class, Reason}}
+            end
+    end.
+
 name(UserId) ->
     {global, name_main(UserId)}.
 

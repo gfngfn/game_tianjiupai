@@ -8,6 +8,7 @@
     get_all_rooms/0,
     attend/2,
     exit/2,
+    send_chat/3,
     monitor/1
 ]).
 -export_type([
@@ -46,6 +47,9 @@ attend(RoomId, UserId) ->
 -spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
 exit(RoomId, UserId) ->
     tianjiupai_room_server:exit(RoomId, UserId).
+
+send_chat(RoomId, From, Text) ->
+    tianjiupai_room_server:send_chat(RoomId, From, Text).
 
 -spec monitor(tinajiupai:room_id()) -> {ok, reference()} | {error, {room_not_found, tianjiupai:room_id()}}.
 monitor(RoomId) ->

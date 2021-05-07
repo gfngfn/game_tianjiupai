@@ -19,6 +19,7 @@
     attend/2,
     exit/2,
     monitor/1,
+    send_chat/3,
     get_state_by_proc/1
 ]).
 -export_type([
@@ -86,8 +87,9 @@ init({RoomId, RoomName}) ->
         GetStateReply :: {ok, room_state()};
     ({attend, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, AttendReply, #state{}} when
         AttendReply :: ok | {error, error_reason()};
-    ({exit, tianjiupai:user_id()},   {pid(), reference()}, #state{}) -> {reply, ExitReply, #state{}} when
-        ExitReply :: ok | {error, error_reason()}.
+    ({exit, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, ExitReply, #state{}} when
+        ExitReply :: ok | {error, error_reason()};
+    ({send_chat, tianjiupai:user_id(), binary()}, {pid(), reference()}, #state{}) -> {reply, ok, #state{}}.
 handle_call(CallMsg, _From, State0) ->
     #state{
         settings =
@@ -102,14 +104,7 @@ handle_call(CallMsg, _From, State0) ->
         get_state ->
             %% IsPlaying :: boolean()
             %% Members :: [tianjiupai:user_id()]
-            {IsPlaying, Members} =
-                case GameState0 of
-                    {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
-                        {false, lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers)};
-                    {playing, Play} ->
-                        UserIds = tianjiupai_game:get_user_ids(Play),
-                        {true, UserIds}
-                end,
+            {IsPlaying, Members} = get_members_from_state(GameState0),
             %% RoomState :: room_state()
             RoomState = #{
                 room_id    => RoomId,
@@ -118,6 +113,14 @@ handle_call(CallMsg, _From, State0) ->
                 members    => Members
             },
             {reply, {ok, RoomState}, State0};
+        {send_chat, From, Text} ->
+            {_IsPlaying, Members} = get_members_from_state(GameState0),
+            lists:foreach(
+                fun(UserId) ->
+                    tianjiupai_user:notify_chat(UserId, From, Text)
+                end,
+                Members),
+            {reply, ok, State0};
         {attend, UserId} ->
             %% GameState1 :: game_state()
             %% Reply :: attend_reply()
@@ -182,31 +185,15 @@ start_link(RoomId, RoomName) ->
 
 -spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, error_reason()}.
 attend(RoomId, UserId) ->
-    case get_pid(RoomId) of
-        undefined ->
-            {error, {room_not_found, RoomId}};
-        Pid ->
-            try
-                gen_server:call(Pid, {attend, UserId})
-            catch
-                Class:Reason ->
-                    {error, {failed_to_call, Class, Reason}}
-            end
-    end.
+    call(RoomId, {attend, UserId}).
 
 -spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, error_reason()}.
 exit(RoomId, UserId) ->
-    case get_pid(RoomId) of
-        undefined ->
-            {error, {room_not_found, RoomId}};
-        Pid ->
-            try
-                gen_server:call(Pid, {exit, UserId})
-            catch
-                Class:Reason ->
-                    {error, {failed_to_call, Class, Reason}}
-            end
-    end.
+    call(RoomId, {exit, UserId}).
+
+-spec send_chat(tianjiupai:room_id(), tianjiupai:user_id(), binary()) -> ok | {error, error_reason()}.
+send_chat(RoomId, From, Text) ->
+    call(RoomId, {send_chat, From, Text}).
 
 -spec monitor(tianjiupai:room_id()) -> {ok, reference()} | {error, {room_not_found, tianjiupai:room_id()}}.
 monitor(RoomId) ->
@@ -227,6 +214,29 @@ get_state_by_proc(RoomServerProc) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
+-spec get_members_from_state(game_state()) -> {boolean(), [tianjiupai:user_id()]}.
+get_members_from_state(GameState) ->
+    case GameState of
+        {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
+            {false, lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers)};
+        {playing, Play} ->
+            UserIds = tianjiupai_game:get_user_ids(Play),
+            {true, UserIds}
+    end.
+
+call(RoomId, Msg) ->
+    case get_pid(RoomId) of
+        undefined ->
+            {error, {room_not_found, RoomId}};
+        Pid ->
+            try
+                gen_server:call(Pid, Msg)
+            catch
+                Class:Reason ->
+                    {error, {failed_to_call, Class, Reason}}
+            end
+    end.
+
 name(RoomId) ->
     {global, name_main(RoomId)}.
 

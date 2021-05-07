@@ -10,44 +10,9 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 
-import Port
-
-
-type alias Flags = String
-
-type alias UserId = String
-
-type alias UserName = String
-
-type alias InputModel =
-  { userName : String
-  }
-
-type alias Model =
-  { navigationKey : Navigation.Key
-  , message       : String
-  , inputs        : InputModel
-  , user          : Maybe User
-  }
-
-type Request
-  = CreateUser
-
-type Response
-  = UserCreated UserName (Result Http.Error UserId)
-
-type Msg
-  = UrlChange Url
-  | UrlRequest UrlRequest
-  | UpdateUserName UserName
-  | Send Request
-  | Receive Response
-  | ReceiveWebSocketMessage String
-
-type alias User =
-  { id   : UserId
-  , name : UserName
-  }
+import Common exposing (..)
+import Flag
+import WebSocketClient
 
 
 host : String
@@ -66,46 +31,11 @@ main =
     }
 
 
-flagUserDecoder : Decoder User
-flagUserDecoder =
-    JD.map2
-      (\userId userName -> { id = userId, name = userName })
-      (JD.field "id" JD.string)
-      (JD.field "name" JD.string)
-
-
-flagMaybeUserDecoder : Decoder (Maybe User)
-flagMaybeUserDecoder =
-  JD.field "type" JD.string
-    |> JD.andThen (\s ->
-      case s of
-        "nothing" ->
-          JD.succeed Nothing
-
-        "just" ->
-          JD.field "value" flagUserDecoder |> JD.map Just
-
-        _ ->
-          JD.fail "other than 'just' or 'nothing'"
-    )
-
-
-flagDecoder : Decoder (Maybe User)
-flagDecoder =
-  JD.field "user" flagMaybeUserDecoder
-
-
-setUserIdCommandEncoder : User -> JE.Value
-setUserIdCommandEncoder user =
-  JE.object
-    [ ( "command", JE.string "set_user_id" )
-    , ( "user_id", JE.string user.id )
-    ]
-
-
 initInputs : InputModel
 initInputs =
-  { userName = "" }
+  { userName = ""
+  , chatText = ""
+  }
 
 
 init : String -> Url -> Navigation.Key -> ( Model, Cmd Msg )
@@ -113,7 +43,7 @@ init flagString url navKey =
   let
     maybeUser : Maybe User
     maybeUser =
-      case JD.decodeString flagDecoder flagString of
+      case Flag.decode flagString of
           Ok(maybeUser0) -> maybeUser0
           Err(_)         -> Nothing
 
@@ -128,12 +58,8 @@ init flagString url navKey =
     cmd : Cmd Msg
     cmd =
       case maybeUser of
-          Nothing ->
-              Cmd.none
-
-          Just user ->
-              let s = JE.encode 0 (setUserIdCommandEncoder user) in
-              Port.sendWebSocketMessage s
+          Nothing   -> Cmd.none
+          Just user -> WebSocketClient.setUserId user.id
   in
   ( model, cmd )
 
@@ -141,9 +67,15 @@ init flagString url navKey =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
-    UpdateUserName userName ->
-      let inputs = model.inputs in
-      ( { model | inputs = { inputs | userName = userName } }, Cmd.none )
+    UpdateInput inputUpdate ->
+      case inputUpdate of
+        UserNameInput userName ->
+          let inputs = model.inputs in
+          ( { model | inputs = { inputs | userName = userName } }, Cmd.none )
+
+        ChatInput text ->
+          let inputs = model.inputs in
+          ( { model | inputs = { inputs | chatText = text } }, Cmd.none )
 
     Send req ->
       let cmd = makeCmdFromRequest req model in
@@ -155,10 +87,15 @@ update msg model =
           case result of
             Ok userId ->
               let user = { id = userId, name = userName } in
-              ( { model | user = Just user }, Cmd.none )
+              let cmd = WebSocketClient.setUserId userId in
+              ( { model | user = Just user }, cmd )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
+
+    SendWebSocketMessage wsreq ->
+        let cmd = makeCmdFromWebSocketRequest wsreq model in
+        ( model, cmd )
 
     ReceiveWebSocketMessage s ->
         ( {model | message = "[websocket] " ++ s }, Cmd.none )
@@ -188,27 +125,50 @@ viewBody model =
     elemMain =
       case model.user of
         Nothing ->
-          div []
-            [ input
-                [ type_ "text"
-                , placeholder "username"
-                , value model.inputs.userName
-                , onInput UpdateUserName
-                ] []
-            , button
-                [ onClick (Send CreateUser) ]
-                [ text "start" ]
-            ]
+          viewEntrance model
 
         Just user ->
-          div []
-            [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
+          viewRoomList model user
   in
   [ div []
       [ div [] [ text model.message ]
       , elemMain
       ]
   ]
+
+
+viewEntrance : Model -> Html Msg
+viewEntrance model =
+  div []
+    [ input
+        [ type_ "text"
+        , placeholder "username"
+        , value model.inputs.userName
+        , onInput (UpdateInput << UserNameInput)
+        ] []
+    , button
+        [ onClick (Send CreateUser) ]
+        [ text "start" ]
+    ]
+
+
+viewRoomList : Model -> User -> Html Msg
+viewRoomList model user =
+  div []
+    [ div []
+        [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
+    , div []
+        [ input
+            [ type_ "text"
+            , placeholder "comment"
+            , value model.inputs.chatText
+            , onInput (UpdateInput << ChatInput)
+            ] []
+        , button
+            [ onClick (SendWebSocketMessage SendChat) ]
+            [ text "send" ]
+        ]
+    ]
 
 
 makeErrorMessage : Http.Error -> String
@@ -237,6 +197,13 @@ makeCmdFromRequest req model =
         }
 
 
+makeCmdFromWebSocketRequest : WebSocketRequest -> Model -> Cmd Msg
+makeCmdFromWebSocketRequest wsreq model =
+  case wsreq of
+    SendChat ->
+      WebSocketClient.sendChat model.inputs.chatText
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Port.receiveWebSocketMessage ReceiveWebSocketMessage
+    WebSocketClient.subscribe
