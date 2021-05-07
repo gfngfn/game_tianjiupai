@@ -7,13 +7,25 @@ import Browser.Navigation as Navigation
 
 
 type alias Flags = String
-
 type alias UserId = String
-
 type alias UserName = String
+type alias RoomId = String
+type alias RoomName = String
+
+type alias User =
+  { id   : UserId
+  , name : UserName
+  }
+
+type alias Room =
+  { id      : RoomId
+  , name    : RoomName
+  , members : List UserId
+  }
 
 type alias InputModel =
   { userName : String
+  , roomName : String
   , chatText : String
   }
 
@@ -22,19 +34,24 @@ type alias Model =
   , message       : String
   , inputs        : InputModel
   , user          : Maybe User
+  , rooms         : Maybe (List Room)
   }
 
 type Request
   = CreateUser
+  | CreateRoom
 
 type Response
   = UserCreated UserName (Result Http.Error UserId)
+  | RoomCreated RoomName (Result Http.Error RoomId)
+  | RoomsGot (Result Http.Error (List Room))
 
 type WebSocketRequest
   = SendChat
 
 type InputUpdate
   = UserNameInput UserName
+  | RoomNameInput RoomName
   | ChatInput String
 
 type Msg
@@ -45,8 +62,3 @@ type Msg
   | Receive Response
   | SendWebSocketMessage WebSocketRequest
   | ReceiveWebSocketMessage String
-
-type alias User =
-  { id   : UserId
-  , name : UserName
-  }

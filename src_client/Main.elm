@@ -12,12 +12,8 @@ import Html.Events exposing (onClick, onInput)
 
 import Common exposing (..)
 import Flag
+import HttpClient
 import WebSocketClient
-
-
-host : String
-host =
-  "localhost:8080"
 
 
 main =
@@ -34,6 +30,7 @@ main =
 initInputs : InputModel
 initInputs =
   { userName = ""
+  , roomName = ""
   , chatText = ""
   }
 
@@ -53,15 +50,19 @@ init flagString url navKey =
       , message       = "flags: " ++ flagString
       , inputs        = initInputs
       , user          = maybeUser
+      , rooms         = Nothing
       }
 
-    cmd : Cmd Msg
-    cmd =
+    cmd1 : Cmd Msg
+    cmd1 =
       case maybeUser of
           Nothing   -> Cmd.none
           Just user -> WebSocketClient.setUserId user.id
+
+    cmd2 : Cmd Msg
+    cmd2 = Cmd.map Receive HttpClient.getRooms
   in
-  ( model, cmd )
+  ( model, Cmd.batch [cmd1, cmd2] )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -73,16 +74,28 @@ update msg model =
           let inputs = model.inputs in
           ( { model | inputs = { inputs | userName = userName } }, Cmd.none )
 
+        RoomNameInput roomName ->
+          let inputs = model.inputs in
+          ( { model | inputs = { inputs | roomName = roomName } }, Cmd.none )
+
         ChatInput text ->
           let inputs = model.inputs in
           ( { model | inputs = { inputs | chatText = text } }, Cmd.none )
 
     Send req ->
-      let cmd = makeCmdFromRequest req model in
-      ( model, Cmd.map Receive cmd )
+      let ( model1, cmd ) = updateByHttpRequest req model in
+      ( model1, Cmd.map Receive cmd )
 
     Receive response ->
       case response of
+        RoomsGot result ->
+          case result of
+            Ok rooms ->
+              ( { model | rooms = Just rooms }, Cmd.none )
+
+            Err err ->
+              ( { model | message = makeErrorMessage err }, Cmd.none )
+
         UserCreated userName result ->
           case result of
             Ok userId ->
@@ -93,9 +106,22 @@ update msg model =
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
 
+        RoomCreated roomName result ->
+          case result of
+            Ok roomId ->
+              let room = { id = roomId, name = roomName, members = [] } in
+              case model.rooms of
+                  Nothing ->
+                    ( model, Cmd.none )
+
+                  Just rooms ->
+                    ( { model | rooms = Just (room :: rooms) }, Cmd.none )
+
+            Err err ->
+              ( { model | message = makeErrorMessage err }, Cmd.none )
+
     SendWebSocketMessage wsreq ->
-        let cmd = makeCmdFromWebSocketRequest wsreq model in
-        ( model, cmd )
+        updateByWebSocketRequest wsreq model
 
     ReceiveWebSocketMessage s ->
         ( {model | message = "[websocket] " ++ s }, Cmd.none )
@@ -128,7 +154,7 @@ viewBody model =
           viewEntrance model
 
         Just user ->
-          viewRoomList model user
+          viewRoomListPage model user
   in
   [ div []
       [ div [] [ text model.message ]
@@ -152,11 +178,23 @@ viewEntrance model =
     ]
 
 
-viewRoomList : Model -> User -> Html Msg
-viewRoomList model user =
+viewRoomListPage : Model -> User -> Html Msg
+viewRoomListPage model user =
   div []
     [ div []
         [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
+    , viewRoomList model
+    , div []
+        [ input
+            [ type_ "text"
+            , placeholder "room name"
+            , value model.inputs.roomName
+            , onInput (UpdateInput << RoomNameInput)
+            ] []
+        , button
+            [ onClick (Send CreateRoom) ]
+            [ text "create" ]
+        ]
     , div []
         [ input
             [ type_ "text"
@@ -169,6 +207,23 @@ viewRoomList model user =
             [ text "send" ]
         ]
     ]
+
+
+viewRoomList : Model -> Html Msg
+viewRoomList model =
+  case model.rooms of
+    Nothing ->
+      div [] [ text "(Rooms will be shown here)" ]
+
+    Just rooms ->
+      let
+        elems =
+          List.map (\room ->
+            let members = String.join ", " room.members in
+            li [] [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")") ]
+          ) rooms
+      in
+      ul [] elems
 
 
 makeErrorMessage : Http.Error -> String
@@ -185,23 +240,32 @@ makeErrorMessage err =
   "[error] " ++ msg
 
 
-makeCmdFromRequest : Request -> Model -> Cmd Response
-makeCmdFromRequest req model =
+updateByHttpRequest : Request -> Model -> ( Model, Cmd Response )
+updateByHttpRequest req model =
   case req of
     CreateUser ->
       let userName = model.inputs.userName in
-      Http.post
-        { url    = "http://" ++ host ++ "/users"
-        , body   = Http.jsonBody (JE.object [ ( "user_name", JE.string userName ) ])
-        , expect = Http.expectJson (UserCreated userName) (JD.field "user_id" JD.string)
-        }
+      let cmd = HttpClient.createUser userName in
+      ( model, cmd )
+
+    CreateRoom ->
+      case model.user of
+        Nothing ->
+          ( model, Cmd.none )
+
+        Just user ->
+          let inputs = model.inputs in
+          let cmd = HttpClient.createRoom user.id inputs.roomName in
+          ( { model | inputs = { inputs | roomName = "" } }, cmd )
 
 
-makeCmdFromWebSocketRequest : WebSocketRequest -> Model -> Cmd Msg
-makeCmdFromWebSocketRequest wsreq model =
+updateByWebSocketRequest : WebSocketRequest -> Model -> ( Model, Cmd Msg )
+updateByWebSocketRequest wsreq model =
   case wsreq of
     SendChat ->
-      WebSocketClient.sendChat model.inputs.chatText
+      let cmd = WebSocketClient.sendChat model.inputs.chatText in
+      let inputs = model.inputs in
+      ( { model | inputs = { inputs | chatText = "" }}, cmd )
 
 
 subscriptions : Model -> Sub Msg

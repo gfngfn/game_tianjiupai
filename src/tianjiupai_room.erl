@@ -34,9 +34,12 @@ create(RoomName) ->
 -spec get_all_rooms() -> [room_state()].
 get_all_rooms() ->
     RoomServerProcs = tianjiupai_room_server_sup:which_children(),
-    lists:map(
+    lists:filtermap(
         fun(RoomServerProc) ->
-            tianjiupai_room_server:get_state_by_proc(RoomServerProc)
+            case tianjiupai_room_server:get_state_by_proc(RoomServerProc) of
+                {ok, RoomState}  -> {true, RoomState};
+                {error, _Reason} -> false
+            end
         end,
         RoomServerProcs).
 

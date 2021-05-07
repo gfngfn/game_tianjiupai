@@ -202,7 +202,7 @@ monitor(RoomId) ->
         Pid       -> {ok, erlang:monitor(process, Pid)}
     end.
 
--spec get_state_by_proc(proc()) -> room_state().
+-spec get_state_by_proc(proc()) -> {ok, room_state()} | {error, error_reason()}.
 get_state_by_proc(RoomServerProc) ->
     try
         gen_server:call(RoomServerProc, get_state)
