@@ -19,7 +19,7 @@
 ]).
 -export([
     notify_game_start/1,
-    notify_chat/3
+    notify_log/2
 ]).
 
 %%====================================================================================================
@@ -31,7 +31,7 @@
 
 -type message() ::
     game_start
-  | {chat, From :: binary(), Text :: binary()}.
+  | {log, tianjiupai_room:log()}.
 
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
@@ -75,8 +75,9 @@ websocket_info(Msg, State) ->
         game_start ->
             Bin = jsone:encode(#{command => <<"start">>}),
             {reply, [{text, Bin}], State};
-        {chat, From, Text} ->
-            Bin = jsone:encode(#{command => <<"receive_chat">>, from => From, text => Text}),
+        {log, Log} ->
+            LogObj = tianjiupai_format:make_log_object(Log),
+            Bin = jsone:encode(#{command => <<"log">>, value => LogObj}),
             {reply, [{text, Bin}], State};
         _ ->
             io:format("~p, unknown message (messge: ~p)~n", [?MODULE, Msg]),
@@ -90,14 +91,9 @@ websocket_info(Msg, State) ->
 notify_game_start(UserId) ->
     notify(UserId, game_start).
 
--spec notify_chat(
-    To   :: tianjiupai:user_id(),
-    From :: binary(),
-    Text :: binary()
-) ->
-    ok | {error, error_reason()}.
-notify_chat(UserId, From, Text) ->
-    notify(UserId, {chat, From, Text}).
+-spec notify_log(tianjiupai:user_id(), tianjiupai_room:log()) -> ok | {error, error_reason()}.
+notify_log(UserId, Log) ->
+    notify(UserId, {log, Log}).
 
 %%====================================================================================================
 %% Internal Functions

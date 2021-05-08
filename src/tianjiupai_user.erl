@@ -13,7 +13,7 @@
     get_info/1,
     set_room/2,
     send_chat/2,
-    notify_chat/3
+    notify_log/2
 ]).
 
 %%====================================================================================================
@@ -56,19 +56,18 @@ send_chat(UserId, Text) ->
         {ok, {value, RoomId}} -> tianjiupai_room:send_chat(RoomId, UserId, Text)
     end.
 
--spec notify_chat(
-    To   :: tianjiupai:user_id(),
-    From :: tianjiupai:user_id(),
-    Text :: binary()
+-spec notify_log(
+    To  :: tianjiupai:user_id(),
+    Log :: tianjiupai_room:log()
 ) ->
     ok.
-notify_chat(UserId, From, Text) ->
-    case tianjiupai_websocket:notify_chat(UserId, From, Text) of
+notify_log(UserId, Log) ->
+    case tianjiupai_websocket:notify_log(UserId, Log) of
         ok ->
             ok;
         {error, Reason} ->
-            io:format("~p, notify_chat failed (reason: ~p, to: ~p, from: ~p, text: ~p)",
-                [?MODULE, Reason, UserId, From, Text]),
+            io:format("~p, notify_chat failed (reason: ~p, to: ~p, log: ~p)",
+                [?MODULE, Reason, UserId, Log]),
             ok
     end.
 

@@ -303,50 +303,14 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
             {false, Req2}
     end.
 
-make_log_object(Log) ->
-    case Log of
-        {comment, From, Text} ->
-            #{
-                type => <<"comment">>,
-                from => From,
-                text => Text
-            };
-        {entered, UserId} ->
-            #{
-                type    => <<"entered">>,
-                user_id => UserId
-            };
-        {exited, UserId} ->
-            #{
-                type    => <<"exited">>,
-                user_id => UserId
-            }
-    end.
-
-make_room_state_object(RoomState) ->
-    #{
-        room_id    := RoomId,
-        room_name  := RoomName,
-        is_playing := IsPlaying,
-        members    := Members,
-        logs       := Logs
-    } = RoomState,
-    #{
-        room_id    => RoomId,
-        room_name  => RoomName,
-        is_playing => IsPlaying,
-        members    => Members,
-        logs       => lists:map(fun make_log_object/1, Logs)
-    }.
-
 -spec encode_room_state(tianjiupai_room:room_state()) -> binary().
 encode_room_state(RoomState) ->
-    RoomObj = make_room_state_object(RoomState),
+    RoomObj = tianjiupai_format:make_room_state_object(RoomState),
     jsone:encode(RoomObj).
 
 -spec encode_room_states([tianjiupai_room:room_state()]) -> binary().
 encode_room_states(RoomStates) ->
-    RoomObjs = lists:map(fun make_room_state_object/1, RoomStates),
+    RoomObjs = lists:map(fun tianjiupai_format:make_room_state_object/1, RoomStates),
     jsone:encode(#{rooms => RoomObjs}).
 
 -spec encode_failure_reason(Reason :: term()) -> binary().

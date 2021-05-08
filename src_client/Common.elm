@@ -71,6 +71,9 @@ type Response
 type WebSocketRequest
   = SendChat
 
+type WebSocketNotification
+  = LogNotification Log
+
 type InputUpdate
   = UserNameInput UserName
   | RoomNameInput RoomName

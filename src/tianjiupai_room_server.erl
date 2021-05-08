@@ -111,12 +111,13 @@ handle_call(CallMsg, _From, State0) ->
             {reply, {ok, RoomState}, State0};
         {send_chat, From, Text} ->
             {_IsPlaying, Members} = get_members_from_state(GameState0),
+            Log = {comment, From, Text},
             lists:foreach(
                 fun(UserId) ->
-                    tianjiupai_user:notify_chat(UserId, From, Text)
+                    tianjiupai_user:notify_log(UserId, Log)
                 end,
                 Members),
-            {reply, ok, State0#state{reversed_logs = [{comment, From, Text} | LogAcc0]}};
+            {reply, ok, State0#state{reversed_logs = [Log | LogAcc0]}};
         {attend, UserId} ->
             %% GameState1 :: game_state()
             %% Result :: ok | {error, error_reason()}
@@ -140,7 +141,14 @@ handle_call(CallMsg, _From, State0) ->
                                     },
                                 WaitingMembers1 = [WaitingMember | WaitingMembers0],
                                 GameState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
-                                {GameState, [{entered, UserId}| LogAcc0], ok}
+                                Members = lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers1),
+                                Log = {entered, UserId},
+                                lists:foreach(
+                                    fun(MemberUserId) ->
+                                        tianjiupai_user:notify_log(MemberUserId, Log)
+                                    end,
+                                    Members),
+                                {GameState, [Log | LogAcc0], ok}
                         end;
                     {playing, _} ->
                         {GameState0, LogAcc0, {error, playing}}
@@ -164,8 +172,15 @@ handle_call(CallMsg, _From, State0) ->
                                     UserId0 =/= UserId
                                 end,
                                 WaitingMembers0),
+                        Members = lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers1),
+                        Log = {exited, UserId},
+                        lists:foreach(
+                            fun(MemberUserId) ->
+                                tianjiupai_user:notify_log(MemberUserId, Log)
+                            end,
+                            Members),
                         GameState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
-                        {GameState, [{exited, UserId} | LogAcc0], ok};
+                        {GameState, [Log | LogAcc0], ok};
                     {playing, _} ->
                         {GameState0, LogAcc0, {error, playing}}
                 end,

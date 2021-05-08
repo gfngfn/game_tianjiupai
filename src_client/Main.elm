@@ -191,7 +191,7 @@ update msg model =
         updateByWebSocketRequest wsreq model
 
     ReceiveWebSocketMessage s ->
-        ( {model | message = "[websocket] " ++ s }, Cmd.none )
+        handleWebSocketNotification s model
 
     UrlChange url ->
       ( model, Cmd.none )
@@ -203,6 +203,28 @@ update msg model =
 
         Browser.Internal url ->
           ( model, Navigation.pushUrl model.navigationKey (Url.toString url) )
+
+
+handleWebSocketNotification : String -> Model -> ( Model, Cmd Msg )
+handleWebSocketNotification s model =
+  case WebSocketClient.decodeNotification s of
+    Ok notification ->
+      case notification of
+        LogNotification log ->
+          let
+            state1 =
+              case model.state of
+                InRoom r ->
+                  let room = r.room in
+                  InRoom { r | room = { room | logs = room.logs ++ [log]} }
+
+                _ ->
+                  model.state
+          in
+          ( { model | state = state1 }, Cmd.none )
+
+    Err err ->
+      ( { model | message = "[error] JSON" }, Cmd.none )
 
 
 normalizePreparation : ( State, Preparation ) -> ( State, Preparation )
