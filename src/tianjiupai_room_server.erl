@@ -137,9 +137,17 @@ handle_call(CallMsg, _From, State0) ->
                                     },
                                 WaitingMembers1 = [WaitingMember | WaitingMembers0],
                                 GameState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
-                                Members = lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers1),
+                                MembersOtherThanNewOne =
+                                    lists:filtermap(
+                                        fun(#waiting_member{user_id = UserId0}) ->
+                                            if
+                                                UserId0 =:= UserId -> false;
+                                                true               -> {true, UserId}
+                                            end
+                                        end,
+                                        WaitingMembers1),
                                 Log = {entered, UserId},
-                                notify_all_members_of_log(Members, Log),
+                                notify_all_members_of_log(MembersOtherThanNewOne, Log),
                                 {GameState, [Log | LogAcc0], ok}
                         end;
                     {playing, _} ->
