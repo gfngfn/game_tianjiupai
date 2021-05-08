@@ -47,18 +47,17 @@ init(Req0, _) ->
 
 websocket_init(State) ->
     #state{session_info = MaybeInfo} = State,
-    io:format("~p, websocket_init (info: ~p)~n", [?MODULE, MaybeInfo]), % TODO
+    io:format("~p, websocket_init (info: ~p)~n", [?MODULE, MaybeInfo]),
     case MaybeInfo of
         undefined ->
             {ok, State};
         #{user_id := UserId} ->
             case register_name(UserId) of
-                yes ->
-                    io:format("~p, succeeded in registration~n", [?MODULE]), % TODO
+                ok ->
+                    io:format("~p, succeeded in registration~n", [?MODULE]),
                     {ok, State};
-                no ->
-                %% If something bad happens
-                    io:format("~p, failed in registration~n", [?MODULE]), % TODO
+                {error, Reason} ->
+                    io:format("~p, failed in registration (reason: ~p)~n", [?MODULE, Reason]),
                     {ok, State} %% TODO: emit an error
             end
     end.
@@ -98,24 +97,31 @@ notify_log(UserId, Log) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
--spec register_name(tianjiupai:user_id()) -> yes | no.
+-spec register_name(tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
 register_name(UserId) ->
     Self = self(),
-    global:register_name(
-        name(UserId),
-        Self,
-        fun(_Name, Pid1, Pid2) ->
-                case {Pid1, Pid2} of
-                    {Self, _} ->
-                        erlang:exit(Pid2),
-                        Self;
-                    {_, Self} ->
-                        erlang:exit(Pid1),
-                        Self;
-                    _ ->
-                        none
-                end
-        end).
+    case
+        global:register_name(
+            name(UserId),
+            Self,
+            fun(_Name, Pid1, Pid2) ->
+                    case {Pid1, Pid2} of
+                        {Self, _} ->
+                            erlang:exit(Pid2),
+                            Self;
+                        {_, Self} ->
+                            erlang:exit(Pid1),
+                            Self;
+                        _ ->
+                            none
+                    end
+            end)
+    of
+        yes ->
+            tianjiupai_user:set_websocket_connection(UserId, Self);
+        no ->
+            {error, failed_to_regster}
+    end.
 
 name(UserId) ->
     {?MODULE, UserId}.
@@ -150,12 +156,12 @@ handle_command(Data, State) ->
             io:format("~p: receive (user_id: ~p)~n", [?MODULE, UserId]), % TODO
             Info = #{user_id => UserId},
             case register_name(UserId) of
-                yes ->
-                    io:format("~p, succeeded in registration~n", [?MODULE]), % TODO
+                ok ->
+                    io:format("~p, succeeded in registration (pid: ~p)~n", [?MODULE, self()]),
                     ok;
-                no ->
+                {error, Reason} ->
                 %% If something bad happens
-                    io:format("~p, failed in registration~n", [?MODULE]), % TODO
+                    io:format("~p, failed in registration (pid: ~p, reason: ~p)~n", [?MODULE, self(), Reason]),
                     ok %% TODO: emit an error
             end,
             {ok, State#state{session_info = Info}};

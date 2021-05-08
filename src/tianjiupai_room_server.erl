@@ -112,11 +112,7 @@ handle_call(CallMsg, _From, State0) ->
         {send_chat, From, Text} ->
             {_IsPlaying, Members} = get_members_from_state(GameState0),
             Log = {comment, From, Text},
-            lists:foreach(
-                fun(UserId) ->
-                    tianjiupai_user:notify_log(UserId, Log)
-                end,
-                Members),
+            notify_all_members_of_log(Members, Log),
             {reply, ok, State0#state{reversed_logs = [Log | LogAcc0]}};
         {attend, UserId} ->
             %% GameState1 :: game_state()
@@ -143,11 +139,7 @@ handle_call(CallMsg, _From, State0) ->
                                 GameState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
                                 Members = lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers1),
                                 Log = {entered, UserId},
-                                lists:foreach(
-                                    fun(MemberUserId) ->
-                                        tianjiupai_user:notify_log(MemberUserId, Log)
-                                    end,
-                                    Members),
+                                notify_all_members_of_log(Members, Log),
                                 {GameState, [Log | LogAcc0], ok}
                         end;
                     {playing, _} ->
@@ -174,11 +166,7 @@ handle_call(CallMsg, _From, State0) ->
                                 WaitingMembers0),
                         Members = lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers1),
                         Log = {exited, UserId},
-                        lists:foreach(
-                            fun(MemberUserId) ->
-                                tianjiupai_user:notify_log(MemberUserId, Log)
-                            end,
-                            Members),
+                        notify_all_members_of_log(Members, Log),
                         GameState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
                         {GameState, [Log | LogAcc0], ok};
                     {playing, _} ->
@@ -244,6 +232,14 @@ get_state_by_proc(RoomServerProc) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
+-spec notify_all_members_of_log([tianjiupai:user_id()], log()) -> ok.
+notify_all_members_of_log(Members, Log) ->
+    lists:foreach(
+        fun(MemberUserId) ->
+            tianjiupai_user:notify_log(MemberUserId, Log)
+        end,
+        Members).
+
 -spec make_room_state(#state{}) -> room_state().
 make_room_state(State) ->
     #state{
