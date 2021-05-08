@@ -8,13 +8,13 @@ import Format exposing (..)
 
 host : String
 host =
-  "localhost:8080"
+  "http://localhost:8080"
 
 
 createUser : UserName -> Cmd Msg
 createUser userName =
   Http.post
-    { url    = "http://" ++ host ++ "/users"
+    { url    = host ++ "/users"
     , body   = Http.jsonBody (createUserBodyEncoder userName)
     , expect = Http.expectJson (ReceiveResponse << (UserCreated userName)) userIdDecoder
     }
@@ -23,7 +23,7 @@ createUser userName =
 createRoom : UserId -> RoomName -> Cmd Msg
 createRoom userId roomName =
   Http.post
-    { url    = "http://" ++ host ++ "/rooms"
+    { url    = host ++ "/rooms"
     , body   = Http.jsonBody (createRoomBodyEncoder userId roomName)
     , expect = Http.expectJson (ReceiveResponse << (RoomCreated roomName)) roomIdDecoder
     }
@@ -34,7 +34,7 @@ enterRoom userId roomId =
   Http.request
     { method  = "PUT"
     , headers = []
-    , url     = "http://" ++ host ++ "/rooms/" ++ roomId
+    , url     = host ++ "/rooms/" ++ roomId
     , body    = Http.jsonBody (enterRoomBodyEncoder userId)
     , expect  = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) roomDecoder
     , timeout = Nothing
@@ -45,7 +45,7 @@ enterRoom userId roomId =
 getAllRooms : Cmd Msg
 getAllRooms =
   Http.get
-    { url    = "http://" ++ host ++ "/rooms"
+    { url    = host ++ "/rooms"
     , expect = Http.expectJson (ReceiveResponse << AllRoomsGot) roomsDecoder
     }
 
@@ -53,6 +53,6 @@ getAllRooms =
 getRoom : RoomId -> Cmd Msg
 getRoom roomId =
   Http.get
-    { url    = "http://" ++ host ++ "/rooms/" ++ roomId
+    { url    = host ++ "/rooms/" ++ roomId
     , expect = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) roomDecoder
     }
