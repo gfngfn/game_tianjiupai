@@ -43,7 +43,7 @@ get_all_rooms() ->
         end,
         RoomServerProcs).
 
--spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, room_state()} | {error, Reason :: term()}.
 attend(RoomId, UserId) ->
     tianjiupai_room_server:attend(RoomId, UserId).
 

@@ -282,8 +282,10 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                                 {error, Reason2} ->
                                     Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
                                     {false, Req2};
-                                ok ->
-                                    {true, Req1}
+                                {ok, RoomState} ->
+                                    RespBody = encode_room_state(RoomState),
+                                    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+                                    {true, Req2}
                             end
                     end;
                 false ->
@@ -295,6 +297,10 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
             Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
             {false, Req2}
     end.
+
+-spec encode_room_state(tianjiupai_room:room_state()) -> binary().
+encode_room_state(RoomState) ->
+    jsone:encode(RoomState).
 
 -spec set_failure_reason_to_resp_body(Reason :: term(), cowboy_req:req()) -> cowboy_req:req().
 set_failure_reason_to_resp_body(Reason, Req) ->

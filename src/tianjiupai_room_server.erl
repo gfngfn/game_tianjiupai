@@ -86,32 +86,15 @@ init({RoomId, RoomName}) ->
     (get_state, {pid(), reference()}, #state{}) -> {reply, GetStateReply, #state{}} when
         GetStateReply :: {ok, room_state()};
     ({attend, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, AttendReply, #state{}} when
-        AttendReply :: ok | {error, error_reason()};
+        AttendReply :: {ok, room_state()} | {error, error_reason()};
     ({exit, tianjiupai:user_id()}, {pid(), reference()}, #state{}) -> {reply, ExitReply, #state{}} when
         ExitReply :: ok | {error, error_reason()};
     ({send_chat, tianjiupai:user_id(), binary()}, {pid(), reference()}, #state{}) -> {reply, ok, #state{}}.
 handle_call(CallMsg, _From, State0) ->
-    #state{
-        settings =
-            #settings{
-                room_id   = RoomId,
-                room_name = RoomName
-            },
-        game_state =
-            GameState0
-    } = State0,
+    #state{game_state = GameState0} = State0,
     case CallMsg of
         get_state ->
-            %% IsPlaying :: boolean()
-            %% Members :: [tianjiupai:user_id()]
-            {IsPlaying, Members} = get_members_from_state(GameState0),
-            %% RoomState :: room_state()
-            RoomState = #{
-                room_id    => RoomId,
-                room_name  => RoomName,
-                is_playing => IsPlaying,
-                members    => Members
-            },
+            RoomState = make_room_state(State0),
             {reply, {ok, RoomState}, State0};
         {send_chat, From, Text} ->
             {_IsPlaying, Members} = get_members_from_state(GameState0),
@@ -123,8 +106,8 @@ handle_call(CallMsg, _From, State0) ->
             {reply, ok, State0};
         {attend, UserId} ->
             %% GameState1 :: game_state()
-            %% Reply :: attend_reply()
-            {GameState1, Reply} =
+            %% Result :: ok | {error, error_reason()}
+            {GameState1, Result} =
                 case GameState0 of
                     {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
                         case
@@ -148,20 +131,30 @@ handle_call(CallMsg, _From, State0) ->
                     {playing, _} ->
                         {GameState0, {error, playing}}
                 end,
-            {reply, Reply, State0#state{game_state = GameState1}};
+            State1 = State0#state{game_state = GameState1},
+            Reply =
+                case Result of
+                    ok               -> {ok, make_room_state(State1)};
+                    {error, _} = Err -> Err
+                end,
+            {reply, Reply, State1};
         {exit, UserId} ->
-            case GameState0 of
-                {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
-                    WaitingMembers1 =
-                        lists:filter(
-                            fun(#waiting_member{user_id = UserId0}) ->
-                                UserId0 =/= UserId
-                            end,
-                            WaitingMembers0),
-                    {{waiting, #waiting_state{waiting_members = WaitingMembers1}}, ok};
-                {playing, _} ->
-                    {GameState0, {error, playing}}
-            end
+            %% GameState1 :: game_state()
+            %% Reply :: ok | {error, error_reason()}
+            {GameState1, Reply} =
+                case GameState0 of
+                    {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
+                        WaitingMembers1 =
+                            lists:filter(
+                                fun(#waiting_member{user_id = UserId0}) ->
+                                    UserId0 =/= UserId
+                                end,
+                                WaitingMembers0),
+                        {{waiting, #waiting_state{waiting_members = WaitingMembers1}}, ok};
+                    {playing, _} ->
+                        {GameState0, {error, playing}}
+                end,
+            {reply, Reply, State0#state{game_state = GameState1}}
     end.
 
 handle_cast(CastMsg, State) ->
@@ -183,7 +176,7 @@ handle_info(Info, State) ->
 start_link(RoomId, RoomName) ->
     gen_server:start_link(name(RoomId), ?MODULE, {RoomId, RoomName}, []).
 
--spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, error_reason()}.
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, room_state()} | {error, error_reason()}.
 attend(RoomId, UserId) ->
     call(RoomId, {attend, UserId}).
 
@@ -214,6 +207,24 @@ get_state_by_proc(RoomServerProc) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
+-spec make_room_state(#state{}) -> room_state().
+make_room_state(State) ->
+    #state{
+        settings =
+            #settings{
+                room_id   = RoomId,
+                room_name = RoomName
+            },
+        game_state = GameState
+    } = State,
+    {IsPlaying, Members} = get_members_from_state(GameState),
+    #{
+        room_id    => RoomId,
+        room_name  => RoomName,
+        is_playing => IsPlaying,
+        members    => Members
+    }.
+
 -spec get_members_from_state(game_state()) -> {boolean(), [tianjiupai:user_id()]}.
 get_members_from_state(GameState) ->
     case GameState of
