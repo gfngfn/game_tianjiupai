@@ -4,8 +4,7 @@ import Json.Encode as JE
 import Json.Decode as JD exposing (Decoder)
 import Url exposing (Url)
 import Http
-import Browser exposing (UrlRequest)
-import Browser.Navigation as Navigation
+import Browser
 
 import Common exposing (..)
 import Flag
@@ -15,18 +14,16 @@ import View
 
 
 main =
-  Browser.application
+  Browser.document
     { init          = init
     , update        = update
     , subscriptions = subscriptions
-    , onUrlChange   = UrlChange
-    , onUrlRequest  = UrlRequest
     , view          = view
     }
 
 
-init : String -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init flagString url navKey =
+init : String -> ( Model, Cmd Msg )
+init flagString =
   let
     maybeUser : Maybe User
     maybeUser =
@@ -52,9 +49,8 @@ init flagString url navKey =
 
     model : Model
     model =
-      { navigationKey = navKey
-      , message       = "flags: " ++ flagString
-      , state         = state
+      { message = "flags: " ++ flagString
+      , state   = state
       }
   in
   ( model, cmd )
@@ -172,8 +168,6 @@ showNotification nt =
 showMessage : Msg -> String
 showMessage msg =
   case msg of
-    UrlChange _                 -> "UrlChange"
-    UrlRequest _                -> "UrlRequest"
     UpdateInput _               -> "UpdateInput"
     SendRequest _               -> "SendRequest"
     ReceiveResponse _           -> "ReceiveResponse"

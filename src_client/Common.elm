@@ -3,8 +3,6 @@ module Common exposing (..)
 import Url exposing (Url)
 import Json.Decode as JD exposing (Decoder)
 import Http
-import Browser exposing (UrlRequest)
-import Browser.Navigation as Navigation
 
 
 type alias Flags = String
@@ -47,8 +45,7 @@ type State
   | InRoom User Room String RoomState
 
 type alias Model =
-  { navigationKey : Navigation.Key
-  , message       : String
+  { message       : String
   , state         : State
   }
 
@@ -74,9 +71,7 @@ type InputUpdate
   | ChatInput String
 
 type Msg
-  = UrlChange Url
-  | UrlRequest UrlRequest
-  | UpdateInput InputUpdate
+  = UpdateInput InputUpdate
   | SendRequest Request
   | ReceiveResponse Response
   | ReceiveNotification (Result JD.Error Notification)
