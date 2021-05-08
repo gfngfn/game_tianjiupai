@@ -24,7 +24,8 @@
     get_name/1,
     get_room/1,
     get_info/1,
-    set_room/2
+    set_room/2,
+    set_websocket_connection/2
 ]).
 
 %%====================================================================================================
@@ -36,8 +37,9 @@
 }).
 
 -record(state, {
-    settings   :: #settings{},
-    belongs_to :: none | {value, {tianjiupai:room_id(), reference()}}
+    settings             :: #settings{},
+    belongs_to           :: none | {value, {tianjiupai:room_id(), reference()}},
+    websocket_connection :: reference()
 }).
 
 -type info() :: #{
@@ -60,8 +62,9 @@ init({UserId, UserName}) ->
             user_name = UserName
         },
     {ok, #state{
-        settings   = Settings,
-        belongs_to = none
+        settings             = Settings,
+        belongs_to           = none,
+        websocket_connection = none
     }}.
 
 -spec handle_call
@@ -75,8 +78,9 @@ init({UserId, UserName}) ->
         GetInfoReply :: {ok, info()} | {error, error_reason()}.
 handle_call(CallMsg, _From, State0) ->
     #state{
-       settings   = #settings{user_id = UserId, user_name = UserName},
-       belongs_to = BelongsTo0
+       settings             = #settings{user_id = UserId, user_name = UserName},
+       belongs_to           = BelongsTo0,
+       websocket_connection = WebSocketConnection0
     } = State0,
     case CallMsg of
         get_name ->
@@ -129,7 +133,19 @@ handle_call(CallMsg, _From, State0) ->
                                 belongs_to = {value, {RoomId, RoomMonitorRef}}
                             }}
                     end
-            end
+            end;
+        {set_websocket_connection, WsPid} ->
+            case WebSocketConnection0 of
+                {value, WsMonitorRef0} ->
+                    erlang:demonitor(WsMonitorRef0),
+                    ok;
+                none ->
+                    ok
+            end,
+            WsMonitorRef = erlang:monitor(process, WsPid),
+            {reply, ok, State0#state{
+                websocket_connection = {value, WsMonitorRef}
+            }}
     end.
 
 handle_cast(CastMsg, State) ->
@@ -137,8 +153,32 @@ handle_cast(CastMsg, State) ->
     {noreply, State}.
 
 handle_info(Info, State) ->
-    io:format("Unexpected info (message: ~p, state: ~p)~n", [Info, State]),
-    {noreply, State}.
+    #state{
+        settings             = #settings{user_id = UserId},
+        belongs_to           = BelongsTo,
+        websocket_connection = MaybeWsMonitorRef
+    } = State,
+    case Info of
+        {'DOWN', MonitorRef, process, _Pid, Reason} ->
+            case MaybeWsMonitorRef of
+                {value, MonitorRef} ->
+                    io:format("WebSocket connection closed (user_id: ~p, reason: ~p)~n",
+                        [UserId, Reason]),
+                    {noreply, State#state{websocket_connection = none}};
+                _ ->
+                    case BelongsTo of
+                        {value, {RoomId, MonitorRef}} ->
+                            io:format("Room closed (user_id: ~p, room_id: ~p, reason: ~p)~n",
+                                [UserId, RoomId, Reason]),
+                            {noreply, State#state{belongs_to = none}};
+                        _ ->
+                            {noreply, State}
+                    end
+            end;
+        _ ->
+            io:format("Unexpected info (message: ~p, state: ~p)~n", [Info, State]),
+            {noreply, State}
+    end.
 
 %%====================================================================================================
 %% Exported Functions
@@ -173,6 +213,9 @@ get_info(UserId) ->
 -spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, error_reason()}.
 set_room(UserId, RoomId) ->
     call(UserId, {set_room, RoomId}).
+
+set_websocket_connection(UserId, WsPid) ->
+    call(UserId, {set_websocket_connection, WsPid}).
 
 %%====================================================================================================
 %% Internal Functions

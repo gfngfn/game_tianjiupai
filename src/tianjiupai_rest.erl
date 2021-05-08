@@ -81,7 +81,7 @@ allowed_methods(Req, State) ->
             {page, _}          -> [<<"GET">>];
             all_users          -> [<<"POST">>];
             all_rooms          -> [<<"GET">>, <<"POST">>];
-            {specific_room, _} -> [<<"PUT">>]
+            {specific_room, _} -> [<<"GET">>, <<"PUT">>]
         end,
     {Methods, Req, State}.
 
@@ -103,9 +103,10 @@ content_types_provided(Req, State) ->
         case Method of
             <<"GET">> ->
                 case Endpoint of
-                    {page, _} -> [{MimeHtml, provide_html}];
-                    all_rooms -> [{MimeJson, provide_json}];
-                    _         -> []
+                    {page, _}          -> [{MimeHtml, provide_html}];
+                    all_rooms          -> [{MimeJson, provide_json}];
+                    {specific_room, _} -> [{MimeJson, provide_json}];
+                    _                  -> []
                 end;
             _ ->
                 [{MimeJson, undefined}]
@@ -148,9 +149,13 @@ provide_json(Req0, State) ->
         case State of
             #state{method = <<"GET">>, endpoint = all_rooms} ->
                 %% Rooms :: [tianjiupai_room:room_state()]
-                Rooms = tianjiupai_room:get_all_rooms(),
-                RoomObjs = Rooms,
-                jsone:encode(#{rooms => RoomObjs});
+                RoomStates = tianjiupai_room:get_all_rooms(),
+                encode_room_states(RoomStates);
+            #state{method = <<"GET">>, endpoint = {specific_room, RoomId}} ->
+                case tianjiupai_room:get_room(RoomId) of
+                    {ok, RoomState} -> encode_room_state(RoomState);
+                    {error, Reason} -> encode_failure_reason(Reason)
+                    end;
             _ ->
                 <<"">>
         end,
@@ -282,8 +287,10 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                                 {error, Reason2} ->
                                     Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
                                     {false, Req2};
-                                ok ->
-                                    {true, Req1}
+                                {ok, RoomState} ->
+                                    RespBody = encode_room_state(RoomState),
+                                    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+                                    {true, Req2}
                             end
                     end;
                 false ->
@@ -296,9 +303,23 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
             {false, Req2}
     end.
 
+-spec encode_room_state(tianjiupai_room:room_state()) -> binary().
+encode_room_state(RoomState) ->
+    RoomObj = tianjiupai_format:make_room_state_object(RoomState),
+    jsone:encode(RoomObj).
+
+-spec encode_room_states([tianjiupai_room:room_state()]) -> binary().
+encode_room_states(RoomStates) ->
+    RoomObjs = lists:map(fun tianjiupai_format:make_room_state_object/1, RoomStates),
+    jsone:encode(#{rooms => RoomObjs}).
+
+-spec encode_failure_reason(Reason :: term()) -> binary().
+encode_failure_reason(Reason) ->
+    erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))).
+
 -spec set_failure_reason_to_resp_body(Reason :: term(), cowboy_req:req()) -> cowboy_req:req().
 set_failure_reason_to_resp_body(Reason, Req) ->
-    ReasonBin = erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))),
+    ReasonBin = encode_failure_reason(Reason),
     RespBody = jsone:encode(#{reason => ReasonBin}),
     cowboy_req:set_resp_body(RespBody, Req).
 

@@ -4,22 +4,8 @@ import Json.Encode as JE
 import Json.Decode as JD exposing (Decoder)
 
 import Common exposing (..)
+import Format exposing (..)
 import Port
-
-
-setUserIdDataEncoder : UserId -> JE.Value
-setUserIdDataEncoder userId =
-  JE.object
-    [ ( "command", JE.string "set_user_id" )
-    , ( "user_id", JE.string userId )
-    ]
-
-
-sendChatDataEncoder text =
-  JE.object
-    [ ( "command", JE.string "send_chat" )
-    , ( "text",    JE.string text )
-    ]
 
 
 setUserId : UserId -> Cmd Msg
@@ -34,6 +20,13 @@ sendChat text =
   Port.sendWebSocketMessage s
 
 
+decodeNotification : String -> Result JD.Error Notification
+decodeNotification s =
+  JD.decodeString notificationDecoder s
+
+
 subscribe : Sub Msg
 subscribe =
-  Port.receiveWebSocketMessage ReceiveWebSocketMessage
+  Port.receiveWebSocketMessage (\s ->
+    ReceiveNotification (decodeNotification s)
+  )

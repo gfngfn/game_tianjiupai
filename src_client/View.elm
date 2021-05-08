@@ -11,17 +11,15 @@ viewBody : Model -> List (Html Msg)
 viewBody model =
   let
     elemMain =
-      case model.user of
-        Nothing ->
-          viewEntrance model
+      case model.state of
+        AtEntrance userNameInput ->
+          viewEntrance userNameInput
 
-        Just user ->
-          case user.belongsTo of
-            Nothing ->
-              viewRoomListPage model user
+        AtPlaza user roomNameInput maybeRooms ->
+          viewPlaza user roomNameInput maybeRooms
 
-            Just roomId ->
-              viewRoomPage model roomId
+        InRoom user room chatTextInput roomState ->
+          viewRoom user room chatTextInput roomState
   in
   [ div []
       [ div [] [ text model.message ]
@@ -30,91 +28,96 @@ viewBody model =
   ]
 
 
-viewEntrance : Model -> Html Msg
-viewEntrance model =
+viewEntrance : UserName -> Html Msg
+viewEntrance userNameInput =
   div []
     [ input
         [ type_ "text"
         , placeholder "username"
-        , value model.inputs.userName
+        , value userNameInput
         , onInput (UpdateInput << UserNameInput)
         ] []
     , button
-        [ onClick (Send CreateUser) ]
+        [ onClick (SendRequest CreateUser) ]
         [ text "start" ]
     ]
 
 
-viewRoomListPage : Model -> User -> Html Msg
-viewRoomListPage model user =
+viewPlaza : User -> RoomName -> Maybe (List Room) -> Html Msg
+viewPlaza user roomNameInput maybeRooms =
   div []
     [ div []
         [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
-    , viewRoomList model
+    , viewRoomList maybeRooms
     , div []
         [ input
             [ type_ "text"
             , placeholder "new room name"
-            , value model.inputs.roomName
+            , value roomNameInput
             , onInput (UpdateInput << RoomNameInput)
             ] []
         , button
-            [ onClick (Send CreateRoom) ]
+            [ onClick (SendRequest CreateRoom) ]
             [ text "create" ]
         ]
     ]
 
 
-viewRoomList : Model -> Html Msg
-viewRoomList model =
-  case model.rooms of
+viewRoomList : Maybe (List Room) -> Html Msg
+viewRoomList maybeRooms =
+  case maybeRooms of
     Nothing ->
-      div [] [ text "(Rooms will be shown here)" ]
+      div [] [ text "(Rooms will be displayed here)" ]
 
     Just rooms ->
       let
         elems =
-          List.map (\room ->
+          rooms |> List.map (\room ->
             let members = String.join ", " room.members in
             li []
             [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")")
             , button
-                [ onClick (Send (EnterRoom room.id)) ]
+                [ onClick (SendRequest (EnterRoom room.id)) ]
                 [ text "enter" ]
             ]
-          ) rooms
+          )
       in
       ul [] elems
 
 
-viewRoomPage : Model -> RoomId -> Html Msg
-viewRoomPage model roomId =
+viewRoom : User -> Room -> String -> RoomState -> Html Msg
+viewRoom user room chatTextInput roomState =
   let
     members =
-      case model.rooms of
-        Nothing ->
-          "(Cannot find the room. Please reload the page)"
-
-        Just rooms ->
-          case List.filter (\room -> room.id == roomId) rooms of
-            []        -> "(Cannot find the room. Please reload the page)"
-            room :: _ -> String.join ", " room.members
+      String.join ", " room.members
   in
   div []
     [ div []
         [ div []
-            [ text ("Room (ID: " ++ roomId ++ ", members: " ++ members ++ ")") ]
+            [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")") ]
         ]
+    , ul []
+        (room.logs |> List.map (\log ->
+          case log of
+            LogComment from s ->
+              li [] [ b [] [ text from ], text (": " ++ s) ]
+
+            LogEntered userId ->
+              li [] [ b [] [ text userId ], text " entered." ]
+
+            LogExited userId ->
+              li [] [ b [] [ text userId ], text " exited." ]
+        ))
     , div []
         [ div []
             [ input
                 [ type_ "text"
                 , placeholder "comment"
-                , value model.inputs.chatText
+                , value chatTextInput
                 , onInput (UpdateInput << ChatInput)
                 ] []
             , button
-                [ onClick (SendWebSocketMessage SendChat) ]
+                [ onClick (SendRequest SendChat) ]
                 [ text "send" ]
             ]
         ]
