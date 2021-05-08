@@ -1,6 +1,7 @@
 module Common exposing (..)
 
 import Url exposing (Url)
+import Json.Decode as JD exposing (Decoder)
 import Http
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
@@ -36,31 +37,26 @@ type alias InputModel =
   , chatText : String
   }
 
-type alias RoomState =
-  () -- TODO
+type RoomState
+  = WaitingStart
+  | PlayingGame
 
 type State
-  = AtEntrance
-  | AtPlaza { user : User, rooms : List Room }
-  | InRoom { user : User, room : Room, roomState : RoomState }
-
-type Preparation
-  = NoPreparation
-  | MovingToPlaza { user : Maybe User, rooms : Maybe (List Room) }
-  | EnteringRoom
+  = AtEntrance UserName
+  | AtPlaza User String (Maybe (List Room))
+  | InRoom User Room String RoomState
 
 type alias Model =
   { navigationKey : Navigation.Key
   , message       : String
-  , inputs        : InputModel
   , state         : State
-  , preparation   : Preparation
   }
 
 type Request
   = CreateUser
   | CreateRoom
   | EnterRoom RoomId
+  | SendChat
 
 type Response
   = UserCreated UserName (Result Http.Error UserId)
@@ -68,11 +64,9 @@ type Response
   | RoomEntered RoomId (Result Http.Error Room)
   | AllRoomsGot (Result Http.Error (List Room))
 
-type WebSocketRequest
-  = SendChat
-
-type WebSocketNotification
+type Notification
   = LogNotification Log
+  | GameStarted
 
 type InputUpdate
   = UserNameInput UserName
@@ -83,7 +77,6 @@ type Msg
   = UrlChange Url
   | UrlRequest UrlRequest
   | UpdateInput InputUpdate
-  | Send Request
-  | Receive Response
-  | SendWebSocketMessage WebSocketRequest
-  | ReceiveWebSocketMessage String
+  | SendRequest Request
+  | ReceiveResponse Response
+  | ReceiveNotification (Result JD.Error Notification)

@@ -12,14 +12,14 @@ viewBody model =
   let
     elemMain =
       case model.state of
-        AtEntrance ->
-          viewEntrance model
+        AtEntrance userNameInput ->
+          viewEntrance userNameInput
 
-        AtPlaza r ->
-          viewPlaza model r.user r.rooms
+        AtPlaza user roomNameInput maybeRooms ->
+          viewPlaza user roomNameInput maybeRooms
 
-        InRoom r ->
-          viewRoom model r.user r.room r.roomState
+        InRoom user room chatTextInput roomState ->
+          viewRoom user room chatTextInput roomState
   in
   [ div []
       [ div [] [ text model.message ]
@@ -28,60 +28,65 @@ viewBody model =
   ]
 
 
-viewEntrance : Model -> Html Msg
-viewEntrance model =
+viewEntrance : UserName -> Html Msg
+viewEntrance userNameInput =
   div []
     [ input
         [ type_ "text"
         , placeholder "username"
-        , value model.inputs.userName
+        , value userNameInput
         , onInput (UpdateInput << UserNameInput)
         ] []
     , button
-        [ onClick (Send CreateUser) ]
+        [ onClick (SendRequest CreateUser) ]
         [ text "start" ]
     ]
 
 
-viewPlaza : Model -> User -> List Room -> Html Msg
-viewPlaza model user rooms =
+viewPlaza : User -> RoomName -> Maybe (List Room) -> Html Msg
+viewPlaza user roomNameInput maybeRooms =
   div []
     [ div []
         [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
-    , viewRoomList rooms
+    , viewRoomList maybeRooms
     , div []
         [ input
             [ type_ "text"
             , placeholder "new room name"
-            , value model.inputs.roomName
+            , value roomNameInput
             , onInput (UpdateInput << RoomNameInput)
             ] []
         , button
-            [ onClick (Send CreateRoom) ]
+            [ onClick (SendRequest CreateRoom) ]
             [ text "create" ]
         ]
     ]
 
 
-viewRoomList : List Room -> Html Msg
-viewRoomList rooms =
-  let
-    elems =
-      List.map (\room ->
-        let members = String.join ", " room.members in
-        li []
-        [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")")
-        , button
-            [ onClick (Send (EnterRoom room.id)) ]
-            [ text "enter" ]
-        ]
-      ) rooms
-  in
-  ul [] elems
+viewRoomList : Maybe (List Room) -> Html Msg
+viewRoomList maybeRooms =
+  case maybeRooms of
+    Nothing ->
+      div [] [ text "(Rooms will be displayed here)" ]
+
+    Just rooms ->
+      let
+        elems =
+          rooms |> List.map (\room ->
+            let members = String.join ", " room.members in
+            li []
+            [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")")
+            , button
+                [ onClick (SendRequest (EnterRoom room.id)) ]
+                [ text "enter" ]
+            ]
+          )
+      in
+      ul [] elems
 
 
-viewRoom : Model -> User -> Room -> RoomState -> Html Msg
-viewRoom model user room roomState =
+viewRoom : User -> Room -> String -> RoomState -> Html Msg
+viewRoom user room chatTextInput roomState =
   let
     members =
       String.join ", " room.members
@@ -108,11 +113,11 @@ viewRoom model user room roomState =
             [ input
                 [ type_ "text"
                 , placeholder "comment"
-                , value model.inputs.chatText
+                , value chatTextInput
                 , onInput (UpdateInput << ChatInput)
                 ] []
             , button
-                [ onClick (SendWebSocketMessage SendChat) ]
+                [ onClick (SendRequest SendChat) ]
                 [ text "send" ]
             ]
         ]

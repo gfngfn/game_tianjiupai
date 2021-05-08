@@ -1,4 +1,4 @@
-module WebSocketClient exposing (setUserId, sendChat, subscribe, decodeNotification)
+module WebSocketClient exposing (setUserId, sendChat, subscribe)
 
 import Json.Encode as JE
 import Json.Decode as JD exposing (Decoder)
@@ -20,11 +20,13 @@ sendChat text =
   Port.sendWebSocketMessage s
 
 
-decodeNotification : String -> Result JD.Error WebSocketNotification
+decodeNotification : String -> Result JD.Error Notification
 decodeNotification s =
   JD.decodeString notificationDecoder s
 
 
 subscribe : Sub Msg
 subscribe =
-  Port.receiveWebSocketMessage ReceiveWebSocketMessage
+  Port.receiveWebSocketMessage (\s ->
+    ReceiveNotification (decodeNotification s)
+  )

@@ -25,14 +25,6 @@ main =
     }
 
 
-initInputs : InputModel
-initInputs =
-  { userName = ""
-  , roomName = ""
-  , chatText = ""
-  }
-
-
 init : String -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init flagString url navKey =
   let
@@ -42,35 +34,27 @@ init flagString url navKey =
           Ok(maybeUser0) -> maybeUser0
           Err(_)         -> Nothing
 
-    ( cmd, state, preparation ) =
+    ( cmd, state ) =
       case maybeUser of
         Nothing ->
-          ( Cmd.none, AtEntrance, NoPreparation )
+          ( Cmd.none, AtEntrance "" )
 
         Just user ->
           let cmd1 = WebSocketClient.setUserId user.id in
           case user.belongsTo of
             Nothing ->
-              let cmd2 = Cmd.map Receive HttpClient.getAllRooms in
-              ( Cmd.batch [ cmd1, cmd2 ]
-              , AtEntrance
-              , MovingToPlaza { user = Just user, rooms = Nothing }
-              )
+              let cmd2 = HttpClient.getAllRooms in
+              ( Cmd.batch [ cmd1, cmd2 ], AtEntrance "" )
 
             Just roomId ->
-              let cmd2 = Cmd.map Receive (HttpClient.getRoom roomId) in
-              ( Cmd.batch [ cmd1, cmd2 ]
-              , AtPlaza { user = user, rooms = [] }
-              , EnteringRoom
-              )
+              let cmd2 = HttpClient.getRoom roomId in
+              ( Cmd.batch [ cmd1, cmd2 ], AtPlaza user "" Nothing )
 
     model : Model
     model =
       { navigationKey = navKey
       , message       = "flags: " ++ flagString
-      , inputs        = initInputs
       , state         = state
-      , preparation   = preparation
       }
   in
   ( model, cmd )
@@ -78,176 +62,97 @@ init flagString url navKey =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  case msg of
-    UpdateInput inputUpdate ->
-      case inputUpdate of
-        UserNameInput userName ->
-          let inputs = model.inputs in
-          ( { model | inputs = { inputs | userName = userName } }, Cmd.none )
+  case model.state of
+    AtEntrance userNameInput ->
+      case msg of
+        UpdateInput (UserNameInput userNameInput1) ->
+          ( { model | state = AtEntrance userNameInput1 }, Cmd.none )
 
-        RoomNameInput roomName ->
-          let inputs = model.inputs in
-          ( { model | inputs = { inputs | roomName = roomName } }, Cmd.none )
+        SendRequest CreateUser ->
+          let cmd = HttpClient.createUser userNameInput in
+          ( model, cmd )
 
-        ChatInput text ->
-          let inputs = model.inputs in
-          ( { model | inputs = { inputs | chatText = text } }, Cmd.none )
-
-    Send req ->
-      let ( model1, cmd ) = updateByHttpRequest req model in
-      ( model1, Cmd.map Receive cmd )
-
-    Receive response ->
-      case response of
-        AllRoomsGot result ->
-          case model.preparation of
-            MovingToPlaza r0 ->
-              case result of
-                Ok rooms ->
-                  let r1 = { r0 | rooms = Just rooms } in
-                  let
-                    ( state1, preparation1 ) =
-                      normalizePreparation ( model.state, MovingToPlaza r1 )
-                  in
-                  ( { model | state = state1, preparation = preparation1 }, Cmd.none )
-
-                Err err ->
-                  let
-                    model1 =
-                      { model
-                      | message     = makeErrorMessage err
-                      , preparation = NoPreparation
-                      }
-                  in
-                  ( model1, Cmd.none )
-
-            _ ->
-              let
-                model1 =
-                  { model
-                  | message     = "[warning] unexpected receiving of rooms"
-                  , preparation = NoPreparation
-                  }
-              in
-              ( model1, Cmd.none )
-
-        UserCreated userName result ->
-          case ( model.state, model.preparation ) of
-            ( AtEntrance, MovingToPlaza r ) ->
-              case result of
-                Ok userId ->
-                  let user = { id = userId, name = userName, belongsTo = Nothing } in
-                  let cmd = WebSocketClient.setUserId userId in
-                  let
-                    ( state1, preparation1 ) =
-                      normalizePreparation ( model.state, MovingToPlaza { r | user = Just user } )
-                  in
-                  ( { model | state = state1, preparation = preparation1 }, cmd )
-
-                Err err ->
-                  ( resetPreparationByError model err, Cmd.none )
-
-            _ ->
-              ( { model | message = "[warning] unexpected user creation" }, Cmd.none )
-
-        RoomCreated roomName result ->
+        ReceiveResponse (UserCreated userName result) ->
           case result of
-            Ok roomId ->
-              let room = { id = roomId, name = roomName, members = [], logs = [] } in
-              case model.state of
-                  AtPlaza plaza ->
-                    let
-                      plaza1 = { plaza | rooms = room :: plaza.rooms }
-                    in
-                    ( { model | state = AtPlaza plaza1 }, Cmd.none )
-
-                  _ ->
-                    ( { model | message = "[warning] unexpected room creation" }, Cmd.none )
+            Ok userId ->
+              let user = { id = userId, name = userName, belongsTo = Nothing } in
+              let cmd1 = WebSocketClient.setUserId userId in
+              let cmd2 = HttpClient.getAllRooms in
+              ( { model | state = AtPlaza user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
 
             Err err ->
-              ( resetPreparationByError model err, Cmd.none )
-
-        RoomEntered roomId result ->
-          case ( model.state, model.preparation ) of
-            ( AtPlaza r, EnteringRoom ) ->
-              case result of
-                Ok room ->
-                  let
-                    model1 =
-                      { model
-                      | state       = InRoom { user = r.user, room = room, roomState = () }
-                      , preparation = NoPreparation
-                      }
-                  in
-                  ( model1, Cmd.none )
-
-                Err err ->
-                  ( resetPreparationByError model err, Cmd.none )
-
-            _ ->
-              ( { model | message = "[warning] unexpected room entry" }, Cmd.none )
-
-    SendWebSocketMessage wsreq ->
-        updateByWebSocketRequest wsreq model
-
-    ReceiveWebSocketMessage s ->
-        handleWebSocketNotification s model
-
-    UrlChange url ->
-      ( model, Cmd.none )
-
-    UrlRequest urlRequest ->
-      case urlRequest of
-        Browser.External href ->
-          ( model, Navigation.load href )
-
-        Browser.Internal url ->
-          ( model, Navigation.pushUrl model.navigationKey (Url.toString url) )
-
-
-handleWebSocketNotification : String -> Model -> ( Model, Cmd Msg )
-handleWebSocketNotification s model =
-  case WebSocketClient.decodeNotification s of
-    Ok notification ->
-      case notification of
-        LogNotification log ->
-          let
-            state1 =
-              case model.state of
-                InRoom r ->
-                  let room = r.room in
-                  InRoom { r | room = { room | logs = room.logs ++ [log]} }
-
-                _ ->
-                  model.state
-          in
-          ( { model | state = state1 }, Cmd.none )
-
-    Err err ->
-      ( { model | message = "[error] JSON" }, Cmd.none )
-
-
-normalizePreparation : ( State, Preparation ) -> ( State, Preparation )
-normalizePreparation ( state, preparation ) =
-  case preparation of
-    MovingToPlaza r ->
-      case ( r.user, r.rooms ) of
-        ( Just user, Just rooms ) ->
-          ( AtPlaza { user = user, rooms = rooms }, NoPreparation )
+              ( { model | message = makeErrorMessage err }, Cmd.none )
 
         _ ->
-          ( state, preparation )
+          ( { model | message = "[warning] unexpected message (AtEntrance): " ++ showMessage msg }, Cmd.none )
 
-    _ ->
-      ( state, preparation )
+    AtPlaza user roomNameInput0 maybeRooms ->
+      case msg of
+        UpdateInput (RoomNameInput roomNameInput1) ->
+           ( { model | state = AtPlaza user roomNameInput1 maybeRooms }, Cmd.none )
 
+        ReceiveResponse (AllRoomsGot result) ->
+          case result of
+            Ok rooms ->
+              ( { model | state = AtPlaza user roomNameInput0 (Just rooms) }, Cmd.none )
 
-resetPreparationByError : Model -> Http.Error -> Model
-resetPreparationByError model err =
-  { model
-  | message     = makeErrorMessage err
-  , preparation = NoPreparation
-  }
+            Err err ->
+              ( { model | message = makeErrorMessage err }, Cmd.none )
+
+        SendRequest CreateRoom ->
+          let cmd = HttpClient.createRoom user.id roomNameInput0 in
+          ( { model | state = AtPlaza user "" maybeRooms }, cmd )
+
+        ReceiveResponse (RoomCreated roomName result) ->
+          case result of
+            Ok roomId ->
+              case maybeRooms of
+                Just rooms0 ->
+                  let room = { id = roomId, name = roomName, members = [], logs = [] } in
+                  ( { model | state = AtPlaza user roomNameInput0 (Just (rooms0 ++ [room])) }, Cmd.none )
+
+                Nothing ->
+                  ( model, Cmd.none )
+
+            Err err ->
+              ( { model | message = makeErrorMessage err }, Cmd.none )
+
+        SendRequest (EnterRoom roomId) ->
+          let cmd = HttpClient.enterRoom user.id roomId in
+          ( model, cmd )
+
+        ReceiveResponse (RoomEntered roomId result) ->
+          case result of
+            Ok room ->
+              ( { model | state = InRoom user room "" WaitingStart }, Cmd.none )
+
+            Err err ->
+              ( { model | message = makeErrorMessage err }, Cmd.none )
+
+        _ ->
+          ( { model | message = "[warning] unexpected message (AtPlaza): " ++ showMessage msg }, Cmd.none )
+
+    InRoom user room0 chatTextInput0 roomState ->
+      case ( roomState, msg ) of
+        ( _, UpdateInput (ChatInput chatTextInput1) ) ->
+           ( { model | state = InRoom user room0 chatTextInput1 roomState }, Cmd.none )
+
+        ( _, SendRequest SendChat ) ->
+          let cmd = WebSocketClient.sendChat chatTextInput0 in
+          ( { model | state = InRoom user room0 "" roomState  }, cmd )
+
+        ( _, ReceiveNotification (Err err) ) ->
+          ( { model | message = "[warning] invalid notification" }, Cmd.none )
+
+        ( _, ReceiveNotification (Ok (LogNotification log)) ) ->
+          let room1 = { room0 | logs = room0.logs ++ [log] } in
+          ( { model | state = InRoom user room1 chatTextInput0 roomState }, Cmd.none )
+
+        ( WaitingStart, ReceiveNotification (Ok GameStarted) ) ->
+          ( { model | state = InRoom user room0 chatTextInput0 PlayingGame }, Cmd.none )
+
+        _ ->
+          ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
 
 
 view : Model -> Browser.Document Msg
@@ -255,6 +160,25 @@ view model =
   { title = "tianjiupai"
   , body  = View.viewBody model
   }
+
+
+showNotification : Notification -> String
+showNotification nt =
+  case nt of
+    LogNotification _ -> "LogNotification"
+    GameStarted       -> "GameStarted"
+
+
+showMessage : Msg -> String
+showMessage msg =
+  case msg of
+    UrlChange _                 -> "UrlChange"
+    UrlRequest _                -> "UrlRequest"
+    UpdateInput _               -> "UpdateInput"
+    SendRequest _               -> "SendRequest"
+    ReceiveResponse _           -> "ReceiveResponse"
+    ReceiveNotification (Err _) -> "ReceiveNotification (error)"
+    ReceiveNotification (Ok nt) -> "ReceiveNotification (" ++ showNotification nt ++ ")"
 
 
 makeErrorMessage : Http.Error -> String
@@ -269,50 +193,6 @@ makeErrorMessage err =
         Http.BadStatus n  -> "bad status; " ++ String.fromInt n
   in
   "[error] " ++ msg
-
-
-updateByHttpRequest : Request -> Model -> ( Model, Cmd Response )
-updateByHttpRequest req model =
-  case req of
-    CreateUser ->
-      case model.state of
-        AtEntrance ->
-          let userName = model.inputs.userName in
-          let cmd1 = HttpClient.createUser userName in
-          let cmd2 = HttpClient.getAllRooms in
-          let r = { user = Nothing, rooms = Nothing } in
-          ( { model | preparation = MovingToPlaza r }, Cmd.batch [ cmd1, cmd2 ] )
-
-        _ ->
-          ( model, Cmd.none )
-
-    CreateRoom ->
-      case model.state of
-        AtPlaza r ->
-          let inputs = model.inputs in
-          let cmd = HttpClient.createRoom r.user.id inputs.roomName in
-          ( { model | inputs = { inputs | roomName = "" } }, cmd )
-
-        _ ->
-          ( model, Cmd.none )
-
-    EnterRoom roomId ->
-      case model.state of
-        AtPlaza r ->
-          let cmd = HttpClient.enterRoom r.user.id roomId in
-          ( { model | preparation = EnteringRoom }, cmd )
-
-        _ ->
-          ( model, Cmd.none )
-
-
-updateByWebSocketRequest : WebSocketRequest -> Model -> ( Model, Cmd Msg )
-updateByWebSocketRequest wsreq model =
-  case wsreq of
-    SendChat ->
-      let cmd = WebSocketClient.sendChat model.inputs.chatText in
-      let inputs = model.inputs in
-      ( { model | inputs = { inputs | chatText = "" }}, cmd )
 
 
 subscriptions : Model -> Sub Msg

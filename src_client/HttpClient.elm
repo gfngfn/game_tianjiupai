@@ -11,48 +11,48 @@ host =
   "localhost:8080"
 
 
-createUser : UserName -> Cmd Response
+createUser : UserName -> Cmd Msg
 createUser userName =
   Http.post
     { url    = "http://" ++ host ++ "/users"
     , body   = Http.jsonBody (createUserBodyEncoder userName)
-    , expect = Http.expectJson (UserCreated userName) userIdDecoder
+    , expect = Http.expectJson (ReceiveResponse << (UserCreated userName)) userIdDecoder
     }
 
 
-createRoom : UserId -> RoomName -> Cmd Response
+createRoom : UserId -> RoomName -> Cmd Msg
 createRoom userId roomName =
   Http.post
     { url    = "http://" ++ host ++ "/rooms"
     , body   = Http.jsonBody (createRoomBodyEncoder userId roomName)
-    , expect = Http.expectJson (RoomCreated roomName) roomIdDecoder
+    , expect = Http.expectJson (ReceiveResponse << (RoomCreated roomName)) roomIdDecoder
     }
 
 
-enterRoom : UserId -> RoomId -> Cmd Response
+enterRoom : UserId -> RoomId -> Cmd Msg
 enterRoom userId roomId =
   Http.request
     { method  = "PUT"
     , headers = []
     , url     = "http://" ++ host ++ "/rooms/" ++ roomId
     , body    = Http.jsonBody (enterRoomBodyEncoder userId)
-    , expect  = Http.expectJson (RoomEntered roomId) roomDecoder
+    , expect  = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) roomDecoder
     , timeout = Nothing
     , tracker = Nothing
     }
 
 
-getAllRooms : Cmd Response
+getAllRooms : Cmd Msg
 getAllRooms =
   Http.get
     { url    = "http://" ++ host ++ "/rooms"
-    , expect = Http.expectJson AllRoomsGot roomsDecoder
+    , expect = Http.expectJson (ReceiveResponse << AllRoomsGot) roomsDecoder
     }
 
 
-getRoom : RoomId -> Cmd Response
+getRoom : RoomId -> Cmd Msg
 getRoom roomId =
   Http.get
     { url    = "http://" ++ host ++ "/rooms/" ++ roomId
-    , expect = Http.expectJson (RoomEntered roomId) roomDecoder
+    , expect = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) roomDecoder
     }

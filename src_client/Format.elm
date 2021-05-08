@@ -123,7 +123,7 @@ logDecoder =
     )
 
 
-notificationDecoder : Decoder WebSocketNotification
+notificationDecoder : Decoder Notification
 notificationDecoder =
   JD.field "command" JD.string
     |> JD.andThen (\cmd ->
