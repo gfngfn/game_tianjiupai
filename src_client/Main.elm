@@ -256,8 +256,10 @@ updateByHttpRequest req model =
       case model.state of
         AtEntrance ->
           let userName = model.inputs.userName in
-          let cmd = HttpClient.createUser userName in
-          ( model, cmd )
+          let cmd1 = HttpClient.createUser userName in
+          let cmd2 = HttpClient.getAllRooms in
+          let r = { user = Nothing, rooms = Nothing } in
+          ( { model | preparation = MovingToPlaza r }, Cmd.batch [ cmd1, cmd2 ] )
 
         _ ->
           ( model, Cmd.none )
@@ -276,7 +278,7 @@ updateByHttpRequest req model =
       case model.state of
         AtPlaza r ->
           let cmd = HttpClient.enterRoom r.user.id roomId in
-          ( model, cmd )
+          ( { model | preparation = EnteringRoom }, cmd )
 
         _ ->
           ( model, Cmd.none )
