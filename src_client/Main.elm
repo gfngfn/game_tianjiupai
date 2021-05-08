@@ -44,7 +44,7 @@ init flagString url navKey =
           case user.belongsTo of
             Nothing ->
               let cmd2 = HttpClient.getAllRooms in
-              ( Cmd.batch [ cmd1, cmd2 ], AtEntrance "" )
+              ( Cmd.batch [ cmd1, cmd2 ], AtPlaza user "" Nothing )
 
             Just roomId ->
               let cmd2 = HttpClient.getRoom roomId in
