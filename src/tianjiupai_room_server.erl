@@ -20,6 +20,7 @@
     exit/2,
     monitor/1,
     send_chat/3,
+    get_state/1,
     get_state_by_proc/1
 ]).
 -export_type([
@@ -193,6 +194,13 @@ monitor(RoomId) ->
     case get_pid(RoomId) of
         undefined -> {error, {room_not_found, RoomId}};
         Pid       -> {ok, erlang:monitor(process, Pid)}
+    end.
+
+-spec get_state(tianjiupai:room_id()) -> {ok, room_state()} | {error, error_reason()}.
+get_state(RoomId) ->
+    case get_pid(RoomId) of
+        undefined      -> {error, {room_not_found, RoomId}};
+        RoomServerProc -> get_state_by_proc(RoomServerProc)
     end.
 
 -spec get_state_by_proc(proc()) -> {ok, room_state()} | {error, error_reason()}.

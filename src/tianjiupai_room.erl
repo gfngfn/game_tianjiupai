@@ -6,6 +6,7 @@
 -export([
     create/1,
     get_all_rooms/0,
+    get_room/1,
     attend/2,
     exit/2,
     send_chat/3,
@@ -42,6 +43,10 @@ get_all_rooms() ->
             end
         end,
         RoomServerProcs).
+
+-spec get_room(tianjiupai:room_id()) -> {ok, room_state()} | {error, Reason :: term()}.
+get_room(RoomId) ->
+    tianjiupai_room_server:get_state(RoomId).
 
 -spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, room_state()} | {error, Reason :: term()}.
 attend(RoomId, UserId) ->
