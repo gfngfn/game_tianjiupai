@@ -25,6 +25,7 @@
 ]).
 -export_type([
     proc/0,
+    log/0,
     room_state/0,
     error_reason/0
 ]).
@@ -34,11 +35,17 @@
 %%====================================================================================================
 -type proc() :: pid().
 
+-type log() ::
+    {comment, From :: tianjiupai:user_id(), Text :: binary()}
+  | {entered, tianjiupai:user_id()}
+  | {exited, tianjiupai:user_id()}.
+
 -type room_state() :: #{
     room_id    := tianjiupai:room_id(),
     room_name  := binary(),
     is_playing := boolean(),
-    members    := [tianjiupai:user_id()]
+    members    := [tianjiupai:user_id()],
+    logs       := [log()]
 }.
 
 -record(settings, {
@@ -60,8 +67,9 @@
   | {playing, tianjiupai_game:playing_state()}.
 
 -record(state, {
-    settings   :: #settings{},
-    game_state :: game_state()
+    settings      :: #settings{},
+    reversed_logs :: [log()],
+    game_state    :: game_state()
 }).
 
 -type error_reason() ::
@@ -79,8 +87,9 @@ init({RoomId, RoomName}) ->
             room_name = RoomName
         },
     {ok, #state{
-        settings   = Settings,
-        game_state = {waiting, #waiting_state{waiting_members = []}}
+        settings      = Settings,
+        reversed_logs = [],
+        game_state    = {waiting, #waiting_state{waiting_members = []}}
     }}.
 
 -spec handle_call
@@ -92,7 +101,10 @@ init({RoomId, RoomName}) ->
         ExitReply :: ok | {error, error_reason()};
     ({send_chat, tianjiupai:user_id(), binary()}, {pid(), reference()}, #state{}) -> {reply, ok, #state{}}.
 handle_call(CallMsg, _From, State0) ->
-    #state{game_state = GameState0} = State0,
+    #state{
+        reversed_logs = LogAcc0,
+        game_state    = GameState0
+    } = State0,
     case CallMsg of
         get_state ->
             RoomState = make_room_state(State0),
@@ -104,11 +116,11 @@ handle_call(CallMsg, _From, State0) ->
                     tianjiupai_user:notify_chat(UserId, From, Text)
                 end,
                 Members),
-            {reply, ok, State0};
+            {reply, ok, State0#state{reversed_logs = [{comment, From, Text} | LogAcc0]}};
         {attend, UserId} ->
             %% GameState1 :: game_state()
             %% Result :: ok | {error, error_reason()}
-            {GameState1, Result} =
+            {GameState1, LogAcc1, Result} =
                 case GameState0 of
                     {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
                         case
@@ -119,7 +131,7 @@ handle_call(CallMsg, _From, State0) ->
                                 WaitingMembers0)
                         of
                             true ->
-                                {GameState0, ok};
+                                {GameState0, LogAcc0, ok};
                             false ->
                                 WaitingMember =
                                     #waiting_member{
@@ -127,12 +139,13 @@ handle_call(CallMsg, _From, State0) ->
                                         is_ready = false
                                     },
                                 WaitingMembers1 = [WaitingMember | WaitingMembers0],
-                                {{waiting, #waiting_state{waiting_members = WaitingMembers1}}, ok}
+                                GameState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
+                                {GameState, [{entered, UserId}| LogAcc0], ok}
                         end;
                     {playing, _} ->
-                        {GameState0, {error, playing}}
+                        {GameState0, LogAcc0, {error, playing}}
                 end,
-            State1 = State0#state{game_state = GameState1},
+            State1 = State0#state{game_state = GameState1, reversed_logs = LogAcc1},
             Reply =
                 case Result of
                     ok               -> {ok, make_room_state(State1)};
@@ -142,7 +155,7 @@ handle_call(CallMsg, _From, State0) ->
         {exit, UserId} ->
             %% GameState1 :: game_state()
             %% Reply :: ok | {error, error_reason()}
-            {GameState1, Reply} =
+            {GameState1, LogAcc1, Reply} =
                 case GameState0 of
                     {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
                         WaitingMembers1 =
@@ -151,11 +164,12 @@ handle_call(CallMsg, _From, State0) ->
                                     UserId0 =/= UserId
                                 end,
                                 WaitingMembers0),
-                        {{waiting, #waiting_state{waiting_members = WaitingMembers1}}, ok};
+                        GameState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
+                        {GameState, [{exited, UserId} | LogAcc0], ok};
                     {playing, _} ->
-                        {GameState0, {error, playing}}
+                        {GameState0, LogAcc0, {error, playing}}
                 end,
-            {reply, Reply, State0#state{game_state = GameState1}}
+            {reply, Reply, State0#state{game_state = GameState1, reversed_logs = LogAcc1}}
     end.
 
 handle_cast(CastMsg, State) ->
@@ -223,13 +237,15 @@ make_room_state(State) ->
                 room_id   = RoomId,
                 room_name = RoomName
             },
-        game_state = GameState
+        reversed_logs = LogAcc,
+        game_state    = GameState
     } = State,
     {IsPlaying, Members} = get_members_from_state(GameState),
     #{
         room_id    => RoomId,
         room_name  => RoomName,
         is_playing => IsPlaying,
+        logs       => lists:reverse(LogAcc),
         members    => Members
     }.
 

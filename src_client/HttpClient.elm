@@ -22,18 +22,42 @@ roomIdDecoder =
   JD.field "room_id" JD.string
 
 
+logDecoder : Decoder Log
+logDecoder =
+  JD.field "type" JD.string
+    |> JD.andThen (\s ->
+      case s of
+        "comment" ->
+          JD.map2
+            (\from text -> LogComment from text)
+            (JD.field "from" JD.string)
+            (JD.field "text" JD.string)
+
+        "entered" ->
+          JD.map LogEntered (JD.field "user_id" JD.string)
+
+        "exited" ->
+          JD.map LogEntered (JD.field "user_id" JD.string)
+
+        _ ->
+          JD.fail "other than 'comment', 'entered', or 'exited'"
+    )
+
+
 roomDecoder : Decoder Room
 roomDecoder =
-  JD.map3
-    (\id name members ->
+  JD.map4
+    (\id name members logs ->
        { id      = id
        , name    = name
        , members = members
+       , logs    = logs
        }
     )
     (JD.field "room_id" JD.string)
     (JD.field "room_name" JD.string)
     (JD.field "members" (JD.list JD.string))
+    (JD.field "logs" (JD.list logDecoder))
 
 
 roomsDecoder : Decoder (List Room)

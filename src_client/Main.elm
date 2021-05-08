@@ -153,7 +153,7 @@ update msg model =
         RoomCreated roomName result ->
           case result of
             Ok roomId ->
-              let room = { id = roomId, name = roomName, members = [] } in
+              let room = { id = roomId, name = roomName, members = [], logs = [] } in
               case model.state of
                   AtPlaza plaza ->
                     let

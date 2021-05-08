@@ -91,6 +91,18 @@ viewRoom model user room roomState =
         [ div []
             [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")") ]
         ]
+    , ul []
+        (room.logs |> List.map (\log ->
+          case log of
+            LogComment from s ->
+              li [] [ b [] [ text from ], text (": " ++ s) ]
+
+            LogEntered userId ->
+              li [] [ b [] [ text userId ], text " entered." ]
+
+            LogExited userId ->
+              li [] [ b [] [ text userId ], text " exited." ]
+        ))
     , div []
         [ div []
             [ input

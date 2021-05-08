@@ -18,10 +18,16 @@ type alias User =
   , belongsTo : Maybe RoomId
   }
 
+type Log
+  = LogComment UserId String
+  | LogEntered UserId
+  | LogExited UserId
+
 type alias Room =
   { id      : RoomId
   , name    : RoomName
   , members : List UserId
+  , logs    : List Log
   }
 
 type alias InputModel =
