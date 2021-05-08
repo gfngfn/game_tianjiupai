@@ -142,7 +142,7 @@ handle_call(CallMsg, _From, State0) ->
                                         fun(#waiting_member{user_id = UserId0}) ->
                                             if
                                                 UserId0 =:= UserId -> false;
-                                                true               -> {true, UserId}
+                                                true               -> {true, UserId0}
                                             end
                                         end,
                                         WaitingMembers1),
