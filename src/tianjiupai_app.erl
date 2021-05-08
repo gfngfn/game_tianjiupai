@@ -18,12 +18,20 @@ start(_StartType, _StartArgs) ->
     Dispatch =
         cowboy_router:compile([
             {'_', [
-                {<<"/">>,               tianjiupai_rest, {page, Template}},
-                {<<"/assets/[...]">>,   cowboy_static, {dir, "public/assets"}},
-                {<<"/websocket">>,      tianjiupai_websocket, undefined},
-                {<<"/users">>,          tianjiupai_rest, all_users},
-                {<<"/rooms">>,          tianjiupai_rest, all_rooms},
-                {<<"/rooms/:room_id">>, tianjiupai_rest, specific_room}
+                {<<"/">>,
+                    tianjiupai_rest, {page, Template}},
+                {<<"/assets/[...]">>,
+                    cowboy_static, {dir, "public/assets"}},
+                {<<"/websocket">>,
+                    tianjiupai_websocket, undefined},
+                {<<"/users">>,
+                    tianjiupai_rest, all_users},
+                {<<"/rooms">>,
+                    tianjiupai_rest, all_rooms},
+                {<<"/rooms/:room_id">>,
+                    tianjiupai_rest, specific_room},
+                {<<"/rooms/:room_id/users/:user_id">>,
+                    tianjiupai_rest, specific_room_and_user}
             ]}
         ]),
     {ok, _} =

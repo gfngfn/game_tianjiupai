@@ -4,6 +4,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 
+import Models exposing (..)
 import Common exposing (..)
 
 
@@ -15,11 +16,11 @@ viewBody model =
         AtEntrance userNameInput ->
           viewEntrance userNameInput
 
-        AtPlaza user roomNameInput maybeRooms ->
-          viewPlaza user roomNameInput maybeRooms
+        AtPlaza user roomNameInput maybeRoomSummaries ->
+          viewPlaza user roomNameInput maybeRoomSummaries
 
-        InRoom user room chatTextInput roomState ->
-          viewRoom user room chatTextInput roomState
+        InRoom user personalState chatTextInput ->
+          viewRoom user personalState chatTextInput
   in
   [ div []
       [ div [] [ text model.message ]
@@ -43,12 +44,12 @@ viewEntrance userNameInput =
     ]
 
 
-viewPlaza : User -> RoomName -> Maybe (List Room) -> Html Msg
-viewPlaza user roomNameInput maybeRooms =
+viewPlaza : User -> RoomName -> Maybe (List RoomSummary) -> Html Msg
+viewPlaza user roomNameInput maybeRoomSummaries =
   div []
     [ div []
-        [ text ("Hi, " ++ user.name ++ "! (your user ID: " ++ user.id ++ ")") ]
-    , viewRoomList maybeRooms
+        [ text ("Hi, " ++ user.userName ++ "! (your user ID: " ++ user.userId ++ ")") ]
+    , viewRoomList maybeRoomSummaries
     , div []
         [ input
             [ type_ "text"
@@ -63,21 +64,24 @@ viewPlaza user roomNameInput maybeRooms =
     ]
 
 
-viewRoomList : Maybe (List Room) -> Html Msg
-viewRoomList maybeRooms =
-  case maybeRooms of
+viewRoomList : Maybe (List RoomSummary) -> Html Msg
+viewRoomList maybeRoomSummaries =
+  case maybeRoomSummaries of
     Nothing ->
       div [] [ text "(Rooms will be displayed here)" ]
 
-    Just rooms ->
+    Just roomSummaries ->
       let
         elems =
-          rooms |> List.map (\room ->
-            let members = String.join ", " room.members in
+          roomSummaries |> List.map (\roomSummary ->
+            let
+              room = roomSummary.room
+              members = String.join ", " roomSummary.members
+            in
             li []
-            [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")")
+            [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ", members: " ++ members ++ ")")
             , button
-                [ onClick (SendRequest (EnterRoom room.id)) ]
+                [ onClick (SendRequest (EnterRoom room.roomId)) ]
                 [ text "enter" ]
             ]
           )
@@ -85,22 +89,32 @@ viewRoomList maybeRooms =
       ul [] elems
 
 
-viewRoom : User -> Room -> String -> RoomState -> Html Msg
-viewRoom user room chatTextInput roomState =
+viewRoom : User -> PersonalState -> String -> Html Msg
+viewRoom user pstate chatTextInput =
   let
-    members =
-      String.join ", " room.members
+    room : Room
+    room = pstate.room
+
+    elemHead : Html Msg
+    elemHead =
+      case pstate.game of
+        WaitingStart userIds ->
+          let members = String.join ", " userIds in
+          div []
+            [ div []
+                [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ", members: " ++ members ++ ")") ]
+            ]
+
+        PlayingGame _ ->
+          div [] [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ")") ]
   in
   div []
-    [ div []
-        [ div []
-            [ text (room.name ++ " (room ID: " ++ room.id ++ ", members: " ++ members ++ ")") ]
-        ]
+    [ elemHead
     , ul []
-        (room.logs |> List.map (\log ->
+        (pstate.logs |> List.map (\log ->
           case log of
-            LogComment from s ->
-              li [] [ b [] [ text from ], text (": " ++ s) ]
+            LogComment comment ->
+              li [] [ b [] [ text comment.from ], text (": " ++ comment.text) ]
 
             LogEntered userId ->
               li [] [ b [] [ text userId ], text " entered." ]

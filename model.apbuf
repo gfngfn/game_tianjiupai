@@ -1,0 +1,150 @@
+@language_version "0.0.2"
+@output "elm": {
+  dir     = "./src_client/_generated",
+  module  = "Models",
+  imports = [],
+}
+
+user_id := string
+
+user_name := string
+
+user := {
+  user_id   : user_id,
+  user_name : user_name,
+}
+
+room_id := string
+
+room_name := string
+
+room := {
+  room_id   : room_id,
+  room_name : room_name,
+}
+
+flag_user := {
+  id         : user_id,
+  name       : user_name,
+  belongs_to : option(room_id),
+}
+
+flag := {
+  user : option(flag_user),
+}
+
+create_user_request := {
+  user_name : user_name
+}
+
+create_user_response := {
+  user_id : user_id
+}
+
+create_room_request := {
+  user_id   : user_id,
+  room_name : room_name,
+}
+
+create_room_response := {
+  room_id : room_id,
+}
+
+get_all_rooms_response := {
+  rooms : list(room_summary),
+}
+
+get_room_response :=
+  personal_state
+
+enter_room_request := {
+  user_id : user_id
+}
+
+enter_room_response :=
+  personal_state
+
+room_summary := {
+  room       : room,
+  members    : list(user_id),
+  is_playing : bool,
+}
+
+comment := {
+  from : user_id,
+  text : string,
+}
+
+log :=
+  | LogComment : comment
+  | LogEntered : user_id
+  | LogExited  : user_id
+
+notification :=
+  | NotifyLog : log
+  | NotifyGameStart
+
+command :=
+  | CommandSetUserId : user_id
+  | CommandComment   : string
+
+personal_state := {
+  room : room,
+  logs : list(log),
+  game : personal_room_state,
+}
+
+personal_room_state :=
+  | WaitingStart : list(user_id)
+  | PlayingGame  : observed_state
+
+per_member($a) := {
+  east  : $a,
+  south : $a,
+  west  : $a,
+  north : $a,
+}
+
+seat_index :=
+  | SeatEast
+  | SeatSouth
+  | SeatWest
+  | SeatNorth
+
+card_wen := int
+
+card_wu := int
+
+card_big := int
+
+card :=
+  | Wen : card_wen
+  | Wu  : card_wu
+
+open_or_closed($a) :=
+  | Open : $a
+  | Closed
+
+table :=
+  | TrickSingleWen  : list(open_or_closed(card_wen))
+  | TrickSingleWu   : list(open_or_closed(card_wu))
+  | TrickDoubleWen  : list(open_or_closed(card_wen))
+  | TrickDoubleWu   : list(open_or_closed(card_wu))
+  | TrickDoubleBoth : list(open_or_closed(card_big))
+  | TrickTripleWen  : list(open_or_closed(card_big))
+  | TrickTripleWu   : list(open_or_closed(card_big))
+  | TrickQuadruple  : list(card_big)
+  | TrickZhiZun     : list(bool)
+
+observed_state := {
+  seat             : seat_index,
+
+  scores           : per_member(int),
+  inning_index     : int,
+  num_consecutives : int,
+
+  gains            : per_member(card),
+  trick_starts_at  : seat_index,
+  hand             : list(card),
+  table            : table,
+}

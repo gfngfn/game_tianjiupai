@@ -72,11 +72,12 @@ websocket_handle(MsgFromClient, State) ->
 websocket_info(Msg, State) ->
     case Msg of
         game_start ->
-            Bin = jsone:encode(#{command => <<"start">>}),
+            NotifyGameStartObj = tianjiupai_format:make_notify_game_start_object(),
+            Bin = jsone:encode(NotifyGameStartObj),
             {reply, [{text, Bin}], State};
         {log, Log} ->
-            LogObj = tianjiupai_format:make_log_object(Log),
-            Bin = jsone:encode(#{command => <<"log">>, value => LogObj}),
+            NotifyLogObj = tianjiupai_format:make_notify_log_object(Log),
+            Bin = jsone:encode(NotifyLogObj),
             {reply, [{text, Bin}], State};
         _ ->
             io:format("~p, unknown message (messge: ~p)~n", [?MODULE, Msg]),

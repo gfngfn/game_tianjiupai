@@ -4,45 +4,22 @@ import Url exposing (Url)
 import Json.Decode as JD exposing (Decoder)
 import Http
 
+import Models exposing (..)
+
 
 type alias Flags = String
-type alias UserId = String
-type alias UserName = String
-type alias RoomId = String
-type alias RoomName = String
-
-type alias User =
-  { id        : UserId
-  , name      : UserName
-  , belongsTo : Maybe RoomId
-  }
-
-type Log
-  = LogComment UserId String
-  | LogEntered UserId
-  | LogExited UserId
-
-type alias Room =
-  { id      : RoomId
-  , name    : RoomName
-  , members : List UserId
-  , logs    : List Log
-  }
-
-type alias InputModel =
-  { userName : String
-  , roomName : String
-  , chatText : String
-  }
-
-type RoomState
-  = WaitingStart
-  | PlayingGame
 
 type State
   = AtEntrance UserName
-  | AtPlaza User String (Maybe (List Room))
-  | InRoom User Room String RoomState
+    -- 1. The content of the input form for deciding usernames.
+  | AtPlaza User RoomName (Maybe (List RoomSummary))
+    -- 1. The user who is using the client
+    -- 2. The content of the input form for creating new rooms
+    -- 3. The list of existent rooms (which is temporarily `Nothing` if being fetched)
+  | InRoom User PersonalState String
+    -- 1. The user who is using the client
+    -- 2. The state of the play where the user can observe
+    -- 3. The content of the input form for chatting
 
 type alias Model =
   { message       : String
@@ -56,14 +33,10 @@ type Request
   | SendChat
 
 type Response
-  = UserCreated UserName (Result Http.Error UserId)
-  | RoomCreated RoomName (Result Http.Error RoomId)
-  | RoomEntered RoomId (Result Http.Error Room)
-  | AllRoomsGot (Result Http.Error (List Room))
-
-type Notification
-  = LogNotification Log
-  | GameStarted
+  = UserCreated UserName (Result Http.Error CreateUserResponse)
+  | RoomCreated RoomName (Result Http.Error CreateRoomResponse)
+  | RoomEntered RoomId (Result Http.Error PersonalState)
+  | AllRoomsGot (Result Http.Error GetAllRoomsResponse)
 
 type InputUpdate
   = UserNameInput UserName
