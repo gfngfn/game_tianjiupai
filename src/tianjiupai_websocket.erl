@@ -36,6 +36,8 @@
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
+-define(LABELED_PATTERN(_Label_, _Pat_), #{<<"_label">> := _Label_, <<"_arg">> := _Pat_}).
+
 %%====================================================================================================
 %% `cowboy_websocket' Callback Functions
 %%====================================================================================================
@@ -150,11 +152,8 @@ handle_command(Data, State) ->
     try
         jsone:decode(Data)
     of
-        #{
-            <<"command">> := <<"set_user_id">>,
-            <<"user_id">> := UserId
-        } when is_binary(UserId) ->
-            io:format("~p: receive (user_id: ~p)~n", [?MODULE, UserId]), % TODO
+        ?LABELED_PATTERN(<<"CommandSetUserId">>, UserId) when is_binary(UserId) ->
+            io:format("~p: receive (data: ~p)~n", [?MODULE, Data]),
             Info = #{user_id => UserId},
             case register_name(UserId) of
                 ok ->
@@ -166,10 +165,7 @@ handle_command(Data, State) ->
                     ok %% TODO: emit an error
             end,
             {ok, State#state{session_info = Info}};
-        #{
-            <<"command">> := <<"send_chat">>,
-            <<"text">>    := Text
-        } when is_binary(Text) ->
+        ?LABELED_PATTERN(<<"CommandComment">>, Text) when is_binary(Text) ->
             case get_user_id(State) of
                 {ok, UserId} ->
                     case tianjiupai_user:send_chat(UserId, Text) of
@@ -183,11 +179,11 @@ handle_command(Data, State) ->
                     {ok, State}
             end;
         _ ->
-            io:format("~p: receive (text: ~p)~n", [?MODULE, Data]), % TODO
+            io:format("~p: unknown command (data: ~p)~n", [?MODULE, Data]),
             {ok, State}
     catch
         Class:Reason ->
-            io:format("~p: receive (text: ~p, class: ~p, reason: ~p)~n",
+            io:format("~p: cannot decode (data: ~p, class: ~p, reason: ~p)~n",
                 [?MODULE, Data, Class, Reason]), % TODO
             {ok, State}
     end.
