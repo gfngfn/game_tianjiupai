@@ -160,9 +160,9 @@ provide_json(Req0, State) ->
     RespBody =
         case State of
             #state{method = <<"GET">>, endpoint = all_rooms} ->
-                %% Rooms :: [tianjiupai_room:room_state()]
+                %% RoomStates :: [tianjiupai_room:room_state()]
                 RoomStates = tianjiupai_room:get_all_rooms(),
-                encode_room_summaries(RoomStates);
+                tianjiupai_format:encode_get_all_rooms_response(RoomStates);
             #state{
                 method       = <<"GET">>,
                 endpoint     = {specific_room_and_user, RoomId, UserId},
@@ -171,8 +171,8 @@ provide_json(Req0, State) ->
                 case validate_cookie(MaybeInfo, UserId) of
                     true ->
                         case tianjiupai_room:get_room(RoomId) of
-                            {ok, RoomState} -> encode_personal_state(RoomState);
-                            {error, Reason} -> encode_failure_reason(Reason)
+                            {ok, RoomState} -> tianjiupai_format:encode_get_room_response(RoomState);
+                            {error, Reason} -> tianjiupai_format:encode_failure_response(Reason) % TODO: error
                         end;
                     false ->
                         <<"">> % TODO: error
@@ -220,25 +220,20 @@ handle_user_creation(Req0, MaybeInfo) ->
                 {true, Req1};
         undefined ->
             {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-            try
-                jsone:decode(ReqBody)
-            of
-                #{
-                    <<"user_name">> := UserName
-                } when is_binary(UserName) ->
+            case tianjiupai_format:decode_create_user_request(ReqBody) of
+                {ok, UserName} ->
                     case tianjiupai_user:create(UserName) of
                         {ok, UserId} ->
                             Req2 = tianjiupai_session:set(#{user_id => UserId}, Req1),
-                            RespBody = jsone:encode(#{user_id => UserId}),
+                            RespBody = tianjiupai_format:encode_create_user_response(UserId),
                             Req3 = cowboy_req:set_resp_body(RespBody, Req2),
                             {true, Req3};
                         {error, Reason} ->
                             Req2 = set_failure_reason_to_resp_body(Reason, Req1),
                             {false, Req2}
-                    end
-            catch
-                Class:Reason ->
-                    Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
+                    end;
+                {error, Reason} ->
+                    Req2 = set_failure_reason_to_resp_body(Reason, Req1),
                     {false, Req2}
             end
     end.
@@ -251,18 +246,13 @@ handle_user_creation(Req0, MaybeInfo) ->
     {boolean(), cowboy_req:req()}.
 handle_room_creation(Req0, MaybeInfo) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-    try
-        jsone:decode(ReqBody)
-    of
-        #{
-            <<"user_id">>   := UserId,
-            <<"room_name">> := RoomName
-        } when is_binary(RoomName) andalso is_binary(UserId) ->
+    case tianjiupai_format:decode_create_room_request(ReqBody) of
+        {ok, {UserId, RoomName}} ->
             case validate_cookie(MaybeInfo, UserId) of
                 true ->
                     case tianjiupai_room:create(RoomName) of
                         {ok, RoomId} ->
-                            RespBody = jsone:encode(#{room_id => RoomId}),
+                            RespBody = tianjiupai_format:encode_create_room_response(RoomId),
                             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
                             {true, Req2};
                         {error, Reason} ->
@@ -273,12 +263,8 @@ handle_room_creation(Req0, MaybeInfo) ->
                     Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
                     {false, Req2}
             end;
-        _ ->
-            Req2 = set_failure_reason_to_resp_body(invalid_request_body, Req1),
-            {false, Req2}
-    catch
-        Class:Reason ->
-            Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
+        {error, Reason} ->
+            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
             {false, Req2}
     end.
 
@@ -291,56 +277,37 @@ handle_room_creation(Req0, MaybeInfo) ->
     {boolean(), cowboy_req:req()}.
 handle_attending(Req0, MaybeInfo, RoomId) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-    try
-        jsone:decode(ReqBody)
-    of
-        #{
-          <<"user_id">> := UserId
-        } when is_binary(UserId) ->
+    case tianjiupai_format:decode_enter_room_request(ReqBody) of
+        {ok, UserId} ->
             case validate_cookie(MaybeInfo, UserId) of
                 true ->
                     case tianjiupai_user:set_room(UserId, RoomId) of
-                        {error, Reason1} ->
-                            Req2 = set_failure_reason_to_resp_body(Reason1, Req1),
-                            {false, Req2};
                         ok ->
                             case tianjiupai_room:attend(RoomId, UserId) of
                                 {error, Reason2} ->
                                     Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
                                     {false, Req2};
                                 {ok, RoomState} ->
-                                    RespBody = encode_personal_state(RoomState),
+                                    RespBody = tianjiupai_format:encode_enter_room_response(RoomState),
                                     Req2 = cowboy_req:set_resp_body(RespBody, Req1),
                                     {true, Req2}
-                            end
+                            end;
+                        {error, Reason1} ->
+                            Req2 = set_failure_reason_to_resp_body(Reason1, Req1),
+                            {false, Req2}
                     end;
                 false ->
                     Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
                     {false, Req2}
-            end
-    catch
-        Class:Reason ->
-            Req2 = set_failure_reason_to_resp_body({exception, Class, Reason}, Req1),
+            end;
+        {error, Reason} ->
+            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
             {false, Req2}
     end.
 
--spec encode_personal_state(tianjiupai_room:room_state()) -> binary().
-encode_personal_state(RoomState) ->
-    PersonalStateObj = tianjiupai_format:make_personal_state_object(RoomState),
-    jsone:encode(PersonalStateObj).
-
--spec encode_room_summaries([tianjiupai_room:room_state()]) -> binary().
-encode_room_summaries(RoomStates) ->
-    RoomSummaryObjs = lists:map(fun tianjiupai_format:make_room_summary_object/1, RoomStates),
-    jsone:encode(#{rooms => RoomSummaryObjs}).
-
--spec encode_failure_reason(Reason :: term()) -> binary().
-encode_failure_reason(Reason) ->
-    erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))).
-
 -spec set_failure_reason_to_resp_body(Reason :: term(), cowboy_req:req()) -> cowboy_req:req().
 set_failure_reason_to_resp_body(Reason, Req) ->
-    ReasonBin = encode_failure_reason(Reason),
+    ReasonBin = tianjiupai_format:encode_failure_response(Reason),
     RespBody = jsone:encode(#{reason => ReasonBin}),
     cowboy_req:set_resp_body(RespBody, Req).
 
