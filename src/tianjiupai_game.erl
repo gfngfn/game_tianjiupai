@@ -10,6 +10,9 @@
     get_user_ids/1,
     generate_initial_inning_state/2,
 
+    %% For tests:
+    all_cards/0,
+    shuffle/0,
     quad_map/2
 ]).
 
@@ -85,6 +88,13 @@ generate_initial_inning_state(Parent, UserIdQuad) ->
                 UserIdQuad, HandQuad)
     }.
 
+%%====================================================================================================
+%% Internal Functions
+%%====================================================================================================
+-spec all_cards() -> [card()].
+all_cards() ->
+    ?ALL_CARDS.
+
 -spec shuffle() -> quad([card()]).
 shuffle() ->
     %% RandomlyIndexedCards :: [{float(), card()}]
@@ -94,7 +104,7 @@ shuffle() ->
                 Index = rand:uniform(),
                 {Index, Card}
             end,
-            ?ALL_CARDS),
+            all_cards()),
     Sorted0 =
         lists:sort(
             fun({Index1, _}, {Index2, _}) ->
