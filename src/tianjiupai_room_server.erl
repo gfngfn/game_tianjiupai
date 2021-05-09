@@ -63,9 +63,23 @@
     waiting_members :: [#waiting_member{}]
 }).
 
+-type score() :: non_neg_integer().
+
+-define(INITIAL_SCORE, 50).
+
+-record(game_player, {
+    user_id :: tianjiupai:user_id(),
+    score   :: score()
+}).
+
+-record(game_state, {
+    players :: tianjiupai_quad:quad(#game_player{}),
+    inning  :: tianjiupai_game:inning_state()
+}).
+
 -type internal_room_state() ::
     {waiting, #waiting_state{}}
-  | {playing, tianjiupai_game:playing_state()}.
+  | {playing, #game_state{}}.
 
 -record(state, {
     settings      :: #settings{},
@@ -236,11 +250,21 @@ handle_attend(UserId, State0) ->
                         case MembersOtherThanNewOne of
                             [UserId0, UserId1, UserId2 | _] ->
                             %% If four members will come to be in the room
+                                InningState = tianjiupai_game:generate_initial_inning_state(0),
+                                PlayerQuad =
+                                    tianjiupai_quad:map(
+                                        fun(U) ->
+                                            #game_player{
+                                                user_id = U,
+                                                score   = ?INITIAL_SCORE
+                                            }
+                                        end,
+                                        {UserId0, UserId1, UserId2, UserId}),
                                 PlayingState =
-                                    tianjiupai_game:generate_initial_inning_state(
-                                        0,
-                                        {UserId0, UserId1, UserId2, UserId}
-                                    ),
+                                    #game_state{
+                                        players = PlayerQuad,
+                                        inning  = InningState
+                                    },
                                 RoomState = {playing, PlayingState},
                                 LogGameStart = game_start,
                                 notify_logs_for_each(MembersOtherThanNewOne, [LogEnter, LogGameStart]),
@@ -299,9 +323,9 @@ get_members_from_state(RoomState) ->
     case RoomState of
         {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
             {false, lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers)};
-        {playing, Play} ->
-            UserIds = tianjiupai_game:get_user_ids(Play),
-            {true, UserIds}
+        {playing, #game_state{players = PlayerQuad}} ->
+            {U0, U1, U2, U3} = tianjiupai_quad:map(fun(#game_player{user_id = U}) -> U end, PlayerQuad),
+            {true, [U0, U1, U2, U3]}
     end.
 
 call(RoomId, Msg) ->
