@@ -43,6 +43,8 @@
 
 -type table_state() ::
     starting
+  | {wuzun,       exposed(ok)}
+  | {wenzun,      exposed(minor | major)}
   | {single_wen,  exposed(card_wen())}
   | {single_wu,   exposed(card_wu())}
   | {double_wen,  exposed(card_wen())}
@@ -50,9 +52,7 @@
   | {double_both, exposed(card_big())}
   | {triple_wen,  exposed(card_big())}
   | {triple_wu,   exposed(card_big())}
-  | {quadruple,   exposed(card_big())}
-  | {wuzun,       exposed(ok)}
-  | {wenzun,      exposed(minor | major)}.
+  | {quadruple,   exposed(card_big())}.
 
 -record(player, {
     hand      :: [card()],  % The list of cards in the hand.
@@ -206,35 +206,144 @@ update_table(SubmittedCards, Table) ->
     case Table of
         starting ->
             make_starting_table(SubmittedCards);
-        {single_wen, WenOrCloseds0} ->
+        {wuzun, ExposedOk} ->
+            case SubmittedCards of
+                [_, _] ->
+                    {ok, {wuzun, expose(ExposedOk, closed)}};
+                _ ->
+                    error
+            end;
+        {wenzun, Exposed} ->
+            case SubmittedCards of
+                [{wen, ?WEN_NUMBER_BOOBY}, {wen, ?WEN_NUMBER_BOOBY}] ->
+                    {ok, {wenzun, expose(Exposed, {open, major})}};
+                [_, _] ->
+                    {ok, {wenzun, expose(Exposed, closed)}};
+                _ ->
+                    error
+            end;
+        {single_wen, ExposedWen} ->
             case SubmittedCards of
                 [{wen, Wen}] ->
-                    WenMax = wen_max(WenOrCloseds0),
-                    case wen_greater(Wen, WenMax) of
-                        true  -> {ok, WenOrCloseds0 ++ [{open, Wen}]};
-                        false -> {ok, WenOrCloseds0 ++ [closed]}
-                    end;
-                [{wu, _}] ->
-                    {ok, WenOrCloseds0 ++ [closed]};
+                    WenMax = wen_max(ExposedWen),
+                    New =
+                        case wen_greater(Wen, WenMax) of
+                            true  -> {open, Wen};
+                            false -> closed
+                        end,
+                    {ok, {single_wen, expose(ExposedWen, New)}};
+                [_] ->
+                    {ok, {single_wen, expose(ExposedWen, closed)}};
                 _ ->
                     error
             end;
-        {single_wu, WuOrCloseds0} ->
+        {single_wu, ExposedWu} ->
             case SubmittedCards of
                 [{wu, Wu}] ->
-                    WuMax = wu_max(WuOrCloseds0),
-                    case wu_greater(Wu, WuMax) of
-                        true  -> {ok, WuOrCloseds0 ++ [{open, Wu}]};
-                        false -> {ok, WuOrCloseds0 ++ [closed]}
-                    end;
-                [{wen, _}] ->
-                    {ok, WuOrCloseds0 ++ [closed]};
+                    WuMax = wu_max(ExposedWu),
+                    New =
+                        case wu_greater(Wu, WuMax) of
+                            true  -> {open, Wu};
+                            false -> closed
+                        end,
+                    {ok, {single_wu, expose(ExposedWu, New)}};
+                [_] ->
+                    {ok, {single_wu, expose(ExposedWu, closed)}};
                 _ ->
                     error
             end;
-        _ ->
-            error % TODO: SUPPORT THE OTHER PATTERNS
+        {double_wen, ExposedWen} ->
+            case SubmittedCards of
+                [{wen, Wen}, {wen, Wen}] ->
+                    WenMax = wen_max(ExposedWen),
+                    New =
+                        case wen_greater(Wen, WenMax) of
+                            true  -> {open, Wen};
+                            false -> closed
+                        end,
+                    {ok, {double_wen, expose(ExposedWen, New)}};
+                [_, _] ->
+                    {ok, {double_wen, expose(ExposedWen, closed)}};
+                _ ->
+                    error
+            end;
+        {double_wu, ExposedWu} ->
+            case SubmittedCards of
+                [{wu, Wu}, {wu, Wu}] ->
+                    WuMax = wu_max(ExposedWu),
+                    New =
+                        case wu_greater(Wu, WuMax) of
+                            true  -> {open, Wu};
+                            false -> closed
+                        end,
+                    {ok, {double_wu, expose(ExposedWu, New)}};
+                [_, _] ->
+                    {ok, {double_wu, expose(ExposedWu, closed)}};
+                _ ->
+                    error
+            end;
+        {double_both, ExposedBig} ->
+            case sort_cards(SubmittedCards) of
+                [{wen, Wen}, {wu, Wu}] ->
+                    update_both(double_both, ExposedBig, Wen, Wu);
+                [_, _] ->
+                    {ok, {double_both, expose(ExposedBig, closed)}};
+                _ ->
+                    error
+            end;
+        {triple_wen, ExposedBig} ->
+            case sort_cards(SubmittedCards) of
+                [{wen, Wen}, {wen, Wen}, {wu, Wu}] ->
+                    update_both(triple_wen, ExposedBig, Wen, Wu);
+                [_, _, _] ->
+                    {ok, {triple_wen, expose(ExposedBig, closed)}};
+                _ ->
+                    error
+            end;
+        {triple_wu, ExposedBig} ->
+            case sort_cards(SubmittedCards) of
+                [{wen, Wen}, {wu, Wu}, {wu, Wu}] ->
+                    update_both(triple_wu, ExposedBig, Wen, Wu);
+                [_, _, _] ->
+                    {ok, {triple_wu, expose(ExposedBig, closed)}};
+                _ ->
+                    error
+            end;
+        {quadruple, ExposedBig} ->
+            case sort_cards(SubmittedCards) of
+                [{wen, Wen}, {wen, Wen}, {wu, Wu}, {wu, Wu}] ->
+                    update_both(quadruple, ExposedBig, Wen, Wu);
+                [_, _, _, _] ->
+                    {ok, {quadruple, expose(ExposedBig, closed)}};
+                _ ->
+                    error
+            end
     end.
+
+-spec update_both(Tag, exposed(card_big()), card_wen(), card_wu()) -> {ok, table_state()} | error when
+    Tag :: double_both | triple_wen | triple_wu | quadruple.
+update_both(Tag, ExposedBig, Wen, Wu) ->
+    case wen_and_wu_to_big(Wen, Wu) of
+        {ok, Big} ->
+            BigMax = big_max(ExposedBig),
+            New =
+                case big_greater(Big, BigMax) of
+                    true  -> {open, Big};
+                    false -> closed
+                end,
+            {ok, {Tag, expose(ExposedBig, New)}};
+        error ->
+            {ok, {Tag, expose(ExposedBig, closed)}}
+    end.
+
+%% @doc Returns the current maximum big card.
+-spec big_max(exposed(card_big())) -> card_big().
+big_max({Big0, BigOrCloseds}) ->
+    lists:max([Big0 | [Big || {open, Big} <- BigOrCloseds]]).
+
+-spec big_greater(card_big(), card_big()) -> boolean().
+big_greater(Big1, Big2) ->
+    Big1 > Big2.
 
 %% @doc Returns the current maximum wen card.
 -spec wen_max(exposed(card_wen())) -> card_wen().
@@ -245,7 +354,7 @@ wen_max({Wen0, WenOrCloseds}) ->
 wen_greater(Wen1, Wen2) ->
     Wen1 > Wen2.
 
-%% @doc Returns the current maximum wen card.
+%% @doc Returns the current maximum wu card.
 -spec wu_max(exposed(card_wu())) -> card_wu().
 wu_max({Wu0, WuOrCloseds}) ->
     lists:max([Wu0 | [Wu || {open, Wu} <- WuOrCloseds]]).
@@ -301,6 +410,11 @@ make_starting_table(SubmittedCards) ->
 first_exposed(X) ->
     {X, []}.
 
+-spec expose(exposed(X), closed_or(X)) -> exposed(X) when
+    X :: term().
+expose({X, XOrCloseds}, New) ->
+    {X, XOrCloseds ++ New}.
+
 -spec wen_and_wu_to_big(card_wen(), card_wu()) -> {ok, card_big()} | error.
 wen_and_wu_to_big(Wen, Wu) ->
     case {wen_to_big(Wen), wu_to_big(Wu)} of
@@ -315,7 +429,7 @@ wen_to_big(Wen) ->
         ?WEN_NUMBER_DI   -> {ok, big3};
         ?WEN_NUMBER_REN  -> {ok, big2};
         ?WEN_NUMBER_HE   -> {ok, big1};
-        _         -> error
+        _                -> error
     end.
 
 -spec wu_to_big(card_wu()) -> {ok, card_big()} | error.
