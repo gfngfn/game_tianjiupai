@@ -39,7 +39,7 @@
 -record(state, {
     settings             :: #settings{},
     belongs_to           :: none | {value, {tianjiupai:room_id(), reference()}},
-    websocket_connection :: reference()
+    websocket_connection :: none | {value, reference()}
 }).
 
 -type info() :: #{

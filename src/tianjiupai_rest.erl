@@ -32,13 +32,15 @@
     {page, bbmustache:template()}
   | all_users
   | all_rooms
-  | specific_room.
+  | specific_room
+  | specific_room_and_user.
 
 -type endpoint() ::
     {page, bbmustache:template()}
   | all_users
   | all_rooms
-  | {specific_room, RoomId :: tianjiupai_room:room_id()}.
+  | {specific_room, tianjiupai:room_id()}
+  | {specific_room_and_user, tianjiupai:room_id(), tianjiupai:user_id()}.
 
 -record(state, {
     method       :: http_method(),
@@ -57,11 +59,20 @@ init(Req0, EndpointKind) ->
     {MaybeInfo, Req1} = tianjiupai_session:get(Req0),
     %% Endpoint :: endpoint()
     Endpoint =
-        case {EndpointKind, cowboy_req:binding(room_id, Req1, undefined)} of
-            {{page, Template}, undefined} -> {page, Template};
-            {all_users,        undefined} -> all_users;
-            {all_rooms,        undefined} -> all_rooms;
-            {specific_room,    RoomId}    -> {specific_room, RoomId}
+        case EndpointKind of
+            {page, Template} ->
+                {page, Template};
+            all_users ->
+                all_users;
+            all_rooms ->
+                all_rooms;
+            specific_room ->
+                RoomId = cowboy_req:binding(room_id, Req1, undefined),
+                {specific_room, RoomId};
+            specific_room_and_user ->
+                RoomId = cowboy_req:binding(room_id, Req1, undefined),
+                UserId = cowboy_req:binding(user_id, Req1, undefined),
+                {specific_room_and_user, RoomId, UserId}
             %% Should the `case_clause' exception happen here,
             %% it is due to this implementation being inconsistent with the dispatch table.
         end,
@@ -78,10 +89,11 @@ allowed_methods(Req, State) ->
     } = State,
     Methods =
         case Endpoint of
-            {page, _}          -> [<<"GET">>];
-            all_users          -> [<<"POST">>];
-            all_rooms          -> [<<"GET">>, <<"POST">>];
-            {specific_room, _} -> [<<"GET">>, <<"PUT">>]
+            {page, _}                      -> [<<"GET">>];
+            all_users                      -> [<<"POST">>];
+            all_rooms                      -> [<<"GET">>, <<"POST">>];
+            {specific_room, _}             -> [<<"PUT">>];
+            {specific_room_and_user, _, _} -> [<<"GET">>]
         end,
     {Methods, Req, State}.
 
@@ -103,10 +115,10 @@ content_types_provided(Req, State) ->
         case Method of
             <<"GET">> ->
                 case Endpoint of
-                    {page, _}          -> [{MimeHtml, provide_html}];
-                    all_rooms          -> [{MimeJson, provide_json}];
-                    {specific_room, _} -> [{MimeJson, provide_json}];
-                    _                  -> []
+                    {page, _}                      -> [{MimeHtml, provide_html}];
+                    all_rooms                      -> [{MimeJson, provide_json}];
+                    {specific_room_and_user, _, _} -> [{MimeJson, provide_json}];
+                    _                              -> []
                 end;
             _ ->
                 [{MimeJson, undefined}]
@@ -150,14 +162,23 @@ provide_json(Req0, State) ->
             #state{method = <<"GET">>, endpoint = all_rooms} ->
                 %% Rooms :: [tianjiupai_room:room_state()]
                 RoomStates = tianjiupai_room:get_all_rooms(),
-                encode_room_states(RoomStates);
-            #state{method = <<"GET">>, endpoint = {specific_room, RoomId}} ->
-                case tianjiupai_room:get_room(RoomId) of
-                    {ok, RoomState} -> encode_room_state(RoomState);
-                    {error, Reason} -> encode_failure_reason(Reason)
-                    end;
+                encode_room_summaries(RoomStates);
+            #state{
+                method       = <<"GET">>,
+                endpoint     = {specific_room_and_user, RoomId, UserId},
+                session_info = MaybeInfo
+            } ->
+                case validate_cookie(MaybeInfo, UserId) of
+                    true ->
+                        case tianjiupai_room:get_room(RoomId) of
+                            {ok, RoomState} -> encode_personal_state(RoomState);
+                            {error, Reason} -> encode_failure_reason(Reason)
+                        end;
+                    false ->
+                        <<"">> % TODO: error
+                end;
             _ ->
-                <<"">>
+                <<"">> % TODO: error
         end,
     {RespBody, Req0, State}.
 
@@ -288,7 +309,7 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                                     Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
                                     {false, Req2};
                                 {ok, RoomState} ->
-                                    RespBody = encode_room_state(RoomState),
+                                    RespBody = encode_personal_state(RoomState),
                                     Req2 = cowboy_req:set_resp_body(RespBody, Req1),
                                     {true, Req2}
                             end
@@ -303,15 +324,15 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
             {false, Req2}
     end.
 
--spec encode_room_state(tianjiupai_room:room_state()) -> binary().
-encode_room_state(RoomState) ->
-    RoomObj = tianjiupai_format:make_room_state_object(RoomState),
-    jsone:encode(RoomObj).
+-spec encode_personal_state(tianjiupai_room:room_state()) -> binary().
+encode_personal_state(RoomState) ->
+    PersonalStateObj = tianjiupai_format:make_personal_state_object(RoomState),
+    jsone:encode(PersonalStateObj).
 
--spec encode_room_states([tianjiupai_room:room_state()]) -> binary().
-encode_room_states(RoomStates) ->
-    RoomObjs = lists:map(fun tianjiupai_format:make_room_state_object/1, RoomStates),
-    jsone:encode(#{rooms => RoomObjs}).
+-spec encode_room_summaries([tianjiupai_room:room_state()]) -> binary().
+encode_room_summaries(RoomStates) ->
+    RoomSummaryObjs = lists:map(fun tianjiupai_format:make_room_summary_object/1, RoomStates),
+    jsone:encode(#{rooms => RoomSummaryObjs}).
 
 -spec encode_failure_reason(Reason :: term()) -> binary().
 encode_failure_reason(Reason) ->
@@ -340,34 +361,6 @@ validate_cookie(MaybeInfo, UserId) ->
 
 -spec make_flags_from_cookie(undefined | tianjiupai_session:info()) -> binary().
 make_flags_from_cookie(MaybeInfo) ->
-    Flags =
-        case MaybeInfo of
-            undefined ->
-                #{user => #{type => <<"nothing">>}};
-            #{user_id := UserId} ->
-                case tianjiupai_user:get_info(UserId) of
-                    {ok, Info} ->
-                        #{user_name := UserName, belongs_to := MaybeRoomId} = Info,
-                        BelongsToMap =
-                            case MaybeRoomId of
-                                none ->
-                                    #{type => <<"nothing">>};
-                                {value, RoomId} ->
-                                    #{type  => <<"just">>, value => RoomId}
-                            end,
-                        #{
-                            user => #{
-                                type => <<"just">>,
-                                value => #{
-                                    id         => UserId,
-                                    name       => UserName,
-                                    belongs_to => BelongsToMap
-                                }
-                            }
-                        };
-                    {error, _} ->
-                        #{user => #{type => <<"nothing">>}}
-                end
-        end,
-    JsonBin = jsone:encode(Flags),
+    FlagsObj = tianjiupai_format:make_flags_object(MaybeInfo),
+    JsonBin = jsone:encode(FlagsObj),
     <<"'", JsonBin/binary, "'">>.

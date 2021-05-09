@@ -7,7 +7,7 @@ import Http
 import Browser
 
 import Common exposing (..)
-import Flag
+import Models exposing (..)
 import HttpClient
 import WebSocketClient
 import View
@@ -25,26 +25,33 @@ main =
 init : String -> ( Model, Cmd Msg )
 init flagString =
   let
-    maybeUser : Maybe User
-    maybeUser =
-      case Flag.decode flagString of
-          Ok(maybeUser0) -> maybeUser0
-          Err(_)         -> Nothing
+    maybeFlagUser : Maybe FlagUser
+    maybeFlagUser =
+      case JD.decodeString decodeFlag flagString of
+          Ok(flag) -> flag.user
+          Err(_)   -> Nothing
 
     ( cmd, state ) =
-      case maybeUser of
+      case maybeFlagUser of
         Nothing ->
           ( Cmd.none, AtEntrance "" )
 
-        Just user ->
-          let cmd1 = WebSocketClient.setUserId user.id in
-          case user.belongsTo of
+        Just flagUser ->
+          let userId = flagUser.id in
+          let userName = flagUser.name in
+          let cmd1 = WebSocketClient.setUserId userId in
+          let
+            user : User
+            user =
+              { userId = userId, userName = userName }
+          in
+          case flagUser.belongsTo of
             Nothing ->
               let cmd2 = HttpClient.getAllRooms in
               ( Cmd.batch [ cmd1, cmd2 ], AtPlaza user "" Nothing )
 
             Just roomId ->
-              let cmd2 = HttpClient.getRoom roomId in
+              let cmd2 = HttpClient.getRoom userId roomId in
               ( Cmd.batch [ cmd1, cmd2 ], AtPlaza user "" Nothing )
 
     model : Model
@@ -70,8 +77,12 @@ update msg model =
 
         ReceiveResponse (UserCreated userName result) ->
           case result of
-            Ok userId ->
-              let user = { id = userId, name = userName, belongsTo = Nothing } in
+            Ok responseBody ->
+              let userId = responseBody.userId in
+              let
+                user : User
+                user = { userId = userId, userName = userName }
+              in
               let cmd1 = WebSocketClient.setUserId userId in
               let cmd2 = HttpClient.getAllRooms in
               ( { model | state = AtPlaza user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
@@ -89,23 +100,39 @@ update msg model =
 
         ReceiveResponse (AllRoomsGot result) ->
           case result of
-            Ok rooms ->
+            Ok responseBody ->
+              let rooms = responseBody.rooms in
               ( { model | state = AtPlaza user roomNameInput0 (Just rooms) }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
 
         SendRequest CreateRoom ->
-          let cmd = HttpClient.createRoom user.id roomNameInput0 in
+          let cmd = HttpClient.createRoom user.userId roomNameInput0 in
           ( { model | state = AtPlaza user "" maybeRooms }, cmd )
 
         ReceiveResponse (RoomCreated roomName result) ->
           case result of
-            Ok roomId ->
+            Ok responseBody ->
               case maybeRooms of
-                Just rooms0 ->
-                  let room = { id = roomId, name = roomName, members = [], logs = [] } in
-                  ( { model | state = AtPlaza user roomNameInput0 (Just (rooms0 ++ [room])) }, Cmd.none )
+                Just roomSummaries0 ->
+                  let
+                    roomId : RoomId
+                    roomId =
+                      responseBody.roomId
+
+                    roomSummary : RoomSummary
+                    roomSummary =
+                      { room      = { roomId = roomId, roomName = roomName }
+                      , members   = []
+                      , isPlaying = False
+                      }
+
+                    roomSummaries1 : List RoomSummary
+                    roomSummaries1 =
+                      roomSummaries0 ++ [roomSummary]
+                  in
+                  ( { model | state = AtPlaza user roomNameInput0 (Just roomSummaries1) }, Cmd.none )
 
                 Nothing ->
                   ( model, Cmd.none )
@@ -114,13 +141,13 @@ update msg model =
               ( { model | message = makeErrorMessage err }, Cmd.none )
 
         SendRequest (EnterRoom roomId) ->
-          let cmd = HttpClient.enterRoom user.id roomId in
+          let cmd = HttpClient.enterRoom user.userId roomId in
           ( model, cmd )
 
         ReceiveResponse (RoomEntered roomId result) ->
           case result of
             Ok room ->
-              ( { model | state = InRoom user room "" WaitingStart }, Cmd.none )
+              ( { model | state = InRoom user room "" }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
@@ -128,24 +155,25 @@ update msg model =
         _ ->
           ( { model | message = "[warning] unexpected message (AtPlaza): " ++ showMessage msg }, Cmd.none )
 
-    InRoom user room0 chatTextInput0 roomState ->
-      case ( roomState, msg ) of
+    InRoom user pstate0 chatTextInput0 ->
+      case ( pstate0.game, msg ) of
         ( _, UpdateInput (ChatInput chatTextInput1) ) ->
-           ( { model | state = InRoom user room0 chatTextInput1 roomState }, Cmd.none )
+           ( { model | state = InRoom user pstate0 chatTextInput1 }, Cmd.none )
 
         ( _, SendRequest SendChat ) ->
           let cmd = WebSocketClient.sendChat chatTextInput0 in
-          ( { model | state = InRoom user room0 "" roomState  }, cmd )
+          ( { model | state = InRoom user pstate0 ""  }, cmd )
 
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = "[warning] invalid notification" }, Cmd.none )
 
-        ( _, ReceiveNotification (Ok (LogNotification log)) ) ->
-          let room1 = { room0 | logs = room0.logs ++ [log] } in
-          ( { model | state = InRoom user room1 chatTextInput0 roomState }, Cmd.none )
+        ( _, ReceiveNotification (Ok (NotifyLog log)) ) ->
+          let pstate1 = { pstate0 | logs = pstate0.logs ++ [log] } in
+          ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
 
-        ( WaitingStart, ReceiveNotification (Ok GameStarted) ) ->
-          ( { model | state = InRoom user room0 chatTextInput0 PlayingGame }, Cmd.none )
+        ( WaitingStart _, ReceiveNotification (Ok NotifyGameStart) ) ->
+          let ostate = Debug.todo "ostate" in
+          ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, Cmd.none )
 
         _ ->
           ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
@@ -161,8 +189,8 @@ view model =
 showNotification : Notification -> String
 showNotification nt =
   case nt of
-    LogNotification _ -> "LogNotification"
-    GameStarted       -> "GameStarted"
+    NotifyLog _     -> "NotifyLog"
+    NotifyGameStart -> "GameStart"
 
 
 showMessage : Msg -> String
