@@ -14,7 +14,8 @@
     %% For tests:
     all_cards/0,
     shuffle/0,
-    make_starting_table/1
+    make_starting_table/1,
+    update_table/2
 ]).
 
 %%====================================================================================================
@@ -413,7 +414,7 @@ first_exposed(X) ->
 -spec expose(exposed(X), closed_or(X)) -> exposed(X) when
     X :: term().
 expose({X, XOrCloseds}, New) ->
-    {X, XOrCloseds ++ New}.
+    {X, XOrCloseds ++ [New]}.
 
 -spec wen_and_wu_to_big(card_wen(), card_wu()) -> {ok, card_big()} | error.
 wen_and_wu_to_big(Wen, Wu) ->

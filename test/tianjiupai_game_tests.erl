@@ -100,3 +100,104 @@ make_starting_table_test_() ->
                error}
         ]
     ].
+
+update_table_success_test_() ->
+    First = fun(X) -> {X, []} end,
+    Exposed = fun(X, XOrCloseds) -> {X, XOrCloseds} end,
+    [
+     {"Succeeds in updating table states.",
+      fun() ->
+          Got = tianjiupai_game:update_table(SubmittedCards, Table),
+          ?assertEqual({ok, Expected}, Got)
+      end}
+    ||
+        {SubmittedCards, Table, Expected} <- [
+            %% Submits one card to `starting'.
+            %% This pattern is tested by `make_starting_table_test_'.
+            {[{wen, 5}],
+                starting,
+                {single_wen, First(5)}},
+
+            %% Submits one wen to `single_wen'.
+            {[{wen, 5}],
+                {single_wen, Exposed(4, [])},
+                {single_wen, Exposed(4, [{open, 5}])}},
+            {[{wen, 5}],
+                {single_wen, Exposed(5, [])},
+                {single_wen, Exposed(5, [closed])}},
+            {[{wen, 5}],
+                {single_wen, Exposed(6, [])},
+                {single_wen, Exposed(6, [closed])}},
+            {[{wen, 5}],
+                {single_wen, Exposed(3, [{open, 4}])},
+                {single_wen, Exposed(3, [{open, 4}, {open, 5}])}},
+            {[{wen, 5}],
+                {single_wen, Exposed(3, [{open, 5}])},
+                {single_wen, Exposed(3, [{open, 5}, closed])}},
+            {[{wen, 5}],
+                {single_wen, Exposed(3, [{open, 6}])},
+                {single_wen, Exposed(3, [{open, 6}, closed])}},
+            {[{wen, 5}],
+                {single_wen, Exposed(3, [closed, {open, 6}])},
+                {single_wen, Exposed(3, [closed, {open, 6}, closed])}},
+            {[{wen, 5}],
+                {single_wen, Exposed(3, [closed])},
+                {single_wen, Exposed(3, [closed, {open, 5}])}},
+
+            %% Submits one wu to `single_wen'.
+            {[{wu, 5}],
+                {single_wen, Exposed(6, [])},
+                {single_wen, Exposed(6, [closed])}},
+            {[{wu, 7}],
+                {single_wen, Exposed(6, [])},
+                {single_wen, Exposed(6, [closed])}},
+            {[{wu, 7}],
+                {single_wen, Exposed(6, [{open, 7}])},
+                {single_wen, Exposed(6, [{open, 7}, closed])}},
+
+            %% Submits one wu to `single_wu'.
+            {[{wu, 8}],
+                {single_wu, Exposed(6, [])},
+                {single_wu, Exposed(6, [{open, 8}])}},
+            {[{wu, 8}],
+                {single_wu, Exposed(8, [])},
+                {single_wu, Exposed(8, [closed])}},
+            {[{wu, 8}],
+                {single_wu, Exposed(9, [])},
+                {single_wu, Exposed(9, [closed])}},
+            {[{wu, 8}],
+                {single_wu, Exposed(6, [{open, 7}])},
+                {single_wu, Exposed(6, [{open, 7}, {open, 8}])}},
+            {[{wu, 8}],
+                {single_wu, Exposed(6, [{open, 8}])},
+                {single_wu, Exposed(6, [{open, 8}, closed])}},
+            {[{wu, 8}],
+                {single_wu, Exposed(6, [{open, 9}])},
+                {single_wu, Exposed(6, [{open, 9}, closed])}},
+            {[{wu, 8}],
+                {single_wu, Exposed(6, [closed, {open, 9}])},
+                {single_wu, Exposed(6, [closed, {open, 9}, closed])}},
+            {[{wu, 8}],
+                {single_wu, Exposed(9, [closed])},
+                {single_wu, Exposed(9, [closed, closed])}},
+
+            %% Submits one wen to `single_wu'.
+            {[{wen, 8}],
+                {single_wu, Exposed(5, [])},
+                {single_wu, Exposed(5, [closed])}},
+            {[{wen, 8}],
+                {single_wu, Exposed(9, [])},
+                {single_wu, Exposed(9, [closed])}},
+            {[{wen, 8}],
+                {single_wu, Exposed(7, [{open, 9}])},
+                {single_wu, Exposed(7, [{open, 9}, closed])}},
+
+            %% Submits two wens to `double_wen'.
+            {[{wen, 5}, {wen, 5}],
+                {double_wen, Exposed(4, [])},
+                {double_wen, Exposed(4, [{open, 5}])}},
+            {[{wen, 3}, {wen, 3}],
+                {double_wen, Exposed(4, [])},
+                {double_wen, Exposed(4, [closed])}}
+        ]
+    ].
