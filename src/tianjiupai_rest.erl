@@ -328,6 +328,5 @@ validate_cookie(MaybeInfo, UserId) ->
 
 -spec make_flags_from_cookie(undefined | tianjiupai_session:info()) -> binary().
 make_flags_from_cookie(MaybeInfo) ->
-    FlagsObj = tianjiupai_format:make_flags_object(MaybeInfo),
-    JsonBin = jsone:encode(FlagsObj),
+    JsonBin = tianjiupai_format:encode_flags_object(MaybeInfo),
     <<"'", JsonBin/binary, "'">>.

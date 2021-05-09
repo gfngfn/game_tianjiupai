@@ -36,8 +36,6 @@
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
--define(LABELED_PATTERN(_Label_, _Pat_), #{<<"_label">> := _Label_, <<"_arg">> := _Pat_}).
-
 %%====================================================================================================
 %% `cowboy_websocket' Callback Functions
 %%====================================================================================================
@@ -74,12 +72,10 @@ websocket_handle(MsgFromClient, State) ->
 websocket_info(Msg, State) ->
     case Msg of
         game_start ->
-            NotifyGameStartObj = tianjiupai_format:make_notify_game_start_object(),
-            Bin = jsone:encode(NotifyGameStartObj),
+            Bin = tianjiupai_format:encode_notify_game_start(),
             {reply, [{text, Bin}], State};
         {log, Log} ->
-            NotifyLogObj = tianjiupai_format:make_notify_log_object(Log),
-            Bin = jsone:encode(NotifyLogObj),
+            Bin = tianjiupai_format:encode_notify_log(Log),
             {reply, [{text, Bin}], State};
         _ ->
             io:format("~p, unknown message (messge: ~p)~n", [?MODULE, Msg]),
@@ -149,41 +145,40 @@ get_user_id(State) ->
 
 -spec handle_command(iodata(), #state{}) -> {ok, #state{}}.
 handle_command(Data, State) ->
-    try
-        jsone:decode(Data)
-    of
-        ?LABELED_PATTERN(<<"CommandSetUserId">>, UserId) when is_binary(UserId) ->
-            io:format("~p: receive (data: ~p)~n", [?MODULE, Data]),
-            Info = #{user_id => UserId},
-            case register_name(UserId) of
-                ok ->
-                    io:format("~p, succeeded in registration (pid: ~p)~n", [?MODULE, self()]),
-                    ok;
-                {error, Reason} ->
-                %% If something bad happens
-                    io:format("~p, failed in registration (pid: ~p, reason: ~p)~n", [?MODULE, self(), Reason]),
-                    ok %% TODO: emit an error
-            end,
-            {ok, State#state{session_info = Info}};
-        ?LABELED_PATTERN(<<"CommandComment">>, Text) when is_binary(Text) ->
-            case get_user_id(State) of
-                {ok, UserId} ->
-                    case tianjiupai_user:send_chat(UserId, Text) of
+    case tianjiupai_format:decode_command(Data) of
+        {ok, Command} ->
+            case Command of
+                {set_user_id, UserId} ->
+                    io:format("~p: receive (data: ~p)~n", [?MODULE, Data]),
+                    Info = #{user_id => UserId},
+                    case register_name(UserId) of
                         ok ->
+                            io:format("~p: succeeded in registration (pid: ~p)~n", [?MODULE, self()]),
                             ok;
                         {error, Reason} ->
-                            io:format("~p, failed to send a chat comment (user_id: ~p, text: ~p, reason: ~p)~n",
-                                [?MODULE, UserId, Text, Reason]),
-                            ok
+                        %% If something bad happens
+                            io:format("~p: failed in registration (pid: ~p, reason: ~p)~n", [?MODULE, self(), Reason]),
+                            ok %% TODO: emit an error
                     end,
-                    {ok, State}
+                    {ok, State#state{session_info = Info}};
+                {comment, Text} ->
+                    case get_user_id(State) of
+                        {ok, UserId} ->
+                            case tianjiupai_user:send_chat(UserId, Text) of
+                                ok ->
+                                    ok;
+                                {error, Reason} ->
+                                    io:format("~p: failed to send a chat comment (user_id: ~p, text: ~p, reason: ~p)~n",
+                                        [?MODULE, UserId, Text, Reason]),
+                                    ok
+                            end,
+                            {ok, State};
+                        error ->
+                            io:format("~p: user not found~n", [?MODULE]),
+                            {ok, State}
+                    end
             end;
-        _ ->
-            io:format("~p: unknown command (data: ~p)~n", [?MODULE, Data]),
-            {ok, State}
-    catch
-        Class:Reason ->
-            io:format("~p: cannot decode (data: ~p, class: ~p, reason: ~p)~n",
-                [?MODULE, Data, Class, Reason]), % TODO
+        {error, Reason} ->
+            io:format("~p: unknown command (reason: ~p)~n", [?MODULE, Reason]),
             {ok, State}
     end.

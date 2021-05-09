@@ -1,6 +1,14 @@
 -module(tianjiupai_format).
 
+%%====================================================================================================
+%% Exported API
+%%====================================================================================================
+-export_type([
+    command/0
+]).
 -export([
+    %% HTTP:
+    encode_flags_object/1,
     decode_create_user_request/1,
     encode_create_user_response/1,
     decode_create_room_request/1,
@@ -10,17 +18,32 @@
     encode_get_room_response/1,
     encode_get_all_rooms_response/1,
     encode_failure_response/1,
-    make_flags_object/1,
-    make_notify_log_object/1,
-    make_notify_game_start_object/0,
-    make_log_object/1,
-    make_room_object/2,
-    make_room_summary_object/1,
-    make_personal_state_object/1
+
+    %% WebSocket:
+    decode_command/1,
+    encode_notify_log/1,
+    encode_notify_game_start/0
 ]).
+
+%%====================================================================================================
+%% Macros & Types
+%%====================================================================================================
+-type command() ::
+    {set_user_id, tianjiupai:user_id()}
+  | {comment, binary()}.
 
 -define(LABEL_ONLY(_Label_), #{'_label' => _Label_}).
 -define(LABELED(_Label_, _Arg_), #{'_label' => _Label_, '_arg' => _Arg_}).
+
+-define(LABELED_PATTERN(_Label_, _Pat_), #{<<"_label">> := _Label_, <<"_arg">> := _Pat_}).
+
+%%====================================================================================================
+%% Exported Functions
+%%====================================================================================================
+-spec encode_flags_object(undefined | tianjiupai_session:info()) -> binary().
+encode_flags_object(MaybeInfo) ->
+    FlagsObj = make_flags_object(MaybeInfo),
+    jsone:encode(FlagsObj).
 
 -spec decode_create_user_request(iodata()) ->
     {ok, UserName :: binary()}
@@ -95,7 +118,7 @@ encode_get_room_response(PersonalState) ->
 
 -spec encode_get_all_rooms_response([tianjiupai_room:room_state()]) -> binary().
 encode_get_all_rooms_response(RoomSummaries) ->
-    RoomSummaryObjs = lists:map(fun tianjiupai_format:make_room_summary_object/1, RoomSummaries),
+    RoomSummaryObjs = lists:map(fun make_room_summary_object/1, RoomSummaries),
     jsone:encode(#{rooms => RoomSummaryObjs}).
 
 -spec encode_personal_state(tianjiupai_room:room_state()) -> binary().
@@ -106,6 +129,32 @@ encode_personal_state(RoomState) ->
 -spec encode_failure_response(Reason :: term()) -> binary().
 encode_failure_response(Reason) ->
     erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))).
+
+-spec decode_command(iodata()) -> {ok, command()} | {error, Reason :: term()}.
+decode_command(Data) ->
+    try
+        jsone:decode(Data)
+    of
+        ?LABELED_PATTERN(<<"CommandSetUserId">>, UserId) when is_binary(UserId) ->
+            {ok, {set_user_id, UserId}};
+        ?LABELED_PATTERN(<<"CommandComment">>, Text) when is_binary(Text) ->
+            {ok, {comment, Text}};
+        _ ->
+            {error, {invalid_command, Data}}
+    catch
+        Class:Reason ->
+            {error, {exception, Class, Reason}}
+    end.
+
+-spec encode_notify_log(tianjiupai_room:log()) -> binary().
+encode_notify_log(Log) ->
+    NotifyLogObj = make_notify_log_object(Log),
+    jsone:encode(NotifyLogObj).
+
+-spec encode_notify_game_start() -> binary().
+encode_notify_game_start() ->
+    NotifyGameStartObj = make_notify_game_start_object(),
+    jsone:encode(NotifyGameStartObj).
 
 make_flags_object(MaybeInfo) ->
     case MaybeInfo of
@@ -137,7 +186,7 @@ make_flags_object(MaybeInfo) ->
 
 -spec make_notify_log_object(tianjiupai_room:log()) -> term().
 make_notify_log_object(Log) ->
-    LogObj = ?MODULE:make_log_object(Log),
+    LogObj = make_log_object(Log),
     ?LABELED(<<"NotifyLog">>, LogObj).
 
 -spec make_notify_game_start_object() -> term().
@@ -187,6 +236,6 @@ make_personal_state_object(RoomState) ->
     } = RoomState,
     #{
         room => make_room_object(RoomId, RoomName),
-        logs => lists:map(fun ?MODULE:make_log_object/1, Logs),
+        logs => lists:map(fun make_log_object/1, Logs),
         game => ?LABELED(<<"WaitingStart">>, Members)
     }.
