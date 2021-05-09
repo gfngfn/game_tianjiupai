@@ -167,13 +167,13 @@ update msg model =
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = "[warning] invalid notification" }, Cmd.none )
 
+        ( WaitingStart _, ReceiveNotification (Ok (NotifyLog LogGameStart)) ) ->
+          let ostate = Debug.todo "ostate" in
+          ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, Cmd.none )
+
         ( _, ReceiveNotification (Ok (NotifyLog log)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [log] } in
           ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
-
-        ( WaitingStart _, ReceiveNotification (Ok NotifyGameStart) ) ->
-          let ostate = Debug.todo "ostate" in
-          ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, Cmd.none )
 
         _ ->
           ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
@@ -190,7 +190,6 @@ showNotification : Notification -> String
 showNotification nt =
   case nt of
     NotifyLog _     -> "NotifyLog"
-    NotifyGameStart -> "GameStart"
 
 
 showMessage : Msg -> String

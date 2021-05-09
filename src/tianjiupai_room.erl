@@ -13,14 +13,14 @@
     monitor/1
 ]).
 -export_type([
-    room_state/0,
+    whole_room_state/0,
     log/0
 ]).
 
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--type room_state() :: tianjiupai_room_server:room_state().
+-type whole_room_state() :: tianjiupai_room_server:whole_room_state().
 
 -type log() :: tianjiupai_room_server:log().
 
@@ -35,23 +35,23 @@ create(RoomName) ->
         {error, _} = Err -> Err
     end.
 
--spec get_all_rooms() -> [room_state()].
+-spec get_all_rooms() -> [whole_room_state()].
 get_all_rooms() ->
     RoomServerProcs = tianjiupai_room_server_sup:which_children(),
     lists:filtermap(
         fun(RoomServerProc) ->
-            case tianjiupai_room_server:get_state_by_proc(RoomServerProc) of
-                {ok, RoomState}  -> {true, RoomState};
-                {error, _Reason} -> false
+            case tianjiupai_room_server:get_whole_state_by_proc(RoomServerProc) of
+                {ok, WholeRoomState} -> {true, WholeRoomState};
+                {error, _Reason}     -> false
             end
         end,
         RoomServerProcs).
 
--spec get_room(tianjiupai:room_id()) -> {ok, room_state()} | {error, Reason :: term()}.
+-spec get_room(tianjiupai:room_id()) -> {ok, whole_room_state()} | {error, Reason :: term()}.
 get_room(RoomId) ->
-    tianjiupai_room_server:get_state(RoomId).
+    tianjiupai_room_server:get_whole_state(RoomId).
 
--spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, room_state()} | {error, Reason :: term()}.
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, whole_room_state()} | {error, Reason :: term()}.
 attend(RoomId, UserId) ->
     tianjiupai_room_server:attend(RoomId, UserId).
 

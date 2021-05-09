@@ -14,7 +14,7 @@
     set_room/2,
     send_chat/2,
     set_websocket_connection/2,
-    notify_log/2
+    notify/2
 ]).
 
 %%====================================================================================================
@@ -61,18 +61,18 @@ send_chat(UserId, Text) ->
 set_websocket_connection(UserId, WsPid) ->
     tianjiupai_user_server:set_websocket_connection(UserId, WsPid).
 
--spec notify_log(
-    To  :: tianjiupai:user_id(),
-    Log :: tianjiupai_room:log()
+-spec notify(
+    To   :: tianjiupai:user_id(),
+    Logs :: [tianjiupai_room:log()]
 ) ->
     ok.
-notify_log(UserId, Log) ->
-    case tianjiupai_websocket:notify_log(UserId, Log) of
+notify(UserId, Logs) ->
+    case tianjiupai_websocket:notify(UserId, Logs) of
         ok ->
             ok;
         {error, Reason} ->
-            io:format("~p, notify_log failed (reason: ~p, to: ~p, log: ~p)",
-                [?MODULE, Reason, UserId, Log]),
+            io:format("~p, notify_log failed (reason: ~p, to: ~p, logs: ~p)",
+                [?MODULE, Reason, UserId, Logs]),
             ok
     end.
 

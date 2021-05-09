@@ -21,8 +21,7 @@
 
     %% WebSocket:
     decode_command/1,
-    encode_notify_log/1,
-    encode_notify_game_start/0
+    encode_notify_log/1
 ]).
 
 %%====================================================================================================
@@ -151,11 +150,6 @@ encode_notify_log(Log) ->
     NotifyLogObj = make_notify_log_object(Log),
     jsone:encode(NotifyLogObj).
 
--spec encode_notify_game_start() -> binary().
-encode_notify_game_start() ->
-    NotifyGameStartObj = make_notify_game_start_object(),
-    jsone:encode(NotifyGameStartObj).
-
 make_flags_object(MaybeInfo) ->
     case MaybeInfo of
         undefined ->
@@ -189,19 +183,17 @@ make_notify_log_object(Log) ->
     LogObj = make_log_object(Log),
     ?LABELED(<<"NotifyLog">>, LogObj).
 
--spec make_notify_game_start_object() -> term().
-make_notify_game_start_object() ->
-    ?LABEL_ONLY(<<"NotifyGameStart">>).
-
 -spec make_log_object(tianjiupai_room:log()) -> term().
 make_log_object(Log) ->
     case Log of
         {comment, From, Text} ->
-                ?LABELED(<<"LogComment">>, #{from => From, text => Text});
+            ?LABELED(<<"LogComment">>, #{from => From, text => Text});
         {entered, UserId} ->
-                ?LABELED(<<"LogEntered">>, UserId);
+            ?LABELED(<<"LogEntered">>, UserId);
         {exited, UserId} ->
-                ?LABELED(<<"LogExited">>, UserId)
+            ?LABELED(<<"LogExited">>, UserId);
+        game_start ->
+            ?LABEL_ONLY(<<"GameStart">>)
     end.
 
 -spec make_room_object(tianjiupai:room_id(), binary()) -> term().
@@ -211,14 +203,14 @@ make_room_object(RoomId, RoomName) ->
         room_name  => RoomName
     }.
 
--spec make_room_summary_object(tianjiupai_room:room_state()) -> term().
-make_room_summary_object(RoomState) ->
+-spec make_room_summary_object(tianjiupai_room:whole_room_state()) -> term().
+make_room_summary_object(WholeRoomState) ->
     #{
         room_id    := RoomId,
         room_name  := RoomName,
         is_playing := IsPlaying,
         members    := Members
-    } = RoomState,
+    } = WholeRoomState,
     #{
         room       => make_room_object(RoomId, RoomName),
         is_playing => IsPlaying,

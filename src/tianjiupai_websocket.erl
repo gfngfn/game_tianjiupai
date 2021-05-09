@@ -18,8 +18,7 @@
     error_reason/0
 ]).
 -export([
-    notify_game_start/1,
-    notify_log/2
+    notify/2
 ]).
 
 %%====================================================================================================
@@ -30,8 +29,7 @@
 }).
 
 -type message() ::
-    game_start
-  | {log, tianjiupai_room:log()}.
+    {logs, [tianjiupai_room:log()]}.
 
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
@@ -71,12 +69,15 @@ websocket_handle(MsgFromClient, State) ->
 -spec websocket_info(message(), #state{}) -> {reply, [cow_ws:frame()], #state{}} | {ok, #state{}}.
 websocket_info(Msg, State) ->
     case Msg of
-        game_start ->
-            Bin = tianjiupai_format:encode_notify_game_start(),
-            {reply, [{text, Bin}], State};
-        {log, Log} ->
-            Bin = tianjiupai_format:encode_notify_log(Log),
-            {reply, [{text, Bin}], State};
+        {logs, Logs} ->
+            Chunks =
+                lists:map(
+                    fun(Log) ->
+                        Bin = tianjiupai_format:encode_notify_log(Log),
+                        {text, Bin}
+                    end,
+                    Logs),
+            {reply, Chunks, State};
         _ ->
             io:format("~p, unknown message (messge: ~p)~n", [?MODULE, Msg]),
             {ok, State}
@@ -85,13 +86,15 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec notify_game_start(tianjiupai:user_id()) -> ok | {error, error_reason()}.
-notify_game_start(UserId) ->
-    notify(UserId, game_start).
-
--spec notify_log(tianjiupai:user_id(), tianjiupai_room:log()) -> ok | {error, error_reason()}.
-notify_log(UserId, Log) ->
-    notify(UserId, {log, Log}).
+-spec notify(tianjiupai:user_id(), [tianjiupai_room:log()]) -> ok | {error, error_reason()}.
+notify(UserId, Logs) ->
+    try
+        _ = global:send(name(UserId), {logs, Logs}),
+        ok
+    catch
+        _:_ ->
+            {error, {failed_to_notify, UserId, Logs}}
+    end.
 
 %%====================================================================================================
 %% Internal Functions
@@ -124,16 +127,6 @@ register_name(UserId) ->
 
 name(UserId) ->
     {?MODULE, UserId}.
-
--spec notify(tianjiupai:user_id(), message()) -> ok | {error, error_reason()}.
-notify(UserId, Msg) ->
-    try
-        _ = global:send(name(UserId), Msg),
-        ok
-    catch
-        _:_ ->
-            {error, {failed_to_notify, UserId, Msg}}
-    end.
 
 -spec get_user_id(#state{}) -> {ok, tianjiupai:user_id()} | error.
 get_user_id(State) ->

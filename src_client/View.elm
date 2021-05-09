@@ -121,6 +121,9 @@ viewRoom user pstate chatTextInput =
 
             LogExited userId ->
               li [] [ b [] [ text userId ], text " exited." ]
+
+            LogGameStart ->
+              li [] [ b [] [ text "Game start!" ] ]
         ))
     , div []
         [ div []

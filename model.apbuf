@@ -79,10 +79,10 @@ log :=
   | LogComment : comment
   | LogEntered : user_id
   | LogExited  : user_id
+  | LogGameStart
 
 notification :=
   | NotifyLog : log
-  | NotifyGameStart
 
 command :=
   | CommandSetUserId : user_id
