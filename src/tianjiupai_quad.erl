@@ -8,6 +8,7 @@
     quad/1
 ]).
 -export([
+    is_seat/1,
     advance_seat/2,
     zip/3,
     map/2,
@@ -26,6 +27,10 @@
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
+-spec is_seat(integer()) -> boolean().
+is_seat(N) ->
+    0 =< N andalso N < 4.
+
 -spec advance_seat(seat(), integer()) -> seat().
 advance_seat(Seat, N) ->
     Rem = (Seat + N) rem 4,

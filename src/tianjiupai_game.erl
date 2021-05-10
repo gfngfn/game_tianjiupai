@@ -149,33 +149,46 @@ submit(SubmitterSeat, SubmittedCards, InningState) ->
         players   = PlayerQuad0
     } = InningState,
     N = table_length(Table0),
-    case SubmitterSeat =:= tianjiupai_quad:advance_seat(StartSeat, N) of
+    case
+        tianjiupai_quad:is_seat(ParentSeat)
+        andalso tianjiupai_quad:is_seat(StartSeat)
+        andalso N < 4
+        %% Validates inning states here just in case.
+        %% Since `inning_state()' is an opaque type,
+        %% there's no possibility that a given inning state is malformed,
+        %% as long as the implementation of this module does not contain any flaw.
+    of
         true ->
-            SubmittingPlayer0 = tianjiupai_quad:access(SubmitterSeat, PlayerQuad0),
-            #player{hand = SubmitterHand0} = SubmittingPlayer0,
-            case separate_submitted_cards(SubmitterHand0, SubmittedCards) of
-                {ok, SubmitterHand1} ->
-                    PlayerQuad1 =
-                        tianjiupai_quad:update(
-                            SubmitterSeat,
-                            SubmittingPlayer0#player{hand = SubmitterHand1},
-                            PlayerQuad0),
-                    case update_table(SubmittedCards, Table0) of
-                        {ok, Table1} ->
-                            {ok, #inning_state{
-                                parent    = ParentSeat,
-                                starts_at = StartSeat,
-                                table     = Table1,
-                                players   = PlayerQuad1
-                            }};
+            case SubmitterSeat =:= tianjiupai_quad:advance_seat(StartSeat, N) of
+                true ->
+                    SubmittingPlayer0 = tianjiupai_quad:access(SubmitterSeat, PlayerQuad0),
+                    #player{hand = SubmitterHand0} = SubmittingPlayer0,
+                    case separate_submitted_cards(SubmitterHand0, SubmittedCards) of
+                        {ok, SubmitterHand1} ->
+                            PlayerQuad1 =
+                                tianjiupai_quad:update(
+                                    SubmitterSeat,
+                                    SubmittingPlayer0#player{hand = SubmitterHand1},
+                                    PlayerQuad0),
+                            case update_table(SubmittedCards, Table0) of
+                                {ok, Table1} ->
+                                    {ok, #inning_state{
+                                        parent    = ParentSeat,
+                                        starts_at = StartSeat,
+                                        table     = Table1,
+                                        players   = PlayerQuad1
+                                    }};
+                                error ->
+                                    {error, wrong_number_of_submitted_cards}
+                            end;
                         error ->
-                            {error, wrong_number_of_submitted_cards}
+                            {error, submitter_does_not_own_submitted_cards}
                     end;
-                error ->
-                    {error, submitter_does_not_own_submitted_cards}
+                false ->
+                    {error, not_your_turn}
             end;
         false ->
-            {error, not_your_turn}
+            {error, malformed_inning_state}
     end.
 
 %%====================================================================================================
