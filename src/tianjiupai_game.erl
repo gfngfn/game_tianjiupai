@@ -14,6 +14,8 @@
     %% For tests:
     all_cards/0,
     shuffle/0,
+    zip_with_indices/1,
+    max_with_index/2,
     make_starting_table/1,
     update_table/2
 ]).
@@ -243,7 +245,7 @@ update_table(SubmittedCards, Table) ->
         {single_wen, ExposedWen} ->
             case SubmittedCards of
                 [{wen, Wen}] ->
-                    WenMax = wen_max(ExposedWen),
+                    {_, WenMax} = wen_max(ExposedWen),
                     New =
                         case wen_greater(Wen, WenMax) of
                             true  -> {open, Wen};
@@ -258,7 +260,7 @@ update_table(SubmittedCards, Table) ->
         {single_wu, ExposedWu} ->
             case SubmittedCards of
                 [{wu, Wu}] ->
-                    WuMax = wu_max(ExposedWu),
+                    {_, WuMax} = wu_max(ExposedWu),
                     New =
                         case wu_greater(Wu, WuMax) of
                             true  -> {open, Wu};
@@ -273,7 +275,7 @@ update_table(SubmittedCards, Table) ->
         {double_wen, ExposedWen} ->
             case SubmittedCards of
                 [{wen, Wen}, {wen, Wen}] ->
-                    WenMax = wen_max(ExposedWen),
+                    {_, WenMax} = wen_max(ExposedWen),
                     New =
                         case wen_greater(Wen, WenMax) of
                             true  -> {open, Wen};
@@ -288,7 +290,7 @@ update_table(SubmittedCards, Table) ->
         {double_wu, ExposedWu} ->
             case SubmittedCards of
                 [{wu, Wu}, {wu, Wu}] ->
-                    WuMax = wu_max(ExposedWu),
+                    {_, WuMax} = wu_max(ExposedWu),
                     New =
                         case wu_greater(Wu, WuMax) of
                             true  -> {open, Wu};
@@ -343,7 +345,7 @@ update_table(SubmittedCards, Table) ->
 update_both(Tag, ExposedBig, Wen, Wu) ->
     case wen_and_wu_to_big(Wen, Wu) of
         {ok, Big} ->
-            BigMax = big_max(ExposedBig),
+            {_, BigMax} = big_max(ExposedBig),
             New =
                 case big_greater(Big, BigMax) of
                     true  -> {open, Big};
@@ -355,31 +357,56 @@ update_both(Tag, ExposedBig, Wen, Wu) ->
     end.
 
 %% @doc Returns the current maximum big card.
--spec big_max(exposed(card_big())) -> card_big().
+-spec big_max(exposed(card_big())) -> {TrickIndex :: non_neg_integer(), card_big()}.
 big_max({Big0, BigOrCloseds}) ->
-    lists:max([Big0 | [Big || {open, Big} <- BigOrCloseds]]).
+    max_with_index(
+        fun big_greater/2,
+        [Big0 | [Big || {open, Big} <- BigOrCloseds]]).
 
 -spec big_greater(card_big(), card_big()) -> boolean().
 big_greater(Big1, Big2) ->
     Big1 > Big2.
 
 %% @doc Returns the current maximum wen card.
--spec wen_max(exposed(card_wen())) -> card_wen().
+-spec wen_max(exposed(card_wen())) -> {TrickIndex :: non_neg_integer(), card_wen()}.
 wen_max({Wen0, WenOrCloseds}) ->
-    lists:max([Wen0 | [Wen || {open, Wen} <- WenOrCloseds]]).
+    max_with_index(
+        fun wen_greater/2,
+        [Wen0 | [Wen || {open, Wen} <- WenOrCloseds]]).
 
 -spec wen_greater(card_wen(), card_wen()) -> boolean().
 wen_greater(Wen1, Wen2) ->
     Wen1 > Wen2.
 
 %% @doc Returns the current maximum wu card.
--spec wu_max(exposed(card_wu())) -> card_wu().
+-spec wu_max(exposed(card_wu())) -> {TrickIndex :: non_neg_integer(), card_wu()}.
 wu_max({Wu0, WuOrCloseds}) ->
-    lists:max([Wu0 | [Wu || {open, Wu} <- WuOrCloseds]]).
+    max_with_index(
+        fun wu_greater/2,
+        [Wu0 | [Wu || {open, Wu} <- WuOrCloseds]]).
 
 -spec wu_greater(card_wu(), card_wu()) -> boolean().
 wu_greater(Wu1, Wu2) ->
     Wu1 > Wu2.
+
+-spec zip_with_indices([X]) -> [{TrickIndex :: non_neg_integer(), X}] when
+    X :: term().
+zip_with_indices(Xs) ->
+    lists:zip(lists:seq(0, erlang:length(Xs) - 1), Xs).
+
+-spec max_with_index(Greater, nonempty_list(X)) -> {TrickIndex :: non_neg_integer(), X} when
+    Greater :: fun((X, X) -> boolean()),
+    X       :: term().
+max_with_index(Greater, Xs) ->
+    Pairs = zip_with_indices(Xs),
+    case
+        lists:sort(
+           fun({_, X1}, {_, X2}) -> Greater(X1, X2) orelse X1 =:= X2 end,
+           Pairs)
+    of
+        [Pair | _] -> Pair
+    end.
+
 
 %% @doc Makes a table state according to the first submission.
 %%

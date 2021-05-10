@@ -37,6 +37,22 @@ shuffle_test_() ->
       end}
     ].
 
+zip_with_indices_test_() ->
+    [
+     {"zip_with_indices/1",
+      fun() ->
+          ?assertEqual([{0, a}, {1, b}, {2, c}], tianjiupai_game:zip_with_indices([a, b, c]))
+      end}
+    ].
+
+max_with_index_test_() ->
+    [
+     {"max_with_index/1",
+      fun() ->
+          ?assertEqual({2, d}, tianjiupai_game:max_with_index(fun(X1, X2) -> X1 > X2 end, [a, c, d, b]))
+      end}
+    ].
+
 make_starting_table_test_() ->
     First = fun(X) -> {X, []} end,
     [
