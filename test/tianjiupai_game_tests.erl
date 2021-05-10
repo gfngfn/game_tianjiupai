@@ -118,6 +118,31 @@ update_table_success_test_() ->
                 starting,
                 {single_wen, First(5)}},
 
+            %% Submits two cards to `wuzun'.
+            {[{wen, 11}, {wen, 11}],
+                {wuzun, Exposed(ok, [])},
+                {wuzun, Exposed(ok, [closed])}},
+            {[{wu, 9}, {wu, 9}],
+                {wuzun, Exposed(ok, [closed])},
+                {wuzun, Exposed(ok, [closed, closed])}},
+            {[{wu, 9}, {wen, 10}],
+                {wuzun, Exposed(ok, [closed])},
+                {wuzun, Exposed(ok, [closed, closed])}},
+
+            %% Submits two cards to `wenzun'.
+            {[{wen, 2}, {wen, 2}],
+                {wenzun, Exposed(minor, [])},
+                {wenzun, Exposed(minor, [{open, major}])}},
+            {[{wen, 2}, {wen, 2}],
+                {wenzun, Exposed(minor, [closed])},
+                {wenzun, Exposed(minor, [closed, {open, major}])}},
+            {[{wen, 3}, {wen, 3}],
+                {wenzun, Exposed(minor, [])},
+                {wenzun, Exposed(minor, [closed])}},
+            {[{wen, 3}, {wu, 5}],
+                {wenzun, Exposed(minor, [])},
+                {wenzun, Exposed(minor, [closed])}},
+
             %% Submits one wen to `single_wen'.
             {[{wen, 5}],
                 {single_wen, Exposed(4, [])},
@@ -192,12 +217,120 @@ update_table_success_test_() ->
                 {single_wu, Exposed(7, [{open, 9}])},
                 {single_wu, Exposed(7, [{open, 9}, closed])}},
 
-            %% Submits two wens to `double_wen'.
+            %% Submits two same wens to `double_wen'.
             {[{wen, 5}, {wen, 5}],
                 {double_wen, Exposed(4, [])},
                 {double_wen, Exposed(4, [{open, 5}])}},
+            {[{wen, 5}, {wen, 5}],
+                {double_wen, Exposed(4, [{open, 6}])},
+                {double_wen, Exposed(4, [{open, 6}, closed])}},
             {[{wen, 3}, {wen, 3}],
                 {double_wen, Exposed(4, [])},
-                {double_wen, Exposed(4, [closed])}}
+                {double_wen, Exposed(4, [closed])}},
+
+            %% Submits an ineffective pair to `double_wen'.
+            {[{wen, 7}, {wen, 2}],
+                {double_wen, Exposed(6, [])},
+                {double_wen, Exposed(6, [closed])}},
+            {[{wen, 8}, {wen, 2}],
+                {double_wen, Exposed(6, [{open, 7}])},
+                {double_wen, Exposed(6, [{open, 7}, closed])}},
+            {[{wu, 5}, {wen, 7}],
+                {double_wen, Exposed(6, [])},
+                {double_wen, Exposed(6, [closed])}},
+            {[{wu, 5}, {wu, 7}],
+                {double_wen, Exposed(6, [])},
+                {double_wen, Exposed(6, [closed])}},
+
+            %% Submits two same wus to `double_wu'.
+            {[{wu, 8}, {wu, 8}],
+                {double_wu, Exposed(5, [])},
+                {double_wu, Exposed(5, [{open, 8}])}},
+            {[{wu, 8}, {wu, 8}],
+                {double_wu, Exposed(5, [{open, 7}])},
+                {double_wu, Exposed(5, [{open, 7}, {open, 8}])}},
+            {[{wu, 8}, {wu, 8}],
+                {double_wu, Exposed(5, [{open, 9}])},
+                {double_wu, Exposed(5, [{open, 9}, closed])}},
+
+            %% Submits an ineffective pair to `double_wu'.
+            {[{wu, 8}, {wen, 8}],
+                {double_wu, Exposed(5, [])},
+                {double_wu, Exposed(5, [closed])}},
+            {[{wen, 8}, {wen, 8}],
+                {double_wu, Exposed(5, [])},
+                {double_wu, Exposed(5, [closed])}},
+            {[{wen, 5}, {wen, 3}],
+                {double_wu, Exposed(5, [{open, 7}])},
+                {double_wu, Exposed(5, [{open, 7}, closed])}},
+
+            %% Submits an effective triple to `triple_wen'.
+            {[{wen, 11}, {wu, 9}, {wen, 11}],
+                {triple_wen, Exposed(big3, [])},
+                {triple_wen, Exposed(big3, [{open, big4}])}},
+            {[{wu, 9}, {wen, 11}, {wen, 11}],
+                {triple_wen, Exposed(big2, [{open, big3}])},
+                {triple_wen, Exposed(big2, [{open, big3}, {open, big4}])}},
+            {[{wen, 10}, {wu, 8}, {wen, 10}],
+                {triple_wen, Exposed(big2, [])},
+                {triple_wen, Exposed(big2, [{open, big3}])}},
+            {[{wu, 5}, {wen, 8}, {wen, 8}],
+                {triple_wen, Exposed(big2, [])},
+                {triple_wen, Exposed(big2, [closed])}},
+
+            %% Submits an ineffective triple to `triple_wen'.
+            {[{wen, 11}, {wu, 9}, {wu, 9}],
+                {triple_wen, Exposed(big3, [])},
+                {triple_wen, Exposed(big3, [closed])}},
+            {[{wen, 5}, {wen, 4}, {wen, 3}],
+                {triple_wen, Exposed(big1, [])},
+                {triple_wen, Exposed(big1, [closed])}},
+            {[{wu, 5}, {wu, 5}, {wu, 7}],
+                {triple_wen, Exposed(big1, [])},
+                {triple_wen, Exposed(big1, [closed])}},
+
+            %% Submits an effective triple to `triple_wu'.
+            {[{wen, 11}, {wu, 9}, {wu, 9}],
+                {triple_wu, Exposed(big3, [])},
+                {triple_wu, Exposed(big3, [{open, big4}])}},
+            {[{wu, 9}, {wen, 11}, {wu, 9}],
+                {triple_wu, Exposed(big2, [{open, big3}])},
+                {triple_wu, Exposed(big2, [{open, big3}, {open, big4}])}},
+            {[{wen, 10}, {wu, 8}, {wu, 8}],
+                {triple_wu, Exposed(big2, [])},
+                {triple_wu, Exposed(big2, [{open, big3}])}},
+            {[{wu, 5}, {wen, 8}, {wu, 5}],
+                {triple_wu, Exposed(big2, [])},
+                {triple_wu, Exposed(big2, [closed])}},
+
+            %% Submits an ineffective triple to `triple_wu'.
+            {[{wen, 11}, {wen, 11}, {wu, 9}],
+                {triple_wu, Exposed(big3, [])},
+                {triple_wu, Exposed(big3, [closed])}},
+            {[{wen, 5}, {wen, 4}, {wen, 3}],
+                {triple_wu, Exposed(big1, [])},
+                {triple_wu, Exposed(big1, [closed])}},
+            {[{wen, 11}, {wen, 11}, {wen, 10}],
+                {triple_wu, Exposed(big3, [])},
+                {triple_wu, Exposed(big3, [closed])}},
+
+            %% Submits an effective quadruple to `quadruple'.
+            {[{wen, 11}, {wu, 9}, {wu, 9}, {wen, 11}],
+                {quadruple, Exposed(big3, [])},
+                {quadruple, Exposed(big3, [{open, big4}])}},
+            {[{wen, 11}, {wu, 9}, {wu, 9}, {wen, 11}],
+                {quadruple, Exposed(big1, [{open, big2}])},
+                {quadruple, Exposed(big1, [{open, big2}, {open, big4}])}},
+            {[{wen, 9}, {wu, 7}, {wu, 7}, {wen, 9}],
+                {quadruple, Exposed(big1, [{open, big3}])},
+                {quadruple, Exposed(big1, [{open, big3}, closed])}},
+
+            %% Submits an ineffective quadruple to `quadruple'.
+            {[{wen, 10}, {wu, 9}, {wu, 9}, {wen, 11}],
+                {quadruple, Exposed(big1, [])},
+                {quadruple, Exposed(big1, [closed])}},
+            {[{wen, 4}, {wu, 9}, {wu, 9}, {wen, 4}],
+                {quadruple, Exposed(big1, [])},
+                {quadruple, Exposed(big1, [closed])}}
         ]
     ].

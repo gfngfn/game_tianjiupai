@@ -202,6 +202,10 @@ separate_submitted_cards(SubmitterHand0, SubmittedCards) ->
         false -> error
     end.
 
+%% @doc Updates table states by given submitted cards.
+%%
+%% The representation of submitted cards must be proven to be valid beforehand,
+%% which has been done by `separate_submitted_cards'.
 -spec update_table([card()], table_state()) -> {ok, table_state()} | error.
 update_table(SubmittedCards, Table) ->
     case Table of
