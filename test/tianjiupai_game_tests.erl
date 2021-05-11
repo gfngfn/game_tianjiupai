@@ -18,6 +18,9 @@
 %% MOCKED_HAND11 := MOCKED_HAND1 - {wen, 7}
 -define(MOCKED_HAND11, [{wu, 3}, {wen, 4}, {wen, 4}, {wu, 6}, {wen, 8}, {wen, 5}, {wen, 3}]).
 
+%% MOCKED_HAND12 := MOCKED_HAND1 - {wu, 3}, {wu, 6}
+-define(MOCKED_HAND12, [{wen, 7}, {wen, 4}, {wen, 4}, {wen, 8}, {wen, 5}, {wen, 3}]).
+
 %% MOCKED_HAND21 := MOCKED_HAND2 - {wen, 8}
 -define(MOCKED_HAND21, [{wen, 3}, {wen, 10}, {wu, 9}, {wen, 2}, {wu, 8}, {wu, 5}, {wen, 6}]).
 
@@ -639,6 +642,29 @@ submit_success_test_() ->
                       player2 => {?MOCKED_HAND4, []},
                       player3 => {?MOCKED_HAND11, []},
                       table => {single_wen, Exposed(7, [{open, 8}])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "wuzun submission by Seat 1",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT1,
+                      player0 => {?MOCKED_HAND4, []},
+                      player1 => {?MOCKED_HAND1, []},
+                      player2 => {?MOCKED_HAND2, []},
+                      player3 => {?MOCKED_HAND3, []},
+                      table => starting
+                  }),
+              submitter_seat = ?SEAT1,
+              submitter_cards = [{wu, 6}, {wu, 3}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT1,
+                      player0 => {?MOCKED_HAND4, []},
+                      player1 => {?MOCKED_HAND12, []}, % MOCKED_HAND12 == MOCKED_HAND1 - {wu, 3}, {wu, 6}
+                      player2 => {?MOCKED_HAND2, []},
+                      player3 => {?MOCKED_HAND3, []},
+                      table => {wuzun, Exposed(ok, [])}
                   })}
           }
       ]
