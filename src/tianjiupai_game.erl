@@ -64,7 +64,6 @@
 }).
 
 -record(inning_state, {
-    parent    :: seat(),  % Who is the parent of the current game.
     starts_at :: seat(),  % Who has submitted the first card in the current trick.
     players   :: quad(#player{}),
     table     :: table_state()
@@ -73,7 +72,6 @@
 -opaque inning_state() :: #inning_state{}.
 
 -record(observable_inning_state, {
-    parent     :: seat(),
     starts_at  :: seat(),
     your_hand  :: [card()],
     gains      :: quad([card()]),
@@ -111,7 +109,6 @@
 generate_initial_inning_state(ParentSeat) ->
     HandQuad = shuffle(),
     #inning_state{
-        parent    = ParentSeat,
         starts_at = ParentSeat,
         table     = starting,
 
@@ -129,14 +126,12 @@ generate_initial_inning_state(ParentSeat) ->
 -spec get_observable_inning_state(seat(), #inning_state{}) -> #observable_inning_state{}.
 get_observable_inning_state(YourSeat, InningState) ->
     #inning_state{
-        parent    = ParentSeat,
         starts_at = StartSeat,
         table     = Table,
         players   = PlayerQuad
     } = InningState,
     #player{hand = YourHand} = tianjiupai_quad:access(YourSeat, PlayerQuad),
     #observable_inning_state{
-        parent     = ParentSeat,
         starts_at  = StartSeat,
         your_hand  = YourHand,
         gains      = tianjiupai_quad:map(fun(#player{gained = TopCards}) -> TopCards end, PlayerQuad),
@@ -146,33 +141,36 @@ get_observable_inning_state(YourSeat, InningState) ->
 -spec submit(seat(), [card()], inning_state()) -> {ok, Result} | {error, Reason} when
     Result ::
         {continues, Next :: inning_state()}
-      | {wins, WinnerSeat :: seat(), Next :: inning_state()},
+      | {wins_trick, WinnerSeat :: seat(), Next :: inning_state()}
+      | {wins_inning, WinnerSeat :: seat(), NumGainedsQuad :: quad(non_neg_integer())},
     Reason ::
         not_your_turn
       | submitter_does_not_own_submitted_cards
       | wrong_number_of_submitted_cards.
 submit(SubmitterSeat, SubmittedCards, InningState) ->
     #inning_state{
-        parent    = ParentSeat,
         starts_at = StartSeat,
         table     = Table0,
         players   = PlayerQuad0
     } = InningState,
-    N = table_length(Table0),
+    NumGaineds0 = count_gained(PlayerQuad0),
+    NumSubmittedCards = erlang:length(SubmittedCards),
+    N0 = table_length(Table0),
     case
-        tianjiupai_quad:is_seat(ParentSeat)
-        andalso tianjiupai_quad:is_seat(StartSeat)
-        andalso N < 4
+        tianjiupai_quad:is_seat(StartSeat)
+        andalso N0 < 4
+        andalso NumGaineds0 < 8
+        andalso 0 < NumSubmittedCards andalso NumSubmittedCards =< 4
         %% Validates inning states here just in case.
         %% Since `inning_state()' is an opaque type,
         %% there's no possibility that a given inning state is malformed,
         %% as long as the implementation of this module does not contain any flaw.
     of
         true ->
-            case SubmitterSeat =:= tianjiupai_quad:advance_seat(StartSeat, N) of
+            case SubmitterSeat =:= tianjiupai_quad:advance_seat(StartSeat, N0) of
                 true ->
                     SubmittingPlayer0 = tianjiupai_quad:access(SubmitterSeat, PlayerQuad0),
-                    #player{hand = SubmitterHand0} = SubmittingPlayer0,
+                    #player{hand = SubmitterHand0, gained = SubmitterGained0} = SubmittingPlayer0,
                     case separate_submitted_cards(SubmitterHand0, SubmittedCards) of
                         {ok, SubmitterHand1} ->
                             PlayerQuad1 =
@@ -180,10 +178,32 @@ submit(SubmitterSeat, SubmittedCards, InningState) ->
                                     SubmitterSeat,
                                     SubmittingPlayer0#player{hand = SubmitterHand1},
                                     PlayerQuad0),
-                            case update_table(SubmittedCards, Table0) of
+                            Table1Result =
+                                case NumGaineds0 =:= 7 andalso NumSubmittedCards =:= 1 of
+                                    true ->
+                                    %% If this is the last trick with single submissions:
+                                        case erlang:length(SubmitterGained0) of
+                                            0 ->
+                                            %% If the submitter gains no card,
+                                            %% the submitter does not have a right to attend this trick.
+                                                {Tag, {X, XOrCloseds}} = Table0,
+                                                %% `Table0' must be other than `starting' here,
+                                                %% Since the first submitter of a trick after the first trick
+                                                %% must gain at least one card.
+                                                {ok, {Tag, {X, XOrCloseds ++ [closed]}}};
+                                            _ ->
+                                            %% If the submitter gains at least one card so far:
+                                                update_table(SubmittedCards, Table0)
+                                        end;
+                                    false ->
+                                        update_table(SubmittedCards, Table0)
+                                end,
+                            case Table1Result of
                                 {ok, Table1} ->
-                                    case N of
+                                    NumGaineds1 = NumGaineds0 + NumSubmittedCards,
+                                    case N0 of
                                         3 ->
+                                        %% If this is the last submission within a trick:
                                             {WinnerTrickIndex, Cards} = get_winner(Table1),
                                             WinnerSeat = tianjiupai_quad:advance_seat(StartSeat, WinnerTrickIndex),
                                             %% Winner :: #player{}
@@ -194,18 +214,28 @@ submit(SubmitterSeat, SubmittedCards, InningState) ->
                                                     WinnerSeat,
                                                     Winner#player{gained = WinnerGained ++ Cards},
                                                     PlayerQuad1),
-                                            InningState1 =
-                                                #inning_state{
-                                                     parent    = ParentSeat,
-                                                     starts_at = WinnerSeat,
-                                                     table     = starting,
-                                                     players   = PlayerQuad2
-                                                },
-                                            {ok, {wins, WinnerSeat, InningState1}};
+                                            case NumGaineds1 of
+                                                8 ->
+                                                %% If this is the last trick within an inning:
+                                                    NumGainedsQuad =
+                                                        tianjiupai_quad:map(
+                                                            fun(#player{gained = Gained}) ->
+                                                                erlang:length(Gained)
+                                                            end,
+                                                            PlayerQuad2),
+                                                    {ok, {wins_inning, WinnerSeat, NumGainedsQuad}};
+                                                _ ->
+                                                    InningState1 =
+                                                        #inning_state{
+                                                             starts_at = WinnerSeat,
+                                                             table     = starting,
+                                                             players   = PlayerQuad2
+                                                        },
+                                                    {ok, {wins_trick, WinnerSeat, InningState1}}
+                                            end;
                                         _ ->
                                             InningState1 =
                                                 #inning_state{
-                                                    parent    = ParentSeat,
                                                     starts_at = StartSeat,
                                                     table     = Table1,
                                                     players   = PlayerQuad1
@@ -273,6 +303,14 @@ get_winner(Table) ->
             {Wen, Wu} = big_to_wen_and_wu(Big),
             {TrickIndex, [{wen, Wen}, {wen, Wen}, {wu, Wu}, {wu, Wu}]}
     end.
+
+-spec count_gained(quad(#player{})) -> non_neg_integer().
+count_gained(PlayerQuad) ->
+    {N0, N1, N2, N3} =
+        tianjiupai_quad:map(
+            fun(#player{gained = Cards}) -> erlang:length(Cards) end,
+            PlayerQuad),
+    N0 + N1 + N2 + N3.
 
 %% @doc Returns how many players have already submitted cards in the current trick.
 -spec table_length(table_state()) -> non_neg_integer().
