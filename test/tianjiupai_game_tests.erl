@@ -666,6 +666,96 @@ submit_success_test_() ->
                       player3 => {?MOCKED_HAND3, []},
                       table => {wuzun, Exposed(ok, [])}
                   })}
+          },
+          #submit_test_case{
+              subtitle = "last trick, first submission by Seat 3",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[{wen, 11}], [{wu, 3}, {wu, 6}]},
+                      player1 => {[{wu, 8}], []},
+                      player2 => {[{wu, 9}], [{wen, 10}, {wu, 8}]},
+                      player3 => {[{wu, 7}], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      table => starting
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [{wu, 7}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[{wen, 11}], [{wu, 3}, {wu, 6}]},
+                      player1 => {[{wu, 8}], []},
+                      player2 => {[{wu, 9}], [{wen, 10}, {wu, 8}]},
+                      player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      table => {single_wu, Exposed(7, [])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "last trick, second submission by Seat 0",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[{wen, 11}], [{wu, 3}, {wu, 6}]},
+                      player1 => {[{wu, 8}], []},
+                      player2 => {[{wu, 9}], [{wen, 10}, {wu, 8}]},
+                      player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      table => {single_wu, Exposed(7, [])}
+                  }),
+              submitter_seat = ?SEAT0,
+              submitter_cards = [{wen, 11}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[], [{wu, 3}, {wu, 6}]},
+                      player1 => {[{wu, 8}], []},
+                      player2 => {[{wu, 9}], [{wen, 10}, {wu, 8}]},
+                      player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      table => {single_wu, Exposed(7, [closed])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "last trick, third submission by Seat 1 (not having rights to attend)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[], [{wu, 3}, {wu, 6}]},
+                      player1 => {[{wu, 8}], []},
+                      player2 => {[{wu, 9}], [{wen, 10}, {wu, 8}]},
+                      player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      table => {single_wu, Exposed(7, [closed])}
+                  }),
+              submitter_seat = ?SEAT1,
+              submitter_cards = [{wu, 8}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[], [{wu, 3}, {wu, 6}]},
+                      player1 => {[], []},
+                      player2 => {[{wu, 9}], [{wen, 10}, {wu, 8}]},
+                      player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      table => {single_wu, Exposed(7, [closed, closed])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "last trick, fourth submission by Seat 2 (and Seat 2 wins the inning)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[], [{wu, 3}, {wu, 6}]},
+                      player1 => {[], []},
+                      player2 => {[{wu, 9}], [{wen, 10}, {wu, 8}]},
+                      player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      table => {single_wu, Exposed(7, [closed, closed])}
+                  }),
+              submitter_seat = ?SEAT2,
+              submitter_cards = [{wu, 9}],
+              expected =
+                  {wins_inning, ?SEAT2, {
+                      [{wu, 3}, {wu, 6}],
+                      [],
+                      [{wen, 10}, {wu, 8}, {wu, 9}],
+                      [{wen, 11}, {wen, 7}, {wen, 7}]
+                  }}
           }
       ]
     ].

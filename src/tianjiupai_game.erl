@@ -85,7 +85,7 @@
 -type submit_result() ::
     {continues, Next :: inning_state()}
   | {wins_trick, WinnerSeat :: seat(), Next :: inning_state()}
-  | {wins_inning, WinnerSeat :: seat(), NumGainedsQuad :: quad(non_neg_integer())}.
+  | {wins_inning, WinnerSeat :: seat(), NumGainedsQuad :: quad([card()])}.
 
 -define(WEN_CARDS_HALF, lists:map(fun(N) -> {wen, N} end, lists:seq(1, 11))).
 
@@ -222,13 +222,11 @@ submit(SubmitterSeat, SubmittedCards, InningState) ->
                                             case NumGaineds1 of
                                                 8 ->
                                                 %% If this is the last trick within an inning:
-                                                    NumGainedsQuad =
+                                                    GainedQuad =
                                                         tianjiupai_quad:map(
-                                                            fun(#player{gained = Gained}) ->
-                                                                erlang:length(Gained)
-                                                            end,
+                                                            fun(#player{gained = Gained}) -> Gained end,
                                                             PlayerQuad2),
-                                                    {ok, {wins_inning, WinnerSeat, NumGainedsQuad}};
+                                                    {ok, {wins_inning, WinnerSeat, GainedQuad}};
                                                 _ ->
                                                     InningState1 =
                                                         #inning_state{
