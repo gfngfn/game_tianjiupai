@@ -4,7 +4,10 @@
 %% Exported API
 %%====================================================================================================
 -export_type([
-    inning_state/0
+    card/0,
+    table_state/0,
+    inning_state/0,
+    submit_result/0
 ]).
 -export([
     generate_initial_inning_state/1,
@@ -18,7 +21,8 @@
     max_with_index/2,
     make_starting_table/1,
     update_table/2,
-    get_winner/1
+    get_winner/1,
+    sort_cards/1
 ]).
 
 %%====================================================================================================
@@ -77,6 +81,11 @@
     gains      :: quad([card()]),
     table      :: table_state()
 }).
+
+-type submit_result() ::
+    {continues, Next :: inning_state()}
+  | {wins_trick, WinnerSeat :: seat(), Next :: inning_state()}
+  | {wins_inning, WinnerSeat :: seat(), NumGainedsQuad :: quad(non_neg_integer())}.
 
 -define(WEN_CARDS_HALF, lists:map(fun(N) -> {wen, N} end, lists:seq(1, 11))).
 
@@ -138,11 +147,7 @@ get_observable_inning_state(YourSeat, InningState) ->
         table      = Table
     }.
 
--spec submit(seat(), [card()], inning_state()) -> {ok, Result} | {error, Reason} when
-    Result ::
-        {continues, Next :: inning_state()}
-      | {wins_trick, WinnerSeat :: seat(), Next :: inning_state()}
-      | {wins_inning, WinnerSeat :: seat(), NumGainedsQuad :: quad(non_neg_integer())},
+-spec submit(seat(), [card()], inning_state()) -> {ok, submit_result()} | {error, Reason} when
     Reason ::
         not_your_turn
       | submitter_does_not_own_submitted_cards

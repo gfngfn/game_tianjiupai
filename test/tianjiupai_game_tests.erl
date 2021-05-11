@@ -5,11 +5,25 @@
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--define(MOCKED_HAND_QUAD, {
-  [{wen, 7}, {wu, 3},  {wen, 4},  {wen, 4}, {wu, 6},  {wen, 8},  {wen, 5},  {wen, 3}],
-  [{wen, 3}, {wen, 8}, {wen, 10}, {wu, 9},  {wen, 2}, {wu, 8},   {wu, 5},   {wen, 6}],
-  [{wen, 9}, {wen, 2}, {wen, 10}, {wu, 7},  {wen, 7}, {wu, 8},   {wen, 11}, {wu, 7}],
-  [{wen, 9}, {wen, 5}, {wen, 1},  {wen, 6}, {wu, 5},  {wen, 11}, {wu, 9},   {wen, 1}]
+-define(SEAT0, 0).
+-define(SEAT1, 1).
+-define(SEAT2, 2).
+-define(SEAT3, 3).
+
+-define(MOCKED_HAND1, [{wen, 7}, {wu, 3}, {wen, 4}, {wen, 4}, {wu, 6}, {wen, 8}, {wen, 5}, {wen, 3}]).
+-define(MOCKED_HAND2, [{wen, 3}, {wen, 8}, {wen, 10}, {wu, 9}, {wen, 2}, {wu, 8}, {wu, 5}, {wen, 6}]).
+-define(MOCKED_HAND3, [{wen, 9}, {wen, 2}, {wen, 10}, {wu, 7}, {wen, 7}, {wu, 8}, {wen, 11}, {wu, 7}]).
+-define(MOCKED_HAND4, [{wen, 9}, {wen, 5}, {wen, 1}, {wen, 6}, {wu, 5}, {wen, 11}, {wu, 9}, {wen, 1}]).
+
+%% MOCKED_HAND11 == MOCKED_HAND1 - {wen, 7}
+-define(MOCKED_HAND11, [{wu, 3}, {wen, 4}, {wen, 4}, {wu, 6}, {wen, 8}, {wen, 5}, {wen, 3}]).
+
+-record(submit_test_case, {
+    subtitle        :: string(),
+    submitter_seat  :: tianjiupai_quad:seat(),
+    submitter_cards :: [tianjiupai_game:card()],
+    before          :: tianjiupai_game:inning_state(),
+    expected        :: tianjiupai_game:submit_result()
 }).
 
 %%====================================================================================================
@@ -434,3 +448,90 @@ get_winner_test_() ->
               {3, [{wen, 10}, {wen, 10}, {wu, 8}, {wu, 8}]}}
       ]
     ].
+
+submit_success_test_() ->
+    Exposed = fun(X, XOrCloseds) -> {X, XOrCloseds} end,
+    [
+     {"submit (" ++ Subtitle ++ ")",
+      fun() ->
+          {ok, Got} = tianjiupai_game:submit(SubmitterSeat, SubmittedCards, InningState),
+          ?assertEqual(sort_hands_of_result(Expected), sort_hands_of_result(Got))
+      end}
+    ||
+      #submit_test_case{
+          subtitle        = Subtitle,
+          before          = InningState,
+          submitter_seat  = SubmitterSeat,
+          submitter_cards = SubmittedCards,
+          expected        = Expected
+      } <- [
+          #submit_test_case{
+              subtitle = "first submission by Seat 0",
+
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND1, []},
+                      player1 => {?MOCKED_HAND2, []},
+                      player2 => {?MOCKED_HAND3, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => starting
+                  }),
+
+              submitter_seat = ?SEAT0,
+              submitter_cards = [{wen, 7}],
+
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND2, []},
+                      player2 => {?MOCKED_HAND3, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => {single_wen, Exposed(7, [])}
+                  })}
+             %% MOCKED_HAND11 == MOCKED_HAND1 - {wen, 7}
+          }
+      ]
+    ].
+
+%%====================================================================================================
+%% Internal Functions
+%%====================================================================================================
+inning_state(#{
+    starts_at := StartSeat,
+    player0   := {Hand0, Gaineds0},
+    player1   := {Hand1, Gaineds1},
+    player2   := {Hand2, Gaineds2},
+    player3   := {Hand3, Gaineds3},
+    table     := TableState
+}) ->
+    PlayerQuad = {
+        {player, Hand0, Gaineds0},
+        {player, Hand1, Gaineds1},
+        {player, Hand2, Gaineds2},
+        {player, Hand3, Gaineds3}
+    },
+    {inning_state,
+        StartSeat,
+        PlayerQuad,
+        TableState}.
+
+-spec sort_hands_of_result(tianjiupai_game:submit_result()) -> tianjiupai_game:submit_result().
+sort_hands_of_result(Result) ->
+    case Result of
+        {continues, Next}              -> {continues, sort_hands(Next)};
+        {wins_trick, WinnerSeat, Next} -> {wins_trick, WinnerSeat, sort_hands(Next)};
+        {wins_inning, _, _}            -> Result
+    end.
+
+-spec sort_hands(tianjiupai_game:inning_state()) -> tianjiupai_game:inning_state().
+sort_hands(InningState) ->
+    {inning_state, StartSeat, PlayerQuad0, TableState} = InningState,
+    PlayerQuad1 =
+        tianjiupai_quad:map(
+            fun({player, Hand, Gaineds}) ->
+                {player, tianjiupai_game:sort_cards(Hand), Gaineds}
+            end,
+            PlayerQuad0),
+    {inning_state, StartSeat, PlayerQuad1, TableState}.
