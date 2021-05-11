@@ -99,6 +99,10 @@
 -define(WEN_NUMBER_BOOBY,  2).
 -define(WEN_NUMBER_BOTTOM, 1).
 
+-define(DUMMY_WEN_NULL, 0).
+-define(DUMMY_WU_NULL, 0).
+-define(DUMMY_BIG_NULL, big0).
+
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
@@ -138,7 +142,10 @@ get_observable_inning_state(YourSeat, InningState) ->
         table      = Table
     }.
 
--spec submit(seat(), [card()], inning_state()) -> {ok, inning_state()} | {error, Reason} when
+-spec submit(seat(), [card()], inning_state()) -> {ok, Result} | {error, Reason} when
+    Result ::
+        {continues, Next :: inning_state()}
+      | {wins, WinnerSeat :: seat(), Next :: inning_state()},
     Reason ::
         not_your_turn
       | submitter_does_not_own_submitted_cards
@@ -174,12 +181,36 @@ submit(SubmitterSeat, SubmittedCards, InningState) ->
                                     PlayerQuad0),
                             case update_table(SubmittedCards, Table0) of
                                 {ok, Table1} ->
-                                    {ok, #inning_state{
-                                        parent    = ParentSeat,
-                                        starts_at = StartSeat,
-                                        table     = Table1,
-                                        players   = PlayerQuad1
-                                    }};
+                                    case N of
+                                        3 ->
+                                            {WinnerTrickIndex, Cards} = get_winner(Table1),
+                                            WinnerSeat = tianjiupai_quad:advance_seat(StartSeat, WinnerTrickIndex),
+                                            %% Winner :: #player{}
+                                            Winner = tianjiupai_quad:access(WinnerSeat, PlayerQuad1),
+                                            #player{gained = WinnerGained} = Winner,
+                                            PlayerQuad2 =
+                                                tianjiupai_quad:update(
+                                                    WinnerSeat,
+                                                    Winner#player{gained = WinnerGained ++ Cards},
+                                                    PlayerQuad1),
+                                            InningState1 =
+                                                #inning_state{
+                                                     parent    = ParentSeat,
+                                                     starts_at = WinnerSeat,
+                                                     table     = starting,
+                                                     players   = PlayerQuad2
+                                                },
+                                            {ok, {wins, WinnerSeat, InningState1}};
+                                        _ ->
+                                            InningState1 =
+                                                #inning_state{
+                                                    parent    = ParentSeat,
+                                                    starts_at = StartSeat,
+                                                    table     = Table1,
+                                                    players   = PlayerQuad1
+                                                },
+                                            {ok, {continues, InningState1}}
+                                    end;
                                 error ->
                                     {error, wrong_number_of_submitted_cards}
                             end;
@@ -196,12 +227,58 @@ submit(SubmitterSeat, SubmittedCards, InningState) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
+-spec get_winner(table_state()) -> {WinnerTrickIndex :: non_neg_integer(), Cards :: [card()]}.
+get_winner(Table) ->
+    case Table of
+        {wuzun, {ok, [closed, closed, closed]}} ->
+            {0, [{wu, ?WU_NUMBER_THREE}, {wu, ?WU_NUMBER_SIX}]};
+        {wenzun, {minor, MajorOrCloseds}} ->
+            Ns =
+                lists:map(
+                    fun({open, major}) -> 2;
+                       (closed)        -> 0
+                    end,
+                    MajorOrCloseds),
+            {TrickIndex, OneOrTwo} =
+                max_with_index(
+                   fun(N1, N2) -> N1 > N2 end,
+                   [1 | Ns]),
+            case OneOrTwo of
+                1 -> {0, [{wen, ?WEN_NUMBER_BOTTOM}, {wen, ?WEN_NUMBER_BOTTOM}]};
+                2 -> {TrickIndex, [{wen, ?WEN_NUMBER_BOOBY}, {wen, ?WEN_NUMBER_BOOBY}]}
+            end;
+        {single_wen, WenExposed} ->
+            {TrickIndex, Wen} = wen_max(WenExposed),
+            {TrickIndex, [{wen, Wen}]};
+        {single_wu, WuExposed} ->
+            {TrickIndex, Wu} = wu_max(WuExposed),
+            {TrickIndex, [{wu, Wu}]};
+        {double_wen, WenExposed} ->
+            {TrickIndex, Wen} = wen_max(WenExposed),
+            {TrickIndex, [{wen, Wen}, {wen, Wen}]};
+        {double_wu, WuExposed} ->
+            {TrickIndex, Wu} = wu_max(WuExposed),
+            {TrickIndex, [{wu, Wu}, {wu, Wu}]};
+        {triple_wen, BigExposed} ->
+            {TrickIndex, Big} = big_max(BigExposed),
+            {Wen, Wu} = big_to_wen_and_wu(Big),
+            {TrickIndex, [{wen, Wen}, {wen, Wen}, {wu, Wu}]};
+        {triple_wu, BigExposed} ->
+            {TrickIndex, Big} = big_max(BigExposed),
+            {Wen, Wu} = big_to_wen_and_wu(Big),
+            {TrickIndex, [{wen, Wen}, {wu, Wu}, {wu, Wu}]};
+        {quadruple, BigExposed} ->
+            {TrickIndex, Big} = big_max(BigExposed),
+            {Wen, Wu} = big_to_wen_and_wu(Big),
+            {TrickIndex, [{wen, Wen}, {wen, Wen}, {wu, Wu}, {wu, Wu}]}
+    end.
+
 %% @doc Returns how many players have already submitted cards in the current trick.
 -spec table_length(table_state()) -> non_neg_integer().
 table_length(Table) ->
     case Table of
-        starting               -> 0;
-        {_Tag, _X, XOrCloseds} -> 1 + erlang:length(XOrCloseds)
+        starting                 -> 0;
+        {_Tag, {_X, XOrCloseds}} -> 1 + erlang:length(XOrCloseds)
     end.
 
 -spec separate_submitted_cards(
@@ -359,33 +436,52 @@ update_both(Tag, ExposedBig, Wen, Wu) ->
 %% @doc Returns the current maximum big card.
 -spec big_max(exposed(card_big())) -> {TrickIndex :: non_neg_integer(), card_big()}.
 big_max({Big0, BigOrCloseds}) ->
+    %% Bigs :: card_big() | ?DUMMY_BIG_NULL
+    Bigs =
+        lists:map(
+            fun({open, Big}) -> Big;
+               (closed)      -> ?DUMMY_BIG_NULL
+            end,
+            BigOrCloseds),
     max_with_index(
         fun big_greater/2,
-        [Big0 | [Big || {open, Big} <- BigOrCloseds]]).
+        [Big0 | Bigs]).
 
--spec big_greater(card_big(), card_big()) -> boolean().
+-spec big_greater(card_big() | ?DUMMY_BIG_NULL, card_big() | ?DUMMY_BIG_NULL) -> boolean().
 big_greater(Big1, Big2) ->
     Big1 > Big2.
 
 %% @doc Returns the current maximum wen card.
 -spec wen_max(exposed(card_wen())) -> {TrickIndex :: non_neg_integer(), card_wen()}.
 wen_max({Wen0, WenOrCloseds}) ->
+    Wens =
+        lists:map(
+            fun({open, Wen}) -> Wen;
+               (closed)      -> ?DUMMY_WEN_NULL
+            end,
+            WenOrCloseds),
     max_with_index(
         fun wen_greater/2,
-        [Wen0 | [Wen || {open, Wen} <- WenOrCloseds]]).
+        [Wen0 | Wens]).
 
--spec wen_greater(card_wen(), card_wen()) -> boolean().
+-spec wen_greater(card_wen() | ?DUMMY_WEN_NULL, card_wen() | ?DUMMY_WEN_NULL) -> boolean().
 wen_greater(Wen1, Wen2) ->
     Wen1 > Wen2.
 
 %% @doc Returns the current maximum wu card.
 -spec wu_max(exposed(card_wu())) -> {TrickIndex :: non_neg_integer(), card_wu()}.
 wu_max({Wu0, WuOrCloseds}) ->
+    Wus =
+        lists:map(
+            fun({open, Wu}) -> Wu;
+               (closed)     -> ?DUMMY_WU_NULL
+            end,
+            WuOrCloseds),
     max_with_index(
         fun wu_greater/2,
-        [Wu0 | [Wu || {open, Wu} <- WuOrCloseds]]).
+        [Wu0 | Wus]).
 
--spec wu_greater(card_wu(), card_wu()) -> boolean().
+-spec wu_greater(card_wu() | ?DUMMY_WU_NULL, card_wu() | ?DUMMY_WU_NULL) -> boolean().
 wu_greater(Wu1, Wu2) ->
     Wu1 > Wu2.
 
@@ -487,10 +583,19 @@ wu_to_big(Wu) ->
         _                -> error
     end.
 
+-spec big_to_wen_and_wu(card_big()) -> {card_wen(), card_wu()}.
+big_to_wen_and_wu(Big) ->
+    case Big of
+        big4 -> {?WEN_NUMBER_TIEN, ?WU_NUMBER_NINE};
+        big3 -> {?WEN_NUMBER_DI,   ?WU_NUMBER_EIGHT};
+        big2 -> {?WEN_NUMBER_REN,  ?WU_NUMBER_SEVEN};
+        big1 -> {?WEN_NUMBER_HE,   ?WU_NUMBER_FIVE}
+    end.
+
 %% @doc Sorts given cards in the lexicographical order.
 %%
 %% Wen takes precedence to wu.
--spec sort_cards([card()]) -> card().
+-spec sort_cards([card()]) -> [card()].
 sort_cards(Cards) ->
     lists:sort(Cards).
 
