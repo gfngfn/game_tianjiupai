@@ -24,6 +24,15 @@
 %% MOCKED_HAND22 := MOCKED_HAND2 - {wen, 3}
 -define(MOCKED_HAND22, [{wen, 8}, {wen, 10}, {wu, 9}, {wen, 2}, {wu, 8}, {wu, 5}, {wen, 6}]).
 
+%% MOCKED_HAND31 := MOCKED_HAND3 - {wen, 2}
+-define(MOCKED_HAND31, [{wen, 9}, {wen, 10}, {wu, 7}, {wen, 7}, {wu, 8}, {wen, 11}, {wu, 7}]).
+
+%% MOCKED_HAND41 := MOCKED_HAND4 - {wen, 9}
+-define(MOCKED_HAND41, [{wen, 5}, {wen, 1}, {wen, 6}, {wu, 5}, {wen, 11}, {wu, 9}, {wen, 1}]).
+
+%% MOCKED_HAND42 := MOCKED_HAND4 - {wu, 5}
+-define(MOCKED_HAND42, [{wen, 9}, {wen, 5}, {wen, 1}, {wen, 6}, {wen, 11}, {wu, 9}, {wen, 1}]).
+
 -record(submit_test_case, {
     subtitle        :: string(),
     submitter_seat  :: tianjiupai_quad:seat(),
@@ -538,6 +547,52 @@ submit_success_test_() ->
                       player2 => {?MOCKED_HAND3, []},
                       player3 => {?MOCKED_HAND4, []},
                       table => {single_wen, Exposed(7, [closed])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "fourth submission by Seat 3 (and Seat 3 wins the trick)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND21, []},
+                      player2 => {?MOCKED_HAND31, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => {single_wen, Exposed(7, [{open, 8}, closed])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [{wen, 9}],
+              expected =
+                  {wins_trick, ?SEAT3, inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND21, []},
+                      player2 => {?MOCKED_HAND31, []},
+                      player3 => {?MOCKED_HAND41, [{wen, 9}]}, % MOCKED_HAND41 == MOCKED_HAND4 - {wen, 9}
+                      table => starting
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "fourth submission by Seat 3 (and Seat 1 wins the trick)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND21, []},
+                      player2 => {?MOCKED_HAND31, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => {single_wen, Exposed(7, [{open, 8}, closed])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [{wu, 5}],
+              expected =
+                  {wins_trick, ?SEAT1, inning_state(#{
+                      starts_at => ?SEAT1,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND21, [{wen, 8}]},
+                      player2 => {?MOCKED_HAND31, []},
+                      player3 => {?MOCKED_HAND42, []}, % MOCKED_HAND42 == MOCKED_HAND4 - {wu, 5}
+                      table => starting
                   })}
           },
           #submit_test_case{
