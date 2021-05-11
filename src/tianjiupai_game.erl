@@ -17,7 +17,8 @@
     zip_with_indices/1,
     max_with_index/2,
     make_starting_table/1,
-    update_table/2
+    update_table/2,
+    get_winner/1
 ]).
 
 %%====================================================================================================

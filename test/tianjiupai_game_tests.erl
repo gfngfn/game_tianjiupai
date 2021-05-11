@@ -350,3 +350,87 @@ update_table_success_test_() ->
                 {quadruple, Exposed(big1, [closed])}}
         ]
     ].
+
+get_winner_test_() ->
+    Exposed = fun(X, Xs) -> {X, Xs} end,
+    [
+     {"Judge the winner.",
+      fun() ->
+          Got = tianjiupai_game:get_winner(Table),
+          ?assertEqual(Expected, Got)
+      end}
+    ||
+      {Table, Expected} <- [
+          %% Results of `wuzun'.
+          {{wuzun, Exposed(ok, [closed, closed, closed])},
+              {0, [{wu, 3}, {wu, 6}]}},
+
+          %% Results of `wenzun'.
+          {{wenzun, Exposed(minor, [closed, closed, closed])},
+              {0, [{wen, 1}, {wen, 1}]}},
+          {{wenzun, Exposed(minor, [closed, {open, major}, closed])},
+              {2, [{wen, 2}, {wen, 2}]}},
+
+          %% Results of `single_wen'.
+          {{single_wen, Exposed(10, [closed, closed, closed])},
+              {0, [{wen, 10}]}},
+          {{single_wen, Exposed(6, [{open, 8}, {open, 11}, closed])},
+              {2, [{wen, 11}]}},
+          {{single_wen, Exposed(6, [{open, 8}, closed, {open, 11}])},
+              {3, [{wen, 11}]}},
+          {{single_wen, Exposed(8, [closed, closed, {open, 10}])},
+              {3, [{wen, 10}]}},
+
+          %% Results of `single_wu'.
+          {{single_wu, Exposed(8, [closed, closed, closed])},
+              {0, [{wu, 8}]}},
+          {{single_wu, Exposed(3, [{open, 7}, {open, 9}, closed])},
+              {2, [{wu, 9}]}},
+
+          %% Results of `double_wen'.
+          {{double_wen, Exposed(4, [closed, closed, closed])},
+              {0, [{wen, 4}, {wen, 4}]}},
+          {{double_wen, Exposed(6, [{open, 8}, {open, 11}, closed])},
+              {2, [{wen, 11}, {wen, 11}]}},
+          {{double_wen, Exposed(6, [{open, 8}, closed, {open, 11}])},
+              {3, [{wen, 11}, {wen, 11}]}},
+          {{double_wen, Exposed(8, [closed, closed, {open, 10}])},
+              {3, [{wen, 10}, {wen, 10}]}},
+
+          %% Results of `double_wu'.
+          {{double_wu, Exposed(8, [closed, closed, closed])},
+              {0, [{wu, 8}, {wu, 8}]}},
+          {{double_wu, Exposed(3, [{open, 7}, {open, 9}, closed])},
+              {2, [{wu, 9}, {wu, 9}]}},
+
+          %% Results of `triple_wen'.
+          {{triple_wen, Exposed(big2, [closed, closed, closed])},
+              {0, [{wen, 9}, {wen, 9}, {wu, 7}]}},
+          {{triple_wen, Exposed(big1, [{open, big2}, {open, big4}, closed])},
+              {2, [{wen, 11}, {wen, 11}, {wu, 9}]}},
+          {{triple_wen, Exposed(big1, [{open, big2}, closed, {open, big4}])},
+              {3, [{wen, 11}, {wen, 11}, {wu, 9}]}},
+          {{triple_wen, Exposed(big2, [closed, closed, {open, big3}])},
+              {3, [{wen, 10}, {wen, 10}, {wu, 8}]}},
+
+          %% Results of `triple_wu'.
+          {{triple_wu, Exposed(big2, [closed, closed, closed])},
+              {0, [{wen, 9}, {wu, 7}, {wu, 7}]}},
+          {{triple_wu, Exposed(big1, [{open, big2}, {open, big4}, closed])},
+              {2, [{wen, 11}, {wu, 9}, {wu, 9}]}},
+          {{triple_wu, Exposed(big1, [{open, big2}, closed, {open, big4}])},
+              {3, [{wen, 11}, {wu, 9}, {wu, 9}]}},
+          {{triple_wu, Exposed(big2, [closed, closed, {open, big3}])},
+              {3, [{wen, 10}, {wu, 8}, {wu, 8}]}},
+
+          %% Results of `quadruple'.
+          {{quadruple, Exposed(big1, [closed, closed, closed])},
+              {0, [{wen, 8}, {wen, 8}, {wu, 5}, {wu, 5}]}},
+          {{quadruple, Exposed(big1, [{open, big2}, {open, big4}, closed])},
+              {2, [{wen, 11}, {wen, 11}, {wu, 9}, {wu, 9}]}},
+          {{quadruple, Exposed(big1, [{open, big2}, closed, {open, big4}])},
+              {3, [{wen, 11}, {wen, 11}, {wu, 9}, {wu, 9}]}},
+          {{quadruple, Exposed(big2, [closed, closed, {open, big3}])},
+              {3, [{wen, 10}, {wen, 10}, {wu, 8}, {wu, 8}]}}
+      ]
+    ].
