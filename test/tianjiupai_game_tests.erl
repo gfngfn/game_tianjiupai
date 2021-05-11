@@ -15,8 +15,14 @@
 -define(MOCKED_HAND3, [{wen, 9}, {wen, 2}, {wen, 10}, {wu, 7}, {wen, 7}, {wu, 8}, {wen, 11}, {wu, 7}]).
 -define(MOCKED_HAND4, [{wen, 9}, {wen, 5}, {wen, 1}, {wen, 6}, {wu, 5}, {wen, 11}, {wu, 9}, {wen, 1}]).
 
-%% MOCKED_HAND11 == MOCKED_HAND1 - {wen, 7}
+%% MOCKED_HAND11 := MOCKED_HAND1 - {wen, 7}
 -define(MOCKED_HAND11, [{wu, 3}, {wen, 4}, {wen, 4}, {wu, 6}, {wen, 8}, {wen, 5}, {wen, 3}]).
+
+%% MOCKED_HAND21 := MOCKED_HAND2 - {wen, 8}
+-define(MOCKED_HAND21, [{wen, 3}, {wen, 10}, {wu, 9}, {wen, 2}, {wu, 8}, {wu, 5}, {wen, 6}]).
+
+%% MOCKED_HAND22 := MOCKED_HAND2 - {wen, 3}
+-define(MOCKED_HAND22, [{wen, 8}, {wen, 10}, {wu, 9}, {wen, 2}, {wu, 8}, {wu, 5}, {wen, 6}]).
 
 -record(submit_test_case, {
     subtitle        :: string(),
@@ -467,7 +473,6 @@ submit_success_test_() ->
       } <- [
           #submit_test_case{
               subtitle = "first submission by Seat 0",
-
               before =
                   inning_state(#{
                       starts_at => ?SEAT0,
@@ -477,20 +482,109 @@ submit_success_test_() ->
                       player3 => {?MOCKED_HAND4, []},
                       table => starting
                   }),
-
               submitter_seat = ?SEAT0,
               submitter_cards = [{wen, 7}],
-
               expected =
                   {continues, inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND11, []}, % MOCKED_HAND11 == MOCKED_HAND1 - {wen, 7}
+                      player1 => {?MOCKED_HAND2, []},
+                      player2 => {?MOCKED_HAND3, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => {single_wen, Exposed(7, [])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "second submission by Seat 1 (superior)",
+              before =
+                  inning_state(#{
                       starts_at => ?SEAT0,
                       player0 => {?MOCKED_HAND11, []},
                       player1 => {?MOCKED_HAND2, []},
                       player2 => {?MOCKED_HAND3, []},
                       player3 => {?MOCKED_HAND4, []},
                       table => {single_wen, Exposed(7, [])}
+                  }),
+              submitter_seat = ?SEAT1,
+              submitter_cards = [{wen, 8}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND21, []}, % MOCKED_HAND21 == MOCKED_HAND1 - {wen, 8}
+                      player2 => {?MOCKED_HAND3, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => {single_wen, Exposed(7, [{open, 8}])}
                   })}
-             %% MOCKED_HAND11 == MOCKED_HAND1 - {wen, 7}
+          },
+          #submit_test_case{
+              subtitle = "second submission by Seat 1 (inferior)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND2, []},
+                      player2 => {?MOCKED_HAND3, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => {single_wen, Exposed(7, [])}
+                  }),
+              submitter_seat = ?SEAT1,
+              submitter_cards = [{wen, 3}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {?MOCKED_HAND11, []},
+                      player1 => {?MOCKED_HAND22, []}, % MOCKED_HAND22 == MOCKED_HAND1 - {wen, 3}
+                      player2 => {?MOCKED_HAND3, []},
+                      player3 => {?MOCKED_HAND4, []},
+                      table => {single_wen, Exposed(7, [closed])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "first submission by Seat 3",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {?MOCKED_HAND2, []},
+                      player1 => {?MOCKED_HAND3, []},
+                      player2 => {?MOCKED_HAND4, []},
+                      player3 => {?MOCKED_HAND1, []},
+                      table => starting
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [{wen, 7}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {?MOCKED_HAND2, []},
+                      player1 => {?MOCKED_HAND3, []},
+                      player2 => {?MOCKED_HAND4, []},
+                      player3 => {?MOCKED_HAND11, []}, % MOCKED_HAND11 == MOCKED_HAND1 - {wen, 7}
+                      table => {single_wen, Exposed(7, [])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "second submission by Seat 0 (superior)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {?MOCKED_HAND2, []},
+                      player1 => {?MOCKED_HAND3, []},
+                      player2 => {?MOCKED_HAND4, []},
+                      player3 => {?MOCKED_HAND11, []},
+                      table => {single_wen, Exposed(7, [])}
+                  }),
+              submitter_seat = ?SEAT0,
+              submitter_cards = [{wen, 8}],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {?MOCKED_HAND21, []}, % MOCKED_HAND21 == MOCKED_HAND2 - {wen, 8}
+                      player1 => {?MOCKED_HAND3, []},
+                      player2 => {?MOCKED_HAND4, []},
+                      player3 => {?MOCKED_HAND11, []},
+                      table => {single_wen, Exposed(7, [{open, 8}])}
+                  })}
           }
       ]
     ].
