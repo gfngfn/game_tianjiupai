@@ -7,7 +7,8 @@
     card/0,
     table_state/0,
     inning_state/0,
-    submit_result/0
+    submit_result/0,
+    submit_error_reason/0
 ]).
 -export([
     generate_initial_inning_state/1,
@@ -85,7 +86,12 @@
 -type submit_result() ::
     {continues, Next :: inning_state()}
   | {wins_trick, WinnerSeat :: seat(), Next :: inning_state()}
-  | {wins_inning, WinnerSeat :: seat(), NumGainedsQuad :: quad([card()])}.
+  | {wins_inning, WinnerSeat :: seat(), GainedsQuad :: quad([card()])}.
+
+-type submit_error_reason() ::
+    not_your_turn
+  | submitter_does_not_own_submitted_cards
+  | wrong_number_of_submitted_cards.
 
 -define(WEN_CARDS_HALF, lists:map(fun(N) -> {wen, N} end, lists:seq(1, 11))).
 
@@ -148,10 +154,7 @@ get_observable_inning_state(YourSeat, InningState) ->
     }.
 
 -spec submit(seat(), [card()], inning_state()) -> {ok, submit_result()} | {error, Reason} when
-    Reason ::
-        not_your_turn
-      | submitter_does_not_own_submitted_cards
-      | wrong_number_of_submitted_cards.
+    Reason :: submit_error_reason().
 submit(SubmitterSeat, SubmittedCards, InningState) ->
     #inning_state{
         starts_at = StartSeat,

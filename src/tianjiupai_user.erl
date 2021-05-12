@@ -79,7 +79,7 @@ notify(UserId, Logs) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
--spec generate_user_id() -> binary().
+-spec generate_user_id() -> tianjiupai:user_id().
 generate_user_id() ->
     Uuid = uuid:get_v4(),
     list_to_binary(uuid:uuid_to_string(Uuid)).
