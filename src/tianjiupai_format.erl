@@ -1,5 +1,7 @@
 -module(tianjiupai_format).
 
+-include("tianjiupai.hrl").
+
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
@@ -15,7 +17,7 @@
     encode_create_room_response/1,
     decode_enter_room_request/1,
     encode_enter_room_response/1,
-    encode_get_room_response/1,
+    encode_get_personal_room_response/1,
     encode_get_all_rooms_response/1,
     encode_failure_response/1,
 
@@ -111,8 +113,8 @@ decode_enter_room_request(ReqBody) ->
 encode_enter_room_response(PersonalState) ->
     encode_personal_state(PersonalState).
 
--spec encode_get_room_response(tianjiupai_room:room_state()) -> binary().
-encode_get_room_response(PersonalState) ->
+-spec encode_get_personal_room_response(tianjiupai_room:room_state()) -> binary().
+encode_get_personal_room_response(PersonalState) ->
     encode_personal_state(PersonalState).
 
 -spec encode_get_all_rooms_response([tianjiupai_room:room_state()]) -> binary().
@@ -205,11 +207,11 @@ make_room_object(RoomId, RoomName) ->
 
 -spec make_room_summary_object(tianjiupai_room:whole_room_state()) -> term().
 make_room_summary_object(WholeRoomState) ->
-    #{
-        room_id    := RoomId,
-        room_name  := RoomName,
-        is_playing := IsPlaying,
-        members    := Members
+    #whole_room_state{
+        room_id    = RoomId,
+        room_name  = RoomName,
+        is_playing = IsPlaying,
+        members    = Members
     } = WholeRoomState,
     #{
         room       => make_room_object(RoomId, RoomName),
@@ -218,16 +220,25 @@ make_room_summary_object(WholeRoomState) ->
     }.
 
 %% TODO: replace room states with personally observed states
--spec make_personal_state_object(tianjiupai_room:room_state()) -> term().
+-spec make_personal_state_object(#personal_room_state{}) -> term().
 make_personal_state_object(RoomState) ->
-    #{
-        room_id    := RoomId,
-        room_name  := RoomName,
-        logs       := Logs,
-        members    := Members
+    #personal_room_state{
+        room_id    = RoomId,
+        room_name  = RoomName,
+        logs       = Logs,
+        observable = Observable
     } = RoomState,
-    #{
-        room => make_room_object(RoomId, RoomName),
-        logs => lists:map(fun make_log_object/1, Logs),
-        game => ?LABELED(<<"WaitingStart">>, Members)
-    }.
+    case Observable of
+        {waiting, Members} ->
+            #{
+                room => make_room_object(RoomId, RoomName),
+                logs => lists:map(fun make_log_object/1, Logs),
+                game => ?LABELED(<<"WaitingStart">>, Members)
+            };
+        {playing, _ObservableGameState} ->
+            #{
+                room => make_room_object(RoomId, RoomName),
+                logs => lists:map(fun make_log_object/1, Logs),
+                game => ?LABELED(<<"PlayingGame">>, ok)
+            } %% TODO: use `ObservableGameState'
+    end.

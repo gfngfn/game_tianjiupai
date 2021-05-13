@@ -1,27 +1,27 @@
 -module(tianjiupai_room).
 
+-include("tianjiupai.hrl").
+
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
 -export([
     create/1,
     get_all_rooms/0,
-    get_room/1,
+    get_whole_state/1,
+    get_personal_state/2,
     attend/2,
     exit/2,
     send_chat/3,
     monitor/1
 ]).
 -export_type([
-    whole_room_state/0,
     log/0
 ]).
 
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--type whole_room_state() :: tianjiupai_room_server:whole_room_state().
-
 -type log() :: tianjiupai_room_server:log().
 
 %%====================================================================================================
@@ -35,7 +35,7 @@ create(RoomName) ->
         {error, _} = Err -> Err
     end.
 
--spec get_all_rooms() -> [whole_room_state()].
+-spec get_all_rooms() -> [#whole_room_state{}].
 get_all_rooms() ->
     RoomServerProcs = tianjiupai_room_server_sup:which_children(),
     lists:filtermap(
@@ -47,11 +47,15 @@ get_all_rooms() ->
         end,
         RoomServerProcs).
 
--spec get_room(tianjiupai:room_id()) -> {ok, whole_room_state()} | {error, Reason :: term()}.
-get_room(RoomId) ->
+-spec get_whole_state(tianjiupai:room_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
+get_whole_state(RoomId) ->
     tianjiupai_room_server:get_whole_state(RoomId).
 
--spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, whole_room_state()} | {error, Reason :: term()}.
+-spec get_personal_state(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
+get_personal_state(RoomId, UserId) ->
+    tianjiupai_room_server:get_personal_state(RoomId, UserId).
+
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
 attend(RoomId, UserId) ->
     tianjiupai_room_server:attend(RoomId, UserId).
 

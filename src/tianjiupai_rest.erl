@@ -1,6 +1,8 @@
 -module(tianjiupai_rest).
 -behaviour(cowboy_rest).
 
+-include("tianjiupai.hrl").
+
 %%====================================================================================================
 %% `cowboy_rest' Callback API
 %%====================================================================================================
@@ -170,9 +172,9 @@ provide_json(Req0, State) ->
             } ->
                 case validate_cookie(MaybeInfo, UserId) of
                     true ->
-                        case tianjiupai_room:get_room(RoomId) of
-                            {ok, RoomState} -> tianjiupai_format:encode_get_room_response(RoomState);
-                            {error, Reason} -> tianjiupai_format:encode_failure_response(Reason) % TODO: error
+                        case tianjiupai_room:get_personal_state(RoomId, UserId) of
+                            {ok, PersonalState} -> tianjiupai_format:encode_get_personal_room_response(PersonalState);
+                            {error, Reason}     -> tianjiupai_format:encode_failure_response(Reason) % TODO: error
                         end;
                     false ->
                         <<"">> % TODO: error
@@ -287,8 +289,8 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                                 {error, Reason2} ->
                                     Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
                                     {false, Req2};
-                                {ok, RoomState} ->
-                                    RespBody = tianjiupai_format:encode_enter_room_response(RoomState),
+                                {ok, PersonalRoomState} ->
+                                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalRoomState),
                                     Req2 = cowboy_req:set_resp_body(RespBody, Req1),
                                     {true, Req2}
                             end;

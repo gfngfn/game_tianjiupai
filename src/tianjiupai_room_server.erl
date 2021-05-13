@@ -1,6 +1,8 @@
 -module(tianjiupai_room_server).
 -behaviour(gen_server).
 
+-include("tianjiupai.hrl").
+
 %%====================================================================================================
 %% `gen_server' Callback API
 %%====================================================================================================
@@ -20,6 +22,7 @@
     exit/2,
     monitor/1,
     send_chat/3,
+    get_personal_state/2,
     get_whole_state/1,
     get_whole_state_by_proc/1
 ]).
@@ -27,7 +30,7 @@
     proc/0,
     log/0,
     snapshot_id/0,
-    whole_room_state/0,
+    observable_room_state/0,
     error_reason/0
 ]).
 
@@ -43,14 +46,6 @@
   | game_start.
 
 -type snapshot_id() :: binary().
-
--type whole_room_state() :: #{
-    room_id    := tianjiupai:room_id(),
-    room_name  := binary(),
-    is_playing := boolean(),
-    members    := [tianjiupai:user_id()],
-    logs       := [log()]
-}.
 
 -record(settings, {
     room_id   :: tianjiupai_room:room_id(),
@@ -75,18 +70,32 @@
     score   :: score()
 }).
 
--record(game_state, {
-    snapshot_id      :: snapshot_id(),
+-record(game_meta, {
     inning_index     :: pos_integer(),
     num_consecutives :: pos_integer(),
     parent_seat      :: tianjiupai_quad:seat(),
-    players          :: tianjiupai_quad:quad(#game_player{}),
-    inning           :: tianjiupai_game:inning_state()
+    players          :: tianjiupai_quad:quad(#game_player{})
+}).
+
+-record(whole_game_state, {
+    meta        :: #game_meta{},
+    inning      :: tianjiupai_game:inning_state(),
+    snapshot_id :: snapshot_id()
+}).
+
+-record(observable_game_state, {
+    meta              :: #game_meta{},
+    observable_inning :: tianjiupai_game:observable_state(),
+    snapshot_id       :: snapshot_id()
 }).
 
 -type internal_room_state() ::
     {waiting, #waiting_state{}}
-  | {playing, #game_state{}}.
+  | {playing, #whole_game_state{}}.
+
+-type observable_room_state() ::
+    {waiting, [tianjiupai:user_id()]}
+  | {playing, #observable_game_state{}}.
 
 -record(state, {
     settings      :: #settings{},
@@ -117,8 +126,11 @@ init({RoomId, RoomName}) ->
 handle_call(CallMsg, _From, State0) ->
     case CallMsg of
         get_whole_state ->
-            RoomState = make_whole_room_state(State0),
-            {reply, {ok, RoomState}, State0};
+            WholeRoomState = make_whole_room_state(State0),
+            {reply, {ok, WholeRoomState}, State0};
+        {get_personal_state, UserId} ->
+            PersonalRoomState = make_personal_room_state(State0, UserId),
+            {reply, {ok, PersonalRoomState}, State0};
         {send_chat, From, Text} ->
             handle_send_chat(From, Text, State0);
         {attend, UserId} ->
@@ -148,7 +160,7 @@ handle_info(Info, State) ->
 start_link(RoomId, RoomName) ->
     gen_server:start_link(name(RoomId), ?MODULE, {RoomId, RoomName}, []).
 
--spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, whole_room_state()} | {error, error_reason()}.
+-spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, error_reason()}.
 attend(RoomId, UserId) ->
     call(RoomId, {attend, UserId}).
 
@@ -167,14 +179,18 @@ monitor(RoomId) ->
         Pid       -> {ok, erlang:monitor(process, Pid)}
     end.
 
--spec get_whole_state(tianjiupai:room_id()) -> {ok, whole_room_state()} | {error, error_reason()}.
+-spec get_personal_state(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, error_reason()}.
+get_personal_state(RoomId, UserId) ->
+    call(RoomId, {get_personal_state, UserId}).
+
+-spec get_whole_state(tianjiupai:room_id()) -> {ok, #whole_room_state{}} | {error, error_reason()}.
 get_whole_state(RoomId) ->
     case get_pid(RoomId) of
         undefined      -> {error, {room_not_found, RoomId}};
         RoomServerProc -> get_whole_state_by_proc(RoomServerProc)
     end.
 
--spec get_whole_state_by_proc(proc()) -> {ok, whole_room_state()} | {error, error_reason()}.
+-spec get_whole_state_by_proc(proc()) -> {ok, #whole_room_state{}} | {error, error_reason()}.
 get_whole_state_by_proc(RoomServerProc) ->
     try
         gen_server:call(RoomServerProc, get_whole_state)
@@ -209,13 +225,16 @@ handle_progress(SnapshotId, ProgressMsg, State0) ->
             {waiting, _} ->
                 {error, waiting};
             {playing, GameState0} ->
-                #game_state{
-                    snapshot_id      = SnapshotId0,
-                    inning_index     = _InningIndex0,
-                    num_consecutives = _NumConsecutives0,
-                    parent_seat      = _ParentSeat0,
-                    players          = GamePlayerQuad0,
-                    inning           = InningState0
+                #whole_game_state{
+                    meta =
+                        #game_meta{
+                            inning_index     = _InningIndex0,
+                            num_consecutives = _NumConsecutives0,
+                            parent_seat      = _ParentSeat0,
+                            players          = GamePlayerQuad0
+                        },
+                    inning      = InningState0,
+                    snapshot_id = SnapshotId0
                 } = GameState0,
                 if
                     SnapshotId =:= SnapshotId0 ->
@@ -238,7 +257,7 @@ handle_progress(SnapshotId, ProgressMsg, State0) ->
                                                         %% - notify the next player "next is your turn"
                                                         %% - update `inning'
                                                         GameState1 =
-                                                            GameState0#game_state{
+                                                            GameState0#whole_game_state{
                                                                snapshot_id = SnapshotId1,
                                                                inning      = InningState1
                                                             },
@@ -317,7 +336,7 @@ handle_exit(UserId, State0) ->
     {reply, Reply, State0#state{room_state = RoomState1, reversed_logs = LogAcc1}}.
 
 -spec handle_attend(tianjiupai:user_id(), #state{}) -> {reply, AttendReply, #state{}} when
-    AttendReply :: {ok, whole_room_state()} | {error, error_reason()}.
+    AttendReply :: {ok, #personal_room_state{}} | {error, error_reason()}.
 handle_attend(UserId, State0) ->
     #state{
         reversed_logs = LogAcc0,
@@ -362,13 +381,16 @@ handle_attend(UserId, State0) ->
                                         end,
                                         {UserId0, UserId1, UserId2, UserId}),
                                 PlayingState =
-                                    #game_state{
-                                        parent_seat      = ParentSeat,
-                                        inning_index     = 1,
-                                        num_consecutives = 1,
-                                        snapshot_id      = SnapshotId,
-                                        players          = PlayerQuad,
-                                        inning           = InningState
+                                    #whole_game_state{
+                                        meta =
+                                            #game_meta{
+                                                parent_seat      = ParentSeat,
+                                                inning_index     = 1,
+                                                num_consecutives = 1,
+                                                players          = PlayerQuad
+                                            },
+                                        inning           = InningState,
+                                        snapshot_id      = SnapshotId
                                     },
                                 RoomState = {playing, PlayingState},
                                 LogGameStart = game_start,
@@ -408,8 +430,28 @@ notify_logs_for_each(UserIds, Notifications) ->
         end,
         UserIds).
 
--spec make_whole_room_state(#state{}) -> whole_room_state().
+-spec make_whole_room_state(#state{}) -> #whole_room_state{}.
 make_whole_room_state(State) ->
+    #state{
+        settings =
+            #settings{
+                room_id   = RoomId,
+                room_name = RoomName
+            },
+        room_state = RoomState
+    } = State,
+    {IsPlaying, Members} = get_members_from_state(RoomState),
+    #whole_room_state{
+        room_id    = RoomId,
+        room_name  = RoomName,
+        is_playing = IsPlaying,
+        members    = Members
+    }.
+
+-spec make_personal_room_state(#state{}, tianjiupai:user_id()) ->
+    {ok, #personal_room_state{}}
+  | {error, you_are_not_a_member}.
+make_personal_room_state(State, UserId) ->
     #state{
         settings =
             #settings{
@@ -419,25 +461,60 @@ make_whole_room_state(State) ->
         reversed_logs = LogAcc,
         room_state    = RoomState
     } = State,
-    {IsPlaying, Members} = get_members_from_state(RoomState),
-    #{
-        room_id    => RoomId,
-        room_name  => RoomName,
-        is_playing => IsPlaying,
-        logs       => lists:reverse(LogAcc),
-        members    => Members
-    }.
+    case make_observable(RoomState, UserId) of
+        {ok, Observable} ->
+            {ok, #personal_room_state{
+                room_id    = RoomId,
+                room_name  = RoomName,
+                logs       = lists:reverse(LogAcc),
+                observable = Observable
+            }};
+        {error, _} = Err ->
+            Err
+    end.
+
+-spec make_observable(internal_room_state(), tianjiupai:user_id()) ->
+    {ok, observable_room_state()} | {error, you_are_not_a_member}.
+make_observable(RoomState, UserId) ->
+    case RoomState of
+        {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
+            Members = lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers),
+            {waiting, Members};
+        {playing, GameState} ->
+            #whole_game_state{
+               meta        = GameMeta,
+               inning      = InningState,
+               snapshot_id = SnapshotId
+            } = GameState,
+            #game_meta{players = PlayerQuad} = GameMeta,
+            case
+                tianjiupai_quad:find(
+                    fun(#game_player{user_id = U}) -> U =:= UserId end,
+                    PlayerQuad)
+            of
+                {ok, {ObserverSeat, _}} ->
+                    ObservableInning = tianjiupai_game:get_observable_inning_state(ObserverSeat, InningState),
+                    {ok, {playing, #observable_game_state{
+                        meta              = GameMeta,
+                        observable_inning = ObservableInning,
+                        snapshot_id       = SnapshotId
+                    }}};
+                error ->
+                    {error, you_are_not_a_member}
+            end
+    end.
 
 -spec get_members_from_state(internal_room_state()) -> {boolean(), [tianjiupai:user_id()]}.
 get_members_from_state(RoomState) ->
     case RoomState of
         {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
             {false, lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers)};
-        {playing, #game_state{players = PlayerQuad}} ->
+        {playing, #whole_game_state{meta = #game_meta{players = PlayerQuad}}} ->
             {U0, U1, U2, U3} = tianjiupai_quad:map(fun(#game_player{user_id = U}) -> U end, PlayerQuad),
             {true, [U0, U1, U2, U3]}
     end.
 
+-spec call(tianjiupai:room_id(), term()) -> ok | {ok, term()} | {error, term()}.
 call(RoomId, Msg) ->
     case get_pid(RoomId) of
         undefined ->

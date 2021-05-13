@@ -138,7 +138,7 @@ generate_initial_inning_state(ParentSeat) ->
                 HandQuad)
     }.
 
--spec get_observable_inning_state(seat(), #inning_state{}) -> #observable_inning_state{}.
+-spec get_observable_inning_state(seat(), inning_state()) -> #observable_inning_state{}.
 get_observable_inning_state(YourSeat, InningState) ->
     #inning_state{
         starts_at = StartSeat,
