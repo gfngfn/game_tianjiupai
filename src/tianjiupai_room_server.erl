@@ -29,6 +29,7 @@
 -export_type([
     proc/0,
     log/0,
+    score/0,
     snapshot_id/0,
     observable_room_state/0,
     error_reason/0
@@ -65,28 +66,10 @@
 
 -define(INITIAL_SCORE, 50).
 
--record(game_player, {
-    user_id :: tianjiupai:user_id(),
-    score   :: score()
-}).
-
--record(game_meta, {
-    inning_index     :: pos_integer(),
-    num_consecutives :: pos_integer(),
-    parent_seat      :: tianjiupai_quad:seat(),
-    players          :: tianjiupai_quad:quad(#game_player{})
-}).
-
 -record(whole_game_state, {
     meta        :: #game_meta{},
     inning      :: tianjiupai_game:inning_state(),
     snapshot_id :: snapshot_id()
-}).
-
--record(observable_game_state, {
-    meta              :: #game_meta{},
-    observable_inning :: tianjiupai_game:observable_state(),
-    snapshot_id       :: snapshot_id()
 }).
 
 -type internal_room_state() ::

@@ -235,10 +235,130 @@ make_personal_state_object(RoomState) ->
                 logs => lists:map(fun make_log_object/1, Logs),
                 game => ?LABELED(<<"WaitingStart">>, Members)
             };
-        {playing, _ObservableGameState} ->
+        {playing, ObservableGameState} ->
+            ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
             #{
                 room => make_room_object(RoomId, RoomName),
                 logs => lists:map(fun make_log_object/1, Logs),
-                game => ?LABELED(<<"PlayingGame">>, ok)
-            } %% TODO: use `ObservableGameState'
+                game => ?LABELED(<<"PlayingGame">>, ObservableGameStateObj)
+            }
     end.
+
+-spec make_observable_game_state_object(#observable_game_state{}) -> term().
+make_observable_game_state_object(ObservableGameState) ->
+    #observable_game_state{
+        meta              = GameMeta,
+        observable_inning = ObservableInning,
+        snapshot_id       = SnapshotId
+    } = ObservableGameState,
+    GameMetaObj = make_game_meta_object(GameMeta),
+    ObservableInningObj = make_observable_inning_state_object(ObservableInning),
+    #{
+        meta              => GameMetaObj,
+        observable_inning => ObservableInningObj,
+        snapshot_id       => SnapshotId
+    }.
+
+
+-spec make_observable_inning_state_object(#observable_inning_state{}) -> term().
+make_observable_inning_state_object(ObservableInning) ->
+    #observable_inning_state{
+        starts_at = StartSeat,
+        your_hand = Hand,
+        gains     = GainedQuad,
+        table     = Table
+    } = ObservableInning,
+    #{
+        starts_at => StartSeat,
+        your_hand => lists:map(fun make_card_object/1, Hand),
+        gains     => make_quad_object(fun make_gained_object/1, GainedQuad),
+        table     => make_table_object(Table)
+    }.
+
+-spec make_table_object(tianjiupai_game:table_state()) -> term().
+make_table_object(Table) ->
+    case Table of
+        starting ->
+            ?LABEL_ONLY(<<"Starting">>);
+        {wuzun, Exposed} ->
+            ?LABELED(<<"Wuzun">>, make_exposed_object(fun make_ok_object/1, Exposed));
+        {wenzun, Exposed} ->
+            ?LABELED(<<"Wenzun">>, make_exposed_object(fun make_bool_object/1, Exposed))
+    end.
+
+-spec make_ok_object(ok) -> term().
+make_ok_object(ok) ->
+    ?LABEL_ONLY(<<"Unit">>).
+
+-spec make_bool_object(boolean()) -> term().
+make_bool_object(true)  -> true;
+make_bool_object(false) -> false.
+
+-spec make_exposed_object(F, tianjiupai_game:exposed(X)) -> term() when
+      F :: fun((X) -> term()),
+      X :: term().
+make_exposed_object(F, Exposed) ->
+    {X, XOrCloseds} = Exposed,
+    #{
+        first      => F(X),
+        subsequent => make_closed_or_objects(F, XOrCloseds)
+    }.
+
+-spec make_closed_or_objects(F, [tianjiupai_game:closed_or(X)]) -> term() when
+      F :: fun((X) -> term()),
+      X :: term().
+make_closed_or_objects(F, XOrCloseds) ->
+    lists:map(
+        fun({open, X}) -> ?LABELED(<<"Open">>, F(X));
+           (closed)    -> ?LABEL_ONLY(<<"Closed">>)
+        end,
+        XOrCloseds).
+
+-spec make_card_object(tianjiupai_game:card()) -> term().
+make_card_object(Card) ->
+    case Card of
+        {wen, Wen} -> ?LABELED(<<"Wen">>, Wen);
+        {wu, Wu}   -> ?LABELED(<<"Wu">>, Wu)
+    end.
+
+-spec make_gained_object([tianjiupai_game:card()]) -> term().
+make_gained_object(Gained) ->
+    lists:map(fun make_card_object/1, Gained).
+
+-spec make_game_player_object(#game_player{}) -> term().
+make_game_player_object(GamePlayer) ->
+    #game_player{
+        user_id = UserId,
+        score   = Score
+    } = GamePlayer,
+    #{
+        user_id => UserId,
+        score   => Score
+    }.
+
+-spec make_game_meta_object(#game_meta{}) -> term().
+make_game_meta_object(GameMeta) ->
+    #game_meta{
+        inning_index     = InningIndex,
+        num_consecutives = NumConsecutives,
+        parent_seat      = ParentSeat,
+        players          = GamePlayerQuad
+    } = GameMeta,
+    #{
+        inning_index     => InningIndex,
+        num_consecutives => NumConsecutives,
+        parent_seat      => ParentSeat,
+        players          => make_quad_object(fun make_game_player_object/1, GamePlayerQuad)
+    }.
+
+-spec make_quad_object(F, tianjiupai_quad:quad(X)) -> term() when
+    F :: fun((X) -> term()),
+    X :: term().
+make_quad_object(F, Quad) ->
+    {X0, X1, X2, X3} = Quad,
+    #{
+        east  => F(X0),
+        south => F(X1),
+        west  => F(X2),
+        north => F(X3)
+    }.

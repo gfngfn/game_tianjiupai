@@ -96,20 +96,14 @@ personal_state := {
 
 personal_room_state :=
   | WaitingStart : list(user_id)
-  | PlayingGame  : observed_state
+  | PlayingGame  : observable_game_state
 
-per_member($a) := {
+per_seat($a) := {
   east  : $a,
   south : $a,
   west  : $a,
   north : $a,
 }
-
-seat_index :=
-  | SeatEast
-  | SeatSouth
-  | SeatWest
-  | SeatNorth
 
 card_wen := int
 
@@ -121,30 +115,56 @@ card :=
   | Wen : card_wen
   | Wu  : card_wu
 
-open_or_closed($a) :=
+closed_or($a) :=
   | Open : $a
   | Closed
 
+exposed($a) := {
+  first      : $a,
+  subsequent : closed_or($a),
+}
+
+unit :=
+  | Unit
+
 table :=
-  | TrickSingleWen  : list(open_or_closed(card_wen))
-  | TrickSingleWu   : list(open_or_closed(card_wu))
-  | TrickDoubleWen  : list(open_or_closed(card_wen))
-  | TrickDoubleWu   : list(open_or_closed(card_wu))
-  | TrickDoubleBoth : list(open_or_closed(card_big))
-  | TrickTripleWen  : list(open_or_closed(card_big))
-  | TrickTripleWu   : list(open_or_closed(card_big))
-  | TrickQuadruple  : list(card_big)
-  | TrickZhiZun     : list(bool)
+  | Starting
+  | TrickWuzun      : exposed(unit)
+  | TrickWenzun     : exposed(bool)
+  | TrickSingleWen  : exposed(card_wen)
+  | TrickSingleWu   : exposed(card_wu)
+  | TrickDoubleWen  : exposed(card_wen)
+  | TrickDoubleWu   : exposed(card_wu)
+  | TrickDoubleBoth : exposed(card_big)
+  | TrickTripleWen  : exposed(card_big)
+  | TrickTripleWu   : exposed(card_big)
+  | TrickQuadruple  : exposed(card_big)
 
-observed_state := {
-  seat             : seat_index,
+seat := int
 
-  scores           : per_member(int),
+snapshot_id := string
+
+game_player := {
+  user_id : user_id,
+  score   : int,
+}
+
+game_meta := {
   inning_index     : int,
   num_consecutives : int,
+  parent_seat      : seat,
+  players          : per_seat(game_player),
+}
 
-  gains            : per_member(card),
-  trick_starts_at  : seat_index,
-  hand             : list(card),
-  table            : table,
+observable_inning_state := {
+  starts_at : seat,
+  your_hand : list(card),
+  gains     : per_seat(list(card)),
+  table     : table,
+}
+
+observable_game_state := {
+  meta              : game_meta,
+  observable_inning : observable_inning_state,
+  snapshot_id       : snapshot_id,
 }

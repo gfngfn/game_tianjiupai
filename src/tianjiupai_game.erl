@@ -1,10 +1,17 @@
 -module(tianjiupai_game).
 
+-include("tianjiupai.hrl").
+
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
 -export_type([
     card/0,
+    card_wen/0,
+    card_wu/0,
+    card_big/0,
+    closed_or/1,
+    exposed/1,
     table_state/0,
     inning_state/0,
     submit_result/0,
@@ -75,13 +82,6 @@
 }).
 
 -opaque inning_state() :: #inning_state{}.
-
--record(observable_inning_state, {
-    starts_at  :: seat(),
-    your_hand  :: [card()],
-    gains      :: quad([card()]),
-    table      :: table_state()
-}).
 
 -type submit_result() ::
     {continues, Next :: inning_state()}
