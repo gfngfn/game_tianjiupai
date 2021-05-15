@@ -5,10 +5,13 @@
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--define(SEAT0, 0).
--define(SEAT1, 1).
--define(SEAT2, 2).
--define(SEAT3, 3).
+-define(SEAT0, seat0).
+-define(SEAT1, seat1).
+-define(SEAT2, seat2).
+-define(SEAT3, seat3).
+
+-define(OK(_X_), {some, _X_}).
+-define(ERROR, none).
 
 -define(MOCKED_HAND1, [{wen, 7}, {wu, 3}, {wen, 4}, {wen, 4}, {wu, 6}, {wen, 8}, {wen, 5}, {wen, 3}]).
 -define(MOCKED_HAND2, [{wen, 3}, {wen, 8}, {wen, 10}, {wu, 9}, {wen, 2}, {wu, 8}, {wu, 5}, {wen, 6}]).
@@ -44,6 +47,9 @@
     expected        :: tianjiupai_game:submit_result()
 }).
 
+-define(TARGET_MODULE, 'Tianjiupai.Inning').
+-define(CARD_MODULE, 'Tianjiupai.Card').
+
 %%====================================================================================================
 %% Unit Tests
 %%====================================================================================================
@@ -51,7 +57,7 @@ all_cards_test_() ->
     [
      {"The number of all cards is 32.",
       fun() ->
-          AllCards = tianjiupai_game:all_cards(),
+          AllCards = ?TARGET_MODULE:all_cards(),
           ?assertEqual(32, erlang:length(AllCards))
       end}
     ].
@@ -61,7 +67,7 @@ shuffle_test_() ->
      {"Every generated hand consists of eight cards.",
       fun() ->
           %% Strictly speaking, we should mock `rand'.
-          {H0, H1, H2, H3} = tianjiupai_game:shuffle(),
+          {H0, H1, H2, H3} = ?TARGET_MODULE:shuffle(),
           ?assertEqual(8, erlang:length(H0)),
           ?assertEqual(8, erlang:length(H1)),
           ?assertEqual(8, erlang:length(H2)),
@@ -73,7 +79,7 @@ zip_with_indices_test_() ->
     [
      {"zip_with_indices/1",
       fun() ->
-          ?assertEqual([{0, a}, {1, b}, {2, c}], tianjiupai_game:zip_with_indices([a, b, c]))
+          ?assertEqual([{0, a}, {1, b}, {2, c}], ?TARGET_MODULE:zip_with_indices([a, b, c]))
       end}
     ].
 
@@ -81,7 +87,7 @@ max_with_index_test_() ->
     [
      {"max_with_index/1",
       fun() ->
-          ?assertEqual({2, d}, tianjiupai_game:max_with_index(fun(X1, X2) -> X1 > X2 end, [a, c, d, b]))
+          ?assertEqual({2, d}, ?TARGET_MODULE:max_with_index(fun(X1, X2) -> X1 > X2 end, [a, c, d, b]))
       end}
     ].
 
@@ -90,62 +96,62 @@ make_starting_table_test_() ->
     [
      {"Makes a starting table",
       fun() ->
-          Got = tianjiupai_game:make_starting_table(SubmittedCards),
+          Got = ?TARGET_MODULE:make_starting_table(SubmittedCards),
           ?assertEqual(Expected, Got)
       end}
     ||
         {SubmittedCards, Expected} <- [
             {[{wen, 11}],
-               {ok, {single_wen, First(11)}}},
+               ?OK({single_wen, First(11)})},
 
             {[{wu, 8}],
-               {ok, {single_wu, First(8)}}},
+               ?OK({single_wu, First(8)})},
 
             {[{wen, 4}, {wen, 4}],
-               {ok, {double_wen, First(4)}}},
+               ?OK({double_wen, First(4)})},
 
             {[{wu, 7}, {wu, 7}],
-               {ok, {double_wu, First(7)}}},
+               ?OK({double_wu, First(7)})},
 
             {[{wen, 1}, {wen, 1}],
-               {ok, {wenzun, First(minor)}}},
+               ?OK({wenzun, First(minor)})},
 
             {[{wu, 3}, {wu, 6}],
-               {ok, {wuzun, First(ok)}}},
+               ?OK({wuzun, First(ok)})},
 
             {[{wen, 11}, {wu, 9}],
-               {ok, {double_both, First(big4)}}},
+               ?OK({double_both, First(big4)})},
             {[{wen, 10}, {wu, 8}],
-               {ok, {double_both, First(big3)}}},
+               ?OK({double_both, First(big3)})},
             {[{wen, 9}, {wu, 7}],
-               {ok, {double_both, First(big2)}}},
+               ?OK({double_both, First(big2)})},
             {[{wen, 8}, {wu, 5}],
-               {ok, {double_both, First(big1)}}},
+               ?OK({double_both, First(big1)})},
 
             {[{wu, 9}, {wen, 11}],
-               {ok, {double_both, First(big4)}}},
+               ?OK({double_both, First(big4)})},
             {[{wu, 8}, {wen, 10}],
-               {ok, {double_both, First(big3)}}},
+               ?OK({double_both, First(big3)})},
             {[{wu, 7}, {wen, 9}],
-               {ok, {double_both, First(big2)}}},
+               ?OK({double_both, First(big2)})},
             {[{wu, 5}, {wen, 8}],
-               {ok, {double_both, First(big1)}}},
+               ?OK({double_both, First(big1)})},
 
             {[{wen, 11}, {wu, 9}, {wen, 11}],
-               {ok, {triple_wen, First(big4)}}},
+               ?OK({triple_wen, First(big4)})},
             {[{wu, 8}, {wen, 10}, {wen, 10}],
-               {ok, {triple_wen, First(big3)}}},
+               ?OK({triple_wen, First(big3)})},
             {[{wen, 9}, {wen, 9}, {wu, 7}],
-               {ok, {triple_wen, First(big2)}}},
+               ?OK({triple_wen, First(big2)})},
             {[{wen, 8}, {wu, 5}, {wen, 8}],
-               {ok, {triple_wen, First(big1)}}},
+               ?OK({triple_wen, First(big1)})},
 
             {[],
-               error},
+               ?ERROR},
             {[{wen, 4}, {wen, 5}],
-               error},
+               ?ERROR},
             {[{wen, 11}, {wu, 8}],
-               error}
+               ?ERROR}
         ]
     ].
 
@@ -155,8 +161,8 @@ update_table_success_test_() ->
     [
      {"Succeeds in updating table states.",
       fun() ->
-          Got = tianjiupai_game:update_table(SubmittedCards, Table),
-          ?assertEqual({ok, Expected}, Got)
+          Got = ?TARGET_MODULE:update_table(SubmittedCards, Table),
+          ?assertEqual(?OK(Expected), Got)
       end}
     ||
         {SubmittedCards, Table, Expected} <- [
@@ -388,7 +394,7 @@ get_winner_test_() ->
     [
      {"Judge the winner.",
       fun() ->
-          Got = tianjiupai_game:get_winner(Table),
+          Got = ?TARGET_MODULE:get_winner(Table),
           ?assertEqual(Expected, Got)
       end}
     ||
@@ -472,7 +478,7 @@ submit_success_test_() ->
     [
      {"submit (" ++ Subtitle ++ ")",
       fun() ->
-          {ok, Got} = tianjiupai_game:submit(SubmitterSeat, SubmittedCards, InningState),
+          ?OK(Got) = ?TARGET_MODULE:submit(SubmitterSeat, SubmittedCards, InningState),
           ?assertEqual(sort_hands_of_result(Expected), sort_hands_of_result(Got))
       end}
     ||
@@ -772,15 +778,16 @@ inning_state(#{
     table     := TableState
 }) ->
     PlayerQuad = {
-        {player, Hand0, Gaineds0},
-        {player, Hand1, Gaineds1},
-        {player, Hand2, Gaineds2},
-        {player, Hand3, Gaineds3}
+        #{hand => Hand0, gained => Gaineds0},
+        #{hand => Hand1, gained => Gaineds1},
+        #{hand => Hand2, gained => Gaineds2},
+        #{hand => Hand3, gained => Gaineds3}
     },
-    {inning_state,
-        StartSeat,
-        PlayerQuad,
-        TableState}.
+    #{
+        starts_at => StartSeat,
+        players   => PlayerQuad,
+        table     => TableState
+    }.
 
 -spec sort_hands_of_result(tianjiupai_game:submit_result()) -> tianjiupai_game:submit_result().
 sort_hands_of_result(Result) ->
@@ -792,11 +799,20 @@ sort_hands_of_result(Result) ->
 
 -spec sort_hands(tianjiupai_game:inning_state()) -> tianjiupai_game:inning_state().
 sort_hands(InningState) ->
-    {inning_state, StartSeat, PlayerQuad0, TableState} = InningState,
+    #{
+        starts_at := StartSeat,
+        players   := PlayerQuad0,
+        table     := TableState
+    } = InningState,
     PlayerQuad1 =
         tianjiupai_quad:map(
-            fun({player, Hand, Gaineds}) ->
-                {player, tianjiupai_game:sort_cards(Hand), Gaineds}
+            fun(Player) ->
+                #{hand := Hand, gained := Gaineds} = Player,
+                #{hand => ?CARD_MODULE:sort(Hand), gained => Gaineds}
             end,
             PlayerQuad0),
-    {inning_state, StartSeat, PlayerQuad1, TableState}.
+    #{
+        starts_at => StartSeat,
+        players   => PlayerQuad1,
+        table     => TableState
+    }.

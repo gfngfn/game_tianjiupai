@@ -308,11 +308,11 @@ end = struct
             if Card.wu_equal(wu1, wu2) then
               let {_, wu0} = wu_max(exposed_wu) in
               let new_one = if Card.wu_greater(wu1, wu0) then Open(wu1) else Closed in
-              Some(DoubleWen(expose(exposed_wu, new_one)))
+              Some(DoubleWu(expose(exposed_wu, new_one)))
             else
-              Some(DoubleWen(expose(exposed_wu, Closed)))
+              Some(DoubleWu(expose(exposed_wu, Closed)))
         | [_, _] ->
-            Some(DoubleWen(expose(exposed_wu, Closed)))
+            Some(DoubleWu(expose(exposed_wu, Closed)))
         | _ ->
             None
         end
@@ -340,14 +340,14 @@ end = struct
               | Some(big) ->
                   let {_, big0} = big_max(exposed_big) in
                   let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
-                  Some(DoubleBoth(expose(exposed_big, new_one)))
+                  Some(TripleWen(expose(exposed_big, new_one)))
               | None ->
-                  Some(DoubleBoth(expose(exposed_big, Closed)))
+                  Some(TripleWen(expose(exposed_big, Closed)))
               end
             else
-              Some(DoubleBoth(expose(exposed_big, Closed)))
+              Some(TripleWen(expose(exposed_big, Closed)))
         | [_, _, _] ->
-            Some(DoubleBoth(expose(exposed_big, Closed)))
+            Some(TripleWen(expose(exposed_big, Closed)))
         | _ ->
             None
         end
@@ -359,14 +359,14 @@ end = struct
               | Some(big) ->
                   let {_, big0} = big_max(exposed_big) in
                   let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
-                  Some(DoubleBoth(expose(exposed_big, new_one)))
+                  Some(TripleWu(expose(exposed_big, new_one)))
               | None ->
-                  Some(DoubleBoth(expose(exposed_big, Closed)))
+                  Some(TripleWu(expose(exposed_big, Closed)))
               end
             else
-              Some(DoubleBoth(expose(exposed_big, Closed)))
+              Some(TripleWu(expose(exposed_big, Closed)))
         | [_, _, _] ->
-            Some(DoubleBoth(expose(exposed_big, Closed)))
+            Some(TripleWu(expose(exposed_big, Closed)))
         | _ ->
             None
         end
@@ -378,14 +378,14 @@ end = struct
               | Some(big) ->
                   let {_, big0} = big_max(exposed_big) in
                   let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
-                  Some(DoubleBoth(expose(exposed_big, new_one)))
+                  Some(Quadruple(expose(exposed_big, new_one)))
               | None ->
-                  Some(DoubleBoth(expose(exposed_big, Closed)))
+                  Some(Quadruple(expose(exposed_big, Closed)))
               end
             else
-              Some(DoubleBoth(expose(exposed_big, Closed)))
+              Some(Quadruple(expose(exposed_big, Closed)))
         | [_, _, _, _] ->
-            Some(DoubleBoth(expose(exposed_big, Closed)))
+            Some(Quadruple(expose(exposed_big, Closed)))
         | _ ->
             None
         end
