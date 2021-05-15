@@ -174,9 +174,32 @@ end = struct
     in
     {trick_index, big}
 
+  val first_exposed(x) =
+    {x, []}
+
+  val make_starting_table(submitted_cards) =
+    case Card.sort(submitted_cards) of
+    | [Card.Wu(3), Card.Wu(6)] ->
+        Some(Wuzun(first_exposed({})))
+    | [Card.Wen(1), Card.Wen(1)] ->
+        Some(Wenzun(first_exposed(Minor)))
+    | [Card.Wen(wen)] ->
+        Some(SingleWen(first_exposed(wen)))
+    | [Card.Wu(wu)] ->
+        Some(SingleWu(first_exposed(wu)))
+    | _ ->
+        /* TODO: implement this function */
+        Some(Starting)
+    end
+
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
-    /* TODO: implement this function */
-    Some(table)
+    case table of
+    | Starting ->
+        make_starting_table(submitted_cards)
+    | _ ->
+        /* TODO: implement this function */
+        Some(table)
+    end
 
   val get_winner(table : table_state) : {int, list<Card.t>} =
     case table of

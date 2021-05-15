@@ -25,6 +25,11 @@ module Card = struct
         Big1 > Big2.
   ```
 
+  val sort : fun(list<t>) -> list<t> = external 1 ```
+    sort(Cards) ->
+        lists:sort(Cards).
+  ```
+
   val big_to_wen_and_wu(big) : {wen, wu} =
     case big of
     | Big1 -> {8, 5}
