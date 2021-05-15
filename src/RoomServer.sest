@@ -35,18 +35,23 @@ module RoomServer = struct
     | Waiting(list<user_id>)
     | Playing(observable_game_state)
 
+  type request_impl =
+    | GetWholeState
+    | GetPersonalState(user_id)
+    | SendChat(user_id, binary)
+    | Attend(user_id)
+    | Exit(user_id)
+
+  type response_impl =
+    | WholeState(whole_room_state)
+    | PersonalState
+
   module Callback = struct
     type init_arg = {room_id, binary}
 
-    type request =
-      | GetWholeState
-      | GetPersonalState(user_id)
-      | SendChat(user_id, binary)
-      | Attend(user_id)
-      | Exit(user_id)
+    type request = request_impl
 
-    type response =
-      | WholeState(whole_room_state)
+    type response = response_impl
 
     type cast_message =
       | DummyCastMessage
@@ -111,4 +116,45 @@ module RoomServer = struct
 
   module Impl = Stdlib.GenServer.Make(Callback)
 
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val name : fun(room_id) -> Stdlib.RawValue.t = external 1 ```
+    name(RoomId) ->
+        {?MODULE, RoomId}.
+  ```
+
+  val get_proc<$a> : fun(room_id) -> [$a]option<proc> = external 1 ```
+    get_proc(RoomId) ->
+        case global:whereis_name(name(RoomId)) of
+            undefined -> none;
+            Pid       -> {some, Pid}
+        end.
+  ```
+
+  val start_link_impl : fun(pack Stdlib.GenServer.Behaviour, Stdlib.RawValue.t, Callback.init_arg) -> [info]option<proc> = external 3 ```
+    start_link_impl(CallbackModule, Name, InitArg) ->
+        case gen_server:start_link({global, Name}, CallbackModule, InitArg, []) of
+            {ok, Pid} -> {some, Pid};
+            _         -> none
+        end.
+  ```
+
+  val start_link(room_id : room_id, room_name : binary) : [info]option<proc> = act
+    start_link_impl(pack Callback : Stdlib.GenServer.Behaviour, name(room_id), {room_id, room_name})
+
+  val get_personal_state(room_id, user_id) = act
+    do proc_opt <- get_proc(room_id) in
+    case proc_opt of
+    | None ->
+        return(None)
+
+    | Some(proc) ->
+        do resp <- Impl.call(proc, GetPersonalState(user_id)) in
+        case resp of
+        | PersonalState ->
+            return(Some({}))
+        end
+    end
 end
