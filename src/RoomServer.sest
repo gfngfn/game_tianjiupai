@@ -133,9 +133,15 @@ end = struct
           })
       end
 
-    val notify_logs_for_each(targets : list<user_id>, logs : list<log>) = act
-      /* TODO: implement this function */
-      return({})
+    val notify_logs_for_each<$a> : fun(list<user_id>, list<log>) -> [$a]unit = external 2 ```
+      notify_logs_for_each(UserIds, Notifications) ->
+          lists:foreach(
+              fun(UserId) ->
+                  tianjiupai_user:notify(UserId, Notifications)
+              end,
+              UserIds),
+          ok.
+    ```
 
     val handle_send_chat(user_id : user_id, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
@@ -153,7 +159,7 @@ end = struct
             let Some(personal_state) = make_personal_room_state(state, user_id) in
             Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
           else
-            let log = LogEntered(user_id) in
+            let log_enter = LogEntered(user_id) in
             case members of
             | u0 :: u1 :: u2 :: _ ->
                 let player_quad =
@@ -181,14 +187,25 @@ end = struct
                     snapshot_id = snapshot_id,
                   }
                 in
-                do dummy <- notify_logs_for_each(members, [log, LogGameStart]) in
-                let state = { state | room_state = InternalPlaying(game_state) } in
+                let log_game = LogGameStart in
+                do dummy <- notify_logs_for_each(members, [log_enter, log_game]) in
+                let state =
+                  { state |
+                    room_state    = InternalPlaying(game_state),
+                    reversed_logs = log_enter :: log_game :: state.reversed_logs,
+                  }
+                in
                 let Some(personal_state) = make_personal_room_state(state, user_id) in
                 Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
             | _ ->
                 let waiting_state = { waiting_state | members = Stdlib.List.append(members, [user_id]) } in
-                do dummy <- notify_logs_for_each(members, [log]) in
-                let state = { state | room_state = InternalWaiting(waiting_state)} in
+                do dummy <- notify_logs_for_each(members, [log_enter]) in
+                let state =
+                  { state |
+                    room_state    = InternalWaiting(waiting_state),
+                    reversed_logs = log_enter :: state.reversed_logs,
+                  }
+                in
                 let Some(personal_state) = make_personal_room_state(state, user_id) in
                 Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
             end
