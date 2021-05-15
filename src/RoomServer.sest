@@ -2,7 +2,17 @@ import Types
 import Quad
 import Inning
 
-module RoomServer = struct
+module RoomServer :> sig
+
+  type info :: o
+
+  type proc :: o
+
+  val start_link<$a> : fun(Types.room_id, binary) -> [$a]option<proc>
+
+  val get_whole_state<$a> : fun(Types.room_id) -> [$a]option<Types.whole_room_state>
+
+end = struct
 
   include Types
 
@@ -133,7 +143,7 @@ module RoomServer = struct
         end.
   ```
 
-  val start_link_impl : fun(pack Stdlib.GenServer.Behaviour, Stdlib.RawValue.t, Callback.init_arg) -> [info]option<proc> = external 3 ```
+  val start_link_impl<$a> : fun(pack Stdlib.GenServer.Behaviour, Stdlib.RawValue.t, Callback.init_arg) -> [$a]option<proc> = external 3 ```
     start_link_impl(CallbackModule, Name, InitArg) ->
         case gen_server:start_link({global, Name}, CallbackModule, InitArg, []) of
             {ok, Pid} -> {some, Pid};
@@ -141,14 +151,14 @@ module RoomServer = struct
         end.
   ```
 
-  val start_link(room_id : room_id, room_name : binary) : [info]option<proc> = act
+  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]option<proc> = act
     start_link_impl(pack Callback : Stdlib.GenServer.Behaviour, name(room_id), {room_id, room_name})
 
-  val call<$a>(
+  val call<$a, $ret>(
     room_id : room_id,
     req     : request_impl,
-    f       : fun(response_impl) -> [info]option<$a>
-  ) : [info]option<$a> = act
+    f       : fun(response_impl) -> [$a]option<$ret>
+  ) : [$a]option<$ret> = act
     do proc_opt <- get_proc(room_id) in
     case proc_opt of
     | None ->
@@ -158,14 +168,14 @@ module RoomServer = struct
         f(resp)
     end
 
-  val get_whole_state(room_id) = act
+  val get_whole_state<$a>(room_id : room_id) : [$a]option<whole_room_state> = act
     call(room_id, GetWholeState, fun(resp) -> act
       case resp of
       | WholeState(whole_state) -> return(Some(whole_state))
       end
     end)
 
-  val get_personal_state(room_id, user_id) = act
+  val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<unit> = act
     call(room_id, GetPersonalState(user_id), fun(resp) -> act
       case resp of
       | PersonalState -> return(Some({}))
