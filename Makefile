@@ -1,8 +1,21 @@
 
 .PHONY: all
-all:
+all: model client server
+
+.PHONY: server
+server:
 	mkdir -p src_client/_generated
-	mkdir -p public/assets
+	rebar3 sesterl compile
+
+.PHONY: model
+model:
 	apbuf model.apbuf
+
+.PHONY: client
+client:
+	mkdir -p public/assets
 	./compile_client.sh
-	rebar3 compile
+
+.PHONY: test
+test: server
+	rebar3 eunit
