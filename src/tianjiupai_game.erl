@@ -296,6 +296,10 @@ get_winner(Table) ->
         {double_wu, WuExposed} ->
             {TrickIndex, Wu} = wu_max(WuExposed),
             {TrickIndex, [{wu, Wu}, {wu, Wu}]};
+        {double_both, BigExposed} ->
+            {TrickIndex, Big} = big_max(BigExposed),
+            {Wen, Wu} = big_to_wen_and_wu(Big),
+            {TrickIndex, [{wen, Wen}, {wu, Wu}]};
         {triple_wen, BigExposed} ->
             {TrickIndex, Big} = big_max(BigExposed),
             {Wen, Wu} = big_to_wen_and_wu(Big),

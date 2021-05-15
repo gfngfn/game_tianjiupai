@@ -137,21 +137,42 @@ end = struct
         end.
   ```
 
-  val wen_max(wen_exposed) =
-    let {wen0, wen_or_closeds} = wen_exposed in
-    let {trick_index, Open(wen)} =
+  val num_max_scheme(greater, exposed) =
+    let {x0, x_or_closeds} = exposed in
+    let {trick_index, Open(x)} =
       max_with_index(
-        fun(wo1, wo2) ->
-          case {wo1, wo2} of
-          | {Open(wen1), Open(wen2)} -> wen1 > wen2
+        fun(xo1, xo2) ->
+          case {xo1, xo2} of
+          | {Open(x1), Open(x2)} -> greater(x1, x2)
+          | {Open(_), Closed}    -> true
+          | _                    -> false
+          end
+        end,
+        Open(x0) :: x_or_closeds
+      )
+    in
+    {trick_index, x}
+
+  val wen_max(wen_exposed) =
+    num_max_scheme(Card.wen_greater, wen_exposed)
+
+  val wu_max(wu_exposed) =
+    num_max_scheme(Card.wu_greater, wu_exposed)
+
+  val big_max(big_exposed) =
+    let {big0, big_or_closeds} = big_exposed in
+    let {trick_index, Open(big)} =
+      max_with_index(
+        fun(bo1, bo2) ->
+          case {bo1, bo2} of
+          | {Open(big1), Open(big2)} -> Card.big_greater(big1, big2)
           | {Open(_), Closed}        -> true
           | _                        -> false
           end
         end,
-        Open(wen0) :: wen_or_closeds
-      )
+        Open(big0) :: big_or_closeds)
     in
-    {trick_index, wen}
+    {trick_index, big}
 
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
     /* TODO: implement this function */
@@ -184,9 +205,31 @@ end = struct
     | SingleWen(wen_exposed) ->
         let {trick_index, wen} = wen_max(wen_exposed) in
         {trick_index, [Card.Wen(wen)]}
-    | _ ->
-        /* TODO: implement the other patterns */
-        {0, []}
+    | SingleWu(wu_exposed) ->
+        let {trick_index, wu} = wu_max(wu_exposed) in
+        {trick_index, [Card.Wu(wu)]}
+    | DoubleWen(wen_exposed) ->
+        let {trick_index, wen} = wen_max(wen_exposed) in
+        {trick_index, [Card.Wen(wen), Card.Wen(wen)]}
+    | DoubleWu(wu_exposed) ->
+        let {trick_index, wu} = wu_max(wu_exposed) in
+        {trick_index, [Card.Wu(wu), Card.Wu(wu)]}
+    | DoubleBoth(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wu(wu)]}
+    | TripleWen(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wen(wen), Card.Wu(wu)]}
+    | TripleWu(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wu(wu), Card.Wu(wu)]}
+    | Quadruple(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wen(wen), Card.Wu(wu), Card.Wu(wu)]}
     end
 
   val submit(submitter_seat : Quad.seat, submitted_cards : list<Card.t>, inning : t) =
