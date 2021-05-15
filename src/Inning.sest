@@ -6,9 +6,16 @@ module Inning :> sig
 
   type t :: o
 
+  type submit_result =
+    | Continues(t)
+    | WinsTrick(Quad.seat, t)
+    | WinsInning(Quad.seat, Quad.t<list<Card.t>>)
+
   val start : fun(Quad.seat) -> t
 
   val observe : fun(Quad.seat, t) -> Types.observable_inning_state
+
+  val submit : fun(Quad.seat, list<Card.t>, t) -> option<submit_result>
 
 end = struct
 
@@ -113,13 +120,74 @@ end = struct
         end.
   ```
 
+  val zip_with_indices<$a> : fun(list<$a>) -> list<{int, $a}> = external 1 ```
+    zip_with_indices(Xs) ->
+        lists:zip(lists:seq(0, erlang:length(Xs) - 1), Xs).
+  ```
+
+  val max_with_index<$a> : fun(fun($a, $a) -> bool, list<$a>) -> {int, $a} = external 2 ```
+    max_with_index(Greater, Xs) ->
+        Pairs = zip_with_indices(Xs),
+        case
+            lists:sort(
+               fun({_, X1}, {_, X2}) -> Greater(X1, X2) orelse X1 =:= X2 end,
+               Pairs)
+        of
+            [Pair | _] -> Pair
+        end.
+  ```
+
+  val wen_max(wen_exposed) =
+    let {wen0, wen_or_closeds} = wen_exposed in
+    let {trick_index, Open(wen)} =
+      max_with_index(
+        fun(wo1, wo2) ->
+          case {wo1, wo2} of
+          | {Open(wen1), Open(wen2)} -> wen1 > wen2
+          | {Open(_), Closed}        -> true
+          | _                        -> false
+          end
+        end,
+        Open(wen0) :: wen_or_closeds
+      )
+    in
+    {trick_index, wen}
+
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
     /* TODO: implement this function */
     Some(table)
 
-  val get_winner(table : table_state) : option<{int, list<Card.t>}> =
-    /* TODO: implement this function */
-    Some({0, []})
+  val get_winner(table : table_state) : {int, list<Card.t>} =
+    case table of
+    | Wuzun({_, Closed :: Closed :: Closed :: []}) ->
+        {0, [Card.Wu(3), Card.Wu(6)]}
+    | Wenzun({Minor, major_or_closeds}) ->
+        let ns =
+          Stdlib.List.map(
+            fun(x) ->
+              case x of
+              | Open(Major) -> 2
+              | Closed      -> 1
+              end
+            end,
+            major_or_closeds)
+        in
+        let {trick_index, one_or_two} =
+          max_with_index(
+            fun(n1, n2) -> n1 > n2 end,
+            1 :: ns)
+        in
+        case one_or_two of
+        | 1 -> {0, [Card.Wen(1), Card.Wen(1)]}
+        | 2 -> {trick_index, [Card.Wen(2), Card.Wen(2)]}
+        end
+    | SingleWen(wen_exposed) ->
+        let {trick_index, wen} = wen_max(wen_exposed) in
+        {trick_index, [Card.Wen(wen)]}
+    | _ ->
+        /* TODO: implement the other patterns */
+        {0, []}
+    end
 
   val submit(submitter_seat : Quad.seat, submitted_cards : list<Card.t>, inning : t) =
     let start_seat = inning.starts_at in
@@ -158,33 +226,29 @@ end = struct
                 let num_gained1 = num_gained0 + num_submitted_cards in
                 if n0 == 3 then
                 /* If this is the last submission within a trick: */
-                  case get_winner(table1) of
-                  | Some({winner_trick_index, cards}) ->
-                      let winner_seat = Quad.advance_seat(start_seat, winner_trick_index) in
-                      let winner = Quad.access(winner_seat, players1) in
-                      let players2 =
-                        Quad.update(
-                          winner_seat,
-                          { winner | gained = Stdlib.List.append(winner.gained, cards) },
-                          players1,
-                        )
-                      in
-                      if num_gained1 == 8 then
-                      /* If this is the last trick within an inning: */
-                        let gained_quad = Quad.map(fun(p) -> p.gained end, players2) in
-                        Some(WinsInning(winner_seat, gained_quad))
-                      else
-                        let inning1 =
-                          {
-                            starts_at = winner_seat,
-                            table     = Starting,
-                            players   = players2,
-                          }
-                        in
-                        Some(WinsTrick(winner_seat, inning1))
-                  | None ->
-                      None /* bug */
-                  end
+                  let {winner_trick_index, cards} = get_winner(table1) in
+                  let winner_seat = Quad.advance_seat(start_seat, winner_trick_index) in
+                  let winner = Quad.access(winner_seat, players1) in
+                  let players2 =
+                    Quad.update(
+                      winner_seat,
+                      { winner | gained = Stdlib.List.append(winner.gained, cards) },
+                      players1,
+                    )
+                  in
+                  if num_gained1 == 8 then
+                  /* If this is the last trick within an inning: */
+                    let gained_quad = Quad.map(fun(p) -> p.gained end, players2) in
+                    Some(WinsInning(winner_seat, gained_quad))
+                  else
+                    let inning1 =
+                      {
+                        starts_at = winner_seat,
+                        table     = Starting,
+                        players   = players2,
+                      }
+                    in
+                    Some(WinsTrick(winner_seat, inning1))
                 else
                   let inning =
                     {

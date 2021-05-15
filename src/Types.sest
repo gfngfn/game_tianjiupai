@@ -23,15 +23,15 @@ module Types = struct
   }
 
   type wenzun =
-    | MinorWenzun
-    | MajorWenzun
+    | Minor
+    | Major
 
   type closed_or<$a> =
     | Open($a)
     | Closed
 
   type exposed<$a> =
-    {$a, closed_or<$a>}
+    {$a, list<closed_or<$a>>}
 
   type table_state =
     | Starting
