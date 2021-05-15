@@ -5,6 +5,10 @@
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
+-define(TARGET_MODULE, 'Tianjiupai.Inning').
+-define(CARD_MODULE, 'Tianjiupai.Card').
+-define(QUAD_MODULE, 'Tianjiupai.Quad').
+
 -define(SEAT0, seat0).
 -define(SEAT1, seat1).
 -define(SEAT2, seat2).
@@ -41,14 +45,11 @@
 
 -record(submit_test_case, {
     subtitle        :: string(),
-    submitter_seat  :: tianjiupai_quad:seat(),
+    submitter_seat  :: ?QUAD_MODULE:seat(),
     submitter_cards :: [tianjiupai_game:card()],
     before          :: tianjiupai_game:inning_state(),
     expected        :: tianjiupai_game:submit_result()
 }).
-
--define(TARGET_MODULE, 'Tianjiupai.Inning').
--define(CARD_MODULE, 'Tianjiupai.Card').
 
 %%====================================================================================================
 %% Unit Tests
@@ -805,7 +806,7 @@ sort_hands(InningState) ->
         table     := TableState
     } = InningState,
     PlayerQuad1 =
-        tianjiupai_quad:map(
+        ?QUAD_MODULE:map(
             fun(Player) ->
                 #{hand := Hand, gained := Gaineds} = Player,
                 #{hand => ?CARD_MODULE:sort(Hand), gained => Gaineds}
