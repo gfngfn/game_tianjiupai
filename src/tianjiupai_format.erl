@@ -205,7 +205,7 @@ make_room_object(RoomId, RoomName) ->
         room_name  => RoomName
     }.
 
--spec make_room_summary_object(tianjiupai_room:whole_room_state()) -> term().
+-spec make_room_summary_object(#whole_room_state{}) -> term().
 make_room_summary_object(WholeRoomState) ->
     #whole_room_state{
         room_id    = RoomId,
@@ -275,7 +275,7 @@ make_observable_inning_state_object(ObservableInning) ->
         table     => make_table_object(Table)
     }.
 
--spec make_table_object(tianjiupai_game:table_state()) -> term().
+%% `Table : Tianjiupai.Inning.table_state'
 make_table_object(Table) ->
     case Table of
         starting ->
@@ -302,7 +302,7 @@ make_table_object(Table) ->
             ?LABELED(<<"TrickQuadruple">>, make_exposed_object(fun make_card_big_object/1, BigExposed))
     end.
 
--spec make_card_big_object(tianjiupai_game:card_big()) -> term().
+%% `Big : Tianjiupai.Card.big'
 make_card_big_object(Big) ->
     case Big of
         big1 -> 1;
@@ -311,11 +311,11 @@ make_card_big_object(Big) ->
         big4 -> 4
     end.
 
--spec make_card_wen_object(tianjiupai_game:card_wen()) -> term().
+%% `Wen : Tianjiupai.Card.wen'
 make_card_wen_object(Wen) ->
     Wen.
 
--spec make_card_wu_object(tianjiupai_game:card_wu()) -> term().
+%% `Wu : Tianjiupai.Card.wu'
 make_card_wu_object(Wu) ->
     Wu.
 
@@ -327,9 +327,8 @@ make_ok_object(ok) ->
 make_bool_object(true)  -> true;
 make_bool_object(false) -> false.
 
--spec make_exposed_object(F, tianjiupai_game:exposed(X)) -> term() when
-      F :: fun((X) -> term()),
-      X :: term().
+%% `F : fun($a) -> json'
+%% `Exposed : exposed($a)'
 make_exposed_object(F, Exposed) ->
     {X, XOrCloseds} = Exposed,
     #{
@@ -337,9 +336,8 @@ make_exposed_object(F, Exposed) ->
         subsequent => make_closed_or_objects(F, XOrCloseds)
     }.
 
--spec make_closed_or_objects(F, [tianjiupai_game:closed_or(X)]) -> term() when
-      F :: fun((X) -> term()),
-      X :: term().
+%% `F : fun($a) -> json'
+%% `XOrCloseds : list<closed_or<$a>>'
 make_closed_or_objects(F, XOrCloseds) ->
     lists:map(
         fun({open, X}) -> ?LABELED(<<"Open">>, F(X));
@@ -347,14 +345,14 @@ make_closed_or_objects(F, XOrCloseds) ->
         end,
         XOrCloseds).
 
--spec make_card_object(tianjiupai_game:card()) -> term().
+%% `Card : Tianjiupai.Card.t'
 make_card_object(Card) ->
     case Card of
         {wen, Wen} -> ?LABELED(<<"Wen">>, Wen);
         {wu, Wu}   -> ?LABELED(<<"Wu">>, Wu)
     end.
 
--spec make_gained_object([tianjiupai_game:card()]) -> term().
+%% `Gained : list<Tianjiupai.Card.t>'
 make_gained_object(Gained) ->
     lists:map(fun make_card_object/1, Gained).
 
