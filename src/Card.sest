@@ -17,8 +17,14 @@ module Card = struct
   val wen_greater(wen1, wen2) =
     wen1 > wen2
 
+  val wen_equal(wen1, wen2) =
+    wen1 == wen2
+
   val wu_greater(wu1, wu2) =
     wu1 > wu2
+
+  val wu_equal(wu1, wu2) =
+    wu1 == wu2
 
   val big_greater : fun(big, big) -> bool = external 2 ```
     big_greater(Big1, Big2) ->
@@ -36,6 +42,15 @@ module Card = struct
     | Big2 -> {9, 7}
     | Big3 -> {10, 8}
     | Big4 -> {11, 9}
+    end
+
+  val wen_and_wu_to_big(wen, wu) : option<big> =
+    case {wen, wu} of
+    | {8, 5}  -> Some(Big1)
+    | {9, 7}  -> Some(Big2)
+    | {10, 8} -> Some(Big3)
+    | {11, 9} -> Some(Big4)
+    | _       -> None
     end
 
 end
