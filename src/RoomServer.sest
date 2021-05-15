@@ -1,0 +1,348 @@
+import Quad
+import SnapshotId
+import Types
+import Inning
+
+module RoomServer :> sig
+
+  type info :: o
+
+  type proc :: o
+
+  val start_link<$a> : fun(Types.room_id, binary) -> [$a]Stdlib.RawValue.t
+    /* For external use; return values are of the form `{ok, pid()} | error` */
+
+  val get_whole_state<$a> : fun(Types.room_id) -> [$a]option<Types.whole_room_state>
+
+  val get_personal_state<$a> : fun(Types.room_id, Types.user_id) -> [$a]option<Types.personal_room_state>
+
+end = struct
+
+  include Types
+
+  type settings = {
+    room_id   : room_id,
+    room_name : binary,
+  }
+
+  type waiting_state = {
+    members : list<user_id>,
+  }
+
+  type whole_game_state = {
+    meta        : game_meta,
+    inning      : Inning.t,
+    snapshot_id : snapshot_id,
+  }
+
+  type internal_room_state =
+    | InternalWaiting(waiting_state)
+    | InternalPlaying(whole_game_state)
+
+  type request_impl =
+    | GetWholeState
+    | GetPersonalState(user_id)
+    | SendChat(user_id, binary)
+    | Attend(user_id)
+    | Exit(user_id)
+
+  type response_impl =
+    | WholeState(whole_room_state)
+    | PersonalState(option<personal_room_state>)
+    | ChatSent
+    | Attended(option<personal_room_state>)
+    | Exited(bool)
+
+  module Callback = struct
+    type init_arg = {room_id, binary}
+
+    type request = request_impl
+
+    type response = response_impl
+
+    type cast_message =
+      | DummyCastMessage
+
+    type info =
+      | DummyInfo
+
+    type state = {
+      settings      : settings,
+      reversed_logs : list<log>,
+      room_state    : internal_room_state,
+    }
+
+    val init(init_arg) = act
+      let {room_id, room_name} = init_arg in
+      let settings = {room_id = room_id, room_name = room_name} in
+      Stdlib.GenServer.init_ok({
+        settings      = settings,
+        reversed_logs = [],
+        room_state    = InternalWaiting({members = []})
+      })
+
+    val get_members_from_state(room_state : internal_room_state) : {bool, list<user_id>} =
+      case room_state of
+      | InternalWaiting(waiting_state) ->
+          {false, waiting_state.members}
+      | InternalPlaying(whole_game_state) ->
+          let game_players = Quad.to_list(whole_game_state.meta.players) in
+          let members = Stdlib.List.map(fun(g) -> g.user_id end, game_players) in
+          {true, members}
+      end
+
+    val make_whole_room_state(state : state) : whole_room_state =
+      let settings = state.settings in
+      let {is_playing, members} = get_members_from_state(state.room_state) in
+      {
+        room_id    = settings.room_id,
+        room_name  = settings.room_name,
+        is_playing = is_playing,
+        members    = members,
+      }
+
+    val make_observable(room_state : internal_room_state, user_id : user_id) : option<observable_room_state> =
+      case room_state of
+      | InternalWaiting(waiting_state) ->
+          Some(Waiting(waiting_state.members))
+      | InternalPlaying(game_state) ->
+          case Quad.find(fun(p) -> Stdlib.Binary.equal(p.user_id, user_id) end, game_state.meta.players) of
+          | None ->
+              None
+          | Some({seat, _}) ->
+              let observable_inning = Inning.observe(seat, game_state.inning) in
+              Some(Playing({
+                meta              = game_state.meta,
+                snapshot_id       = game_state.snapshot_id,
+                observable_inning = observable_inning,
+              }))
+          end
+      end
+
+    val make_personal_room_state(state : state, user_id : user_id) : option<personal_room_state> =
+      let settings = state.settings in
+      case make_observable(state.room_state, user_id) of
+      | None ->
+          None
+      | Some(observable) ->
+          Some({
+            room_id    = settings.room_id,
+            room_name  = settings.room_name,
+            logs       = Stdlib.List.reverse(state.reversed_logs),
+            observable = observable,
+          })
+      end
+
+    val notify_logs_for_each<$a> : fun(list<user_id>, list<log>) -> [$a]unit = external 2 ```
+      notify_logs_for_each(UserIds, Notifications) ->
+          lists:foreach(
+              fun(UserId) ->
+                  tianjiupai_user:notify(UserId, Notifications)
+              end,
+              UserIds),
+          ok.
+    ```
+
+    val handle_send_chat(user_id : user_id, text : binary, state : state) = act
+      let {_, members} = get_members_from_state(state.room_state) in
+      let log = LogComment(user_id, text) in
+      do dummy <- notify_logs_for_each(members, [log]) in
+      Stdlib.GenServer.reply(ChatSent, { state | reversed_logs = log :: state.reversed_logs })
+
+    val handle_attend(user_id : user_id, state : state) = act
+      case state.room_state of
+      | InternalPlaying(_) ->
+          Stdlib.GenServer.reply(Attended(None), state)
+      | InternalWaiting(waiting_state) ->
+          let members = waiting_state.members in
+          if Stdlib.List.any(fun(u) -> Stdlib.Binary.equal(u, user_id) end, members) then
+            let Some(personal_state) = make_personal_room_state(state, user_id) in
+            Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
+          else
+            let log_enter = LogEntered(user_id) in
+            case members of
+            | u0 :: u1 :: u2 :: _ ->
+                let player_quad =
+                  let player0 = { user_id = u0, score = 0 } in
+                  let player1 = { user_id = u1, score = 0 } in
+                  let player2 = { user_id = u2, score = 0 } in
+                  let player3 = { user_id = user_id, score = 0 } in
+                  {player0, player1, player2, player3}
+                in
+                let parent_seat = Quad.Seat0 in
+                let game_meta =
+                  {
+                    inning_index     = 0,
+                    num_consecutives = 1,
+                    parent_seat      = parent_seat,
+                    players          = player_quad,
+                  }
+                in
+                let snapshot_id = SnapshotId.generate() in
+                let inning = Inning.start(parent_seat) in
+                let game_state =
+                  {
+                    meta        = game_meta,
+                    inning      = inning,
+                    snapshot_id = snapshot_id,
+                  }
+                in
+                let log_game = LogGameStart in
+                do dummy <- notify_logs_for_each(members, [log_enter, log_game]) in
+                let state =
+                  { state |
+                    room_state    = InternalPlaying(game_state),
+                    reversed_logs = log_enter :: log_game :: state.reversed_logs,
+                  }
+                in
+                let Some(personal_state) = make_personal_room_state(state, user_id) in
+                Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
+            | _ ->
+                let waiting_state = { waiting_state | members = Stdlib.List.append(members, [user_id]) } in
+                do dummy <- notify_logs_for_each(members, [log_enter]) in
+                let state =
+                  { state |
+                    room_state    = InternalWaiting(waiting_state),
+                    reversed_logs = log_enter :: state.reversed_logs,
+                  }
+                in
+                let Some(personal_state) = make_personal_room_state(state, user_id) in
+                Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
+            end
+      end
+
+    val handle_exit(user_id : user_id, state : state) = act
+      case state.room_state of
+      | InternalPlaying(_) ->
+          Stdlib.GenServer.reply(Exited(false), state)
+      | InternalWaiting(waiting_state) ->
+          let members =
+            Stdlib.List.filter(
+              fun(u) -> Stdlib.Bool.not(Stdlib.Binary.equal(u, user_id)) end,
+              waiting_state.members)
+          in
+          let room_state = InternalWaiting({ waiting_state | members = members }) in
+          Stdlib.GenServer.reply(Exited(true), { state | room_state = room_state })
+      end
+
+    val handle_call(req, from, state) = act
+      case req of
+      | GetWholeState ->
+          let whole_state = make_whole_room_state(state) in
+          Stdlib.GenServer.reply(WholeState(whole_state), state)
+      | GetPersonalState(user_id) ->
+          let personal_state = make_personal_room_state(state, user_id) in
+          Stdlib.GenServer.reply(PersonalState(personal_state), state)
+      | SendChat(user_id, text) ->
+          handle_send_chat(user_id, text, state)
+      | Attend(user_id) ->
+          handle_attend(user_id, state)
+      | Exit(user_id) ->
+          handle_exit(user_id, state)
+      end
+
+    val handle_cast(msg, state) = act
+      let _ = print_debug({"unexpected cast message", msg}) in
+      Stdlib.GenServer.no_reply(state)
+
+    val handle_info(info, state) = act
+      let _ = print_debug({"unexpected info", info}) in
+      Stdlib.GenServer.no_reply(state)
+
+    val terminate(state) = act
+      let _ = print_debug({"terminate", state}) in
+      return({})
+  end
+
+  module Impl = Stdlib.GenServer.Make(Callback)
+
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val name : fun(room_id) -> Stdlib.RawValue.t = external 1 ```
+    name(RoomId) ->
+        {?MODULE, RoomId}.
+  ```
+
+  val get_proc<$a> : fun(room_id) -> [$a]option<proc> = external 1 ```
+    get_proc(RoomId) ->
+        case global:whereis_name(name(RoomId)) of
+            undefined -> none;
+            Pid       -> {some, Pid}
+        end.
+  ```
+
+  val monitor<$a> : fun(room_id) -> [$a]option<Stdlib.RawValue.t> = external 1 ```
+    monitor(RoomId) ->
+        case get_proc(RoomId) of
+            none        -> none;
+            {some, Pid} -> {some, erlang:monitor(process, Pid)}
+        end.
+  ```
+
+  val start_link_impl<$a, $start> : fun($start, Stdlib.RawValue.t, Callback.init_arg) -> [$a]Stdlib.RawValue.t = external 3 ```
+    start_link_impl(Mfargs, Name, InitArg) ->
+        {M, start_link, []} = Mfargs,
+        gen_server:start_link({global, Name}, M, InitArg, []).
+  ```
+
+  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]Stdlib.RawValue.t = act
+    start_link_impl(freeze Impl.start_link(_), name(room_id), {room_id, room_name})
+
+  val call<$a, $ret>(
+    room_id : room_id,
+    req     : request_impl,
+    f       : fun(response_impl) -> [$a]option<$ret>
+  ) : [$a]option<$ret> = act
+    do proc_opt <- get_proc(room_id) in
+    case proc_opt of
+    | None ->
+        return(None)
+    | Some(proc) ->
+        do resp <- Impl.call(proc, req) in
+        f(resp)
+    end
+
+  val get_whole_state<$a>(room_id : room_id) : [$a]option<whole_room_state> = act
+    call(room_id, GetWholeState, fun(resp) -> act
+      case resp of
+      | WholeState(whole_state) -> return(Some(whole_state))
+      end
+    end)
+
+  val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<whole_room_state> = act
+    do resp <- Impl.call(proc, GetWholeState) in
+    case resp of
+    | WholeState(whole_state) -> return(Some(whole_state))
+    end
+
+  val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_room_state> = act
+    call(room_id, GetPersonalState(user_id), fun(resp) -> act
+      case resp of
+      | PersonalState(personal_state_opt) -> return(personal_state_opt)
+      end
+    end)
+
+  val send_chat<$a>(room_id, user_id, text) : [$a]option<unit> = act
+    call(room_id, SendChat(user_id, text), fun(resp) -> act
+      case resp of
+      | ChatSent -> return(Some({}))
+      end
+    end)
+
+  val attend<$a>(room_id, user_id) : [$a]option<personal_room_state> = act
+    call(room_id, Attend(user_id), fun(resp) -> act
+      case resp of
+      | Attended(game_state_opt) -> return(game_state_opt)
+      end
+    end)
+
+  val exit<$a>(room_id, user_id) : [$a]option<unit> = act
+    call(room_id, Exit(user_id), fun(resp) -> act
+      case resp of
+      | Exited(false) -> return(None)
+      | Exited(true)  -> return(Some({}))
+      end
+    end)
+end

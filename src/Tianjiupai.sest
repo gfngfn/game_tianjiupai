@@ -1,0 +1,11 @@
+import Types
+import Quad
+import Inning
+import RoomServer
+
+module Tianjiupai = struct
+  module Types = Types
+  module Quad = Quad
+  module Inning = Inning
+  module RoomServer = RoomServer
+end

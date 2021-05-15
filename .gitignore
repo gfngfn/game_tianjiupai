@@ -2,3 +2,4 @@ _build
 elm-stuff/
 public/
 src_client/_generated/
+_generated/

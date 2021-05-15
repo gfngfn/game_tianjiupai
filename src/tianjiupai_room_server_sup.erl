@@ -22,6 +22,8 @@
 %%====================================================================================================
 -define(SUP_REF, {global, ?MODULE}).
 
+-define(ROOM_SERVER_MODULE, 'Tianjiupai.RoomServer').
+
 %%====================================================================================================
 %% `supervisor' Callback Functions
 %%====================================================================================================
@@ -33,7 +35,7 @@ init({}) ->
     },
     ChildSpec = #{
         id    => undefined,
-        start => {tianjiupai_room_server, start_link, []},
+        start => {?ROOM_SERVER_MODULE, start_link, []},
         type  => worker
     },
     {ok, {SupFlags, [ChildSpec]}}.

@@ -1,0 +1,526 @@
+import Quad
+import Card
+import Types
+
+module Inning :> sig
+
+  type t :: o
+
+  type submit_result =
+    | Continues(t)
+    | WinsTrick(Quad.seat, t)
+    | WinsInning(Quad.seat, Quad.t<list<Card.t>>)
+
+  val start : fun(Quad.seat) -> t
+
+  val observe : fun(Quad.seat, t) -> Types.observable_inning_state
+
+  val submit : fun(Quad.seat, list<Card.t>, t) -> option<submit_result>
+
+end = struct
+
+  include Types
+
+  type player = {
+    hand   : list<Card.t>,
+    gained : list<Card.t>,
+  }
+
+  type t = {
+    starts_at : Quad.seat,
+    players   : Quad.t<player>,
+    table     : table_state,
+  }
+
+  type submit_result =
+    | Continues(t)
+    | WinsTrick(Quad.seat, t)
+    | WinsInning(Quad.seat, Quad.t<list<Card.t>>)
+
+  val all_cards : fun() -> list<Card.t> = external 0 ```
+    all_cards() ->
+        WenHalf = lists:map(fun(N) -> {wen, N} end, lists:seq(1, 11)),
+        Wus = lists:map(fun(N) -> {wu, N} end, [3, 5, 5, 6, 7, 7, 8, 8, 9, 9]),
+        lists:append([WenHalf, WenHalf, Wus]).
+  ```
+
+  val shuffle : fun() -> Quad.t<list<Card.t>> = external 0 ```
+    shuffle() ->
+        %% RandomlyIndexedCards :: [{float(), card()}]
+        RandomlyIndexedCards =
+            lists:map(
+                fun(Card) ->
+                    Index = rand:uniform(),
+                    {Index, Card}
+                end,
+                all_cards()),
+        SortedIndexedCards =
+            lists:sort(
+                fun({Index1, _}, {Index2, _}) ->
+                    Index1 =< Index2
+                end,
+                RandomlyIndexedCards),
+        Sorted0 = lists:map(fun({_, Card}) -> Card end, SortedIndexedCards),
+        {Hand0, Sorted1} = lists:split(8, Sorted0),
+        {Hand1, Sorted2} = lists:split(8, Sorted1),
+        {Hand2, Sorted3} = lists:split(8, Sorted2),
+        {Hand3, []}      = lists:split(8, Sorted3),
+        {Hand0, Hand1, Hand2, Hand3}.
+  ```
+
+  val start(seat : Quad.seat) : t =
+    let hand_quad = shuffle() in
+    {
+      starts_at = seat,
+      players   = Quad.map(fun(hand) -> { hand = hand, gained = [] } end, hand_quad),
+      table     = Starting,
+    }
+
+  val observe(seat : Quad.seat, inning : t) : observable_inning_state =
+    let player_quad = inning.players in
+    let you = Quad.access(seat, player_quad) in
+    {
+      starts_at = inning.starts_at,
+      your_hand = you.hand,
+      gains     = Quad.map(fun(p) -> p.gained end, player_quad),
+      table     = inning.table,
+    }
+
+  val table_length : fun(table_state) -> int = external 1 ```
+    table_length(Table) ->
+        case Table of
+            starting                 -> 0;
+            {_Tag, {_X, XOrCloseds}} -> 1 + erlang:length(XOrCloseds)
+        end.
+  ```
+
+  val count_gained(players) =
+    let {n0, n1, n2, n3} = Quad.map(fun(p) -> Stdlib.List.length(p.gained) end, players) in
+    n0 + n1 + n2 + n3
+
+  val separate_submitted_cards : fun(list<Card.t>, list<Card.t>) -> option<list<Card.t>> = external 2 ```
+    separate_submitted_cards(SubmitterHand0, SubmittedCards) ->
+        SubmitterHand1 = SubmitterHand0 -- SubmittedCards,
+        case erlang:length(SubmitterHand1) + erlang:length(SubmittedCards) =:= erlang:length(SubmitterHand0) of
+            true  -> {some, SubmitterHand1};
+            false -> none
+        end.
+  ```
+
+  val append_closed_to_table : fun(table_state) -> option<table_state> = external 1 ```
+    append_closed_to_table(Table) ->
+        case Table of
+            {Tag, {X, XOrCloseds}} ->
+            %% `Table0' must be other than `starting' here,
+            %% Since the first submitter of a trick after the first trick
+            %% must gain at least one card.
+                {some, {Tag, {X, XOrCloseds ++ [closed]}}};
+            _ ->
+                none
+        end.
+  ```
+
+  val zip_with_indices<$a> : fun(list<$a>) -> list<{int, $a}> = external 1 ```
+    zip_with_indices(Xs) ->
+        lists:zip(lists:seq(0, erlang:length(Xs) - 1), Xs).
+  ```
+
+  val max_with_index<$a> : fun(fun($a, $a) -> bool, list<$a>) -> {int, $a} = external 2 ```
+    max_with_index(Greater, Xs) ->
+        Pairs = zip_with_indices(Xs),
+        case
+            lists:sort(
+               fun({_, X1}, {_, X2}) -> Greater(X1, X2) orelse X1 =:= X2 end,
+               Pairs)
+        of
+            [Pair | _] -> Pair
+        end.
+  ```
+
+  val num_max_scheme(greater, exposed) =
+    let {x0, x_or_closeds} = exposed in
+    let {trick_index, Open(x)} =
+      max_with_index(
+        fun(xo1, xo2) ->
+          case {xo1, xo2} of
+          | {Open(x1), Open(x2)} -> greater(x1, x2)
+          | {Open(_), Closed}    -> true
+          | _                    -> false
+          end
+        end,
+        Open(x0) :: x_or_closeds
+      )
+    in
+    {trick_index, x}
+
+  val wen_max(wen_exposed) =
+    num_max_scheme(Card.wen_greater, wen_exposed)
+
+  val wu_max(wu_exposed) =
+    num_max_scheme(Card.wu_greater, wu_exposed)
+
+  val big_max(big_exposed) =
+    let {big0, big_or_closeds} = big_exposed in
+    let {trick_index, Open(big)} =
+      max_with_index(
+        fun(bo1, bo2) ->
+          case {bo1, bo2} of
+          | {Open(big1), Open(big2)} -> Card.big_greater(big1, big2)
+          | {Open(_), Closed}        -> true
+          | _                        -> false
+          end
+        end,
+        Open(big0) :: big_or_closeds)
+    in
+    {trick_index, big}
+
+  val first_exposed(x) =
+    {x, []}
+
+  val make_starting_table(submitted_cards) =
+    case Card.sort(submitted_cards) of
+    | [Card.Wu(3), Card.Wu(6)] ->
+        Some(Wuzun(first_exposed({})))
+    | [Card.Wen(1), Card.Wen(1)] ->
+        Some(Wenzun(first_exposed(Minor)))
+    | [Card.Wen(wen)] ->
+        Some(SingleWen(first_exposed(wen)))
+    | [Card.Wu(wu)] ->
+        Some(SingleWu(first_exposed(wu)))
+    | [Card.Wen(wen1), Card.Wen(wen2)] ->
+        if Card.wen_equal(wen1, wen2) then
+          Some(DoubleWen(first_exposed(wen1)))
+        else
+          None
+    | [Card.Wu(wu1), Card.Wu(wu2)] ->
+        if Card.wu_equal(wu1, wu2) then
+          Some(DoubleWu(first_exposed(wu1)))
+        else
+          None
+    | [Card.Wen(wen), Card.Wu(wu)] ->
+        case Card.wen_and_wu_to_big(wen, wu) of
+        | Some(big) ->
+            Some(DoubleBoth(first_exposed(big)))
+        | None ->
+            None
+        end
+    | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu)] ->
+        if Card.wen_equal(wen1, wen2) then
+          case Card.wen_and_wu_to_big(wen1, wu) of
+          | Some(big) ->
+              Some(TripleWen(first_exposed(big)))
+          | None ->
+              None
+          end
+        else
+          None
+    | [Card.Wen(wen), Card.Wu(wu1), Card.Wu(wu2)] ->
+        if Card.wu_equal(wu1, wu2) then
+          case Card.wen_and_wu_to_big(wen, wu1) of
+          | Some(big) ->
+              Some(TripleWu(first_exposed(big)))
+          | None ->
+              None
+          end
+        else
+          None
+    | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu1), Card.Wu(wu2)] ->
+        if Card.wen_equal(wen1, wen2) && Card.wu_equal(wu1, wu2) then
+          case Card.wen_and_wu_to_big(wen1, wu1) of
+          | Some(big) ->
+              Some(Quadruple(first_exposed(big)))
+          | None ->
+              None
+          end
+        else
+          None
+    | _ ->
+        None
+    end
+
+  val expose(x_exposed, x_new) =
+    let {x, x_or_closeds} = x_exposed in
+    {x, Stdlib.List.append(x_or_closeds, [x_new])}
+
+  val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
+    case table of
+    | Starting ->
+        make_starting_table(submitted_cards)
+    | Wuzun(exposed_ok) ->
+        case submitted_cards of
+        | [_, _] ->
+            Some(Wuzun(expose(exposed_ok, Closed)))
+        | _ ->
+            None
+        end
+    | Wenzun(exposed) ->
+        case submitted_cards of
+        | [Card.Wen(2), Card.Wen(2)] ->
+            Some(Wenzun(expose(exposed, Open(Major))))
+        | [_, _] ->
+            Some(Wenzun(expose(exposed, Closed)))
+        | _ ->
+            None
+        end
+    | SingleWen(exposed_wen) ->
+        case submitted_cards of
+        | [Card.Wen(wen)] ->
+            let {_, wen0} = wen_max(exposed_wen) in
+            let new_one =
+              if Card.wen_greater(wen, wen0) then Open(wen) else Closed
+            in
+            Some(SingleWen(expose(exposed_wen, new_one)))
+        | [_] ->
+            Some(SingleWen(expose(exposed_wen, Closed)))
+        | _ ->
+            None
+        end
+    | SingleWu(exposed_wu) ->
+        case submitted_cards of
+        | [Card.Wu(wu)] ->
+            let {_, wu0} = wu_max(exposed_wu) in
+            let new_one =
+              if Card.wu_greater(wu, wu0) then Open(wu) else Closed
+            in
+            Some(SingleWu(expose(exposed_wu, new_one)))
+        | [_] ->
+            Some(SingleWu(expose(exposed_wu, Closed)))
+        | _ ->
+            None
+        end
+    | DoubleWen(exposed_wen) ->
+        case submitted_cards of
+        | [Card.Wen(wen1), Card.Wen(wen2)] ->
+            if Card.wen_equal(wen1, wen2) then
+              let {_, wen0} = wen_max(exposed_wen) in
+              let new_one = if Card.wen_greater(wen1, wen0) then Open(wen1) else Closed in
+              Some(DoubleWen(expose(exposed_wen, new_one)))
+            else
+              Some(DoubleWen(expose(exposed_wen, Closed)))
+        | [_, _] ->
+            Some(DoubleWen(expose(exposed_wen, Closed)))
+        | _ ->
+            None
+        end
+    | DoubleWu(exposed_wu) ->
+        case submitted_cards of
+        | [Card.Wu(wu1), Card.Wu(wu2)] ->
+            if Card.wu_equal(wu1, wu2) then
+              let {_, wu0} = wu_max(exposed_wu) in
+              let new_one = if Card.wu_greater(wu1, wu0) then Open(wu1) else Closed in
+              Some(DoubleWu(expose(exposed_wu, new_one)))
+            else
+              Some(DoubleWu(expose(exposed_wu, Closed)))
+        | [_, _] ->
+            Some(DoubleWu(expose(exposed_wu, Closed)))
+        | _ ->
+            None
+        end
+    | DoubleBoth(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen), Card.Wu(wu)] ->
+            case Card.wen_and_wu_to_big(wen, wu) of
+            | Some(big) ->
+                let {_, big0} = big_max(exposed_big) in
+                let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                Some(DoubleBoth(expose(exposed_big, new_one)))
+            | None ->
+                Some(DoubleBoth(expose(exposed_big, Closed)))
+            end
+        | [_, _] ->
+            Some(DoubleBoth(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
+    | TripleWen(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu)] ->
+            if Card.wen_equal(wen1, wen2) then
+              case Card.wen_and_wu_to_big(wen1, wu) of
+              | Some(big) ->
+                  let {_, big0} = big_max(exposed_big) in
+                  let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                  Some(TripleWen(expose(exposed_big, new_one)))
+              | None ->
+                  Some(TripleWen(expose(exposed_big, Closed)))
+              end
+            else
+              Some(TripleWen(expose(exposed_big, Closed)))
+        | [_, _, _] ->
+            Some(TripleWen(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
+    | TripleWu(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen), Card.Wu(wu1), Card.Wu(wu2)] ->
+            if Card.wu_equal(wu1, wu2) then
+              case Card.wen_and_wu_to_big(wen, wu1) of
+              | Some(big) ->
+                  let {_, big0} = big_max(exposed_big) in
+                  let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                  Some(TripleWu(expose(exposed_big, new_one)))
+              | None ->
+                  Some(TripleWu(expose(exposed_big, Closed)))
+              end
+            else
+              Some(TripleWu(expose(exposed_big, Closed)))
+        | [_, _, _] ->
+            Some(TripleWu(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
+    | Quadruple(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu1), Card.Wu(wu2)] ->
+            if Card.wen_equal(wen1, wen2) && Card.wu_equal(wu1, wu2) then
+              case Card.wen_and_wu_to_big(wen1, wu1) of
+              | Some(big) ->
+                  let {_, big0} = big_max(exposed_big) in
+                  let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                  Some(Quadruple(expose(exposed_big, new_one)))
+              | None ->
+                  Some(Quadruple(expose(exposed_big, Closed)))
+              end
+            else
+              Some(Quadruple(expose(exposed_big, Closed)))
+        | [_, _, _, _] ->
+            Some(Quadruple(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
+    end
+
+  val get_winner(table : table_state) : {int, list<Card.t>} =
+    case table of
+    | Wuzun({_, Closed :: Closed :: Closed :: []}) ->
+        {0, [Card.Wu(3), Card.Wu(6)]}
+    | Wenzun({Minor, major_or_closeds}) ->
+        let ns =
+          Stdlib.List.map(
+            fun(x) ->
+              case x of
+              | Open(Major) -> 2
+              | Closed      -> 1
+              end
+            end,
+            major_or_closeds)
+        in
+        let {trick_index, one_or_two} =
+          max_with_index(
+            fun(n1, n2) -> n1 > n2 end,
+            1 :: ns)
+        in
+        case one_or_two of
+        | 1 -> {0, [Card.Wen(1), Card.Wen(1)]}
+        | 2 -> {trick_index, [Card.Wen(2), Card.Wen(2)]}
+        end
+    | SingleWen(wen_exposed) ->
+        let {trick_index, wen} = wen_max(wen_exposed) in
+        {trick_index, [Card.Wen(wen)]}
+    | SingleWu(wu_exposed) ->
+        let {trick_index, wu} = wu_max(wu_exposed) in
+        {trick_index, [Card.Wu(wu)]}
+    | DoubleWen(wen_exposed) ->
+        let {trick_index, wen} = wen_max(wen_exposed) in
+        {trick_index, [Card.Wen(wen), Card.Wen(wen)]}
+    | DoubleWu(wu_exposed) ->
+        let {trick_index, wu} = wu_max(wu_exposed) in
+        {trick_index, [Card.Wu(wu), Card.Wu(wu)]}
+    | DoubleBoth(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wu(wu)]}
+    | TripleWen(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wen(wen), Card.Wu(wu)]}
+    | TripleWu(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wu(wu), Card.Wu(wu)]}
+    | Quadruple(big_exposed) ->
+        let {trick_index, big} = big_max(big_exposed) in
+        let {wen, wu} = Card.big_to_wen_and_wu(big) in
+        {trick_index, [Card.Wen(wen), Card.Wen(wen), Card.Wu(wu), Card.Wu(wu)]}
+    end
+
+  val submit(submitter_seat : Quad.seat, submitted_cards : list<Card.t>, inning : t) =
+    let start_seat = inning.starts_at in
+    let table0 = inning.table in
+    let players0 = inning.players in
+
+    let n0 = table_length(table0) in
+    let num_gained0 = count_gained(players0) in
+    let num_submitted_cards = Stdlib.List.length(submitted_cards) in
+    if n0 < 4 && num_gained0 < 8 && 0 < num_submitted_cards && num_submitted_cards <= 4 then
+      if Quad.seat_equal(submitter_seat, Quad.advance_seat(start_seat, n0)) then
+        let submitter0 = Quad.access(submitter_seat, players0) in
+        let submitter_hand0 = submitter0.hand in
+        let submitter_gained0 = submitter0.gained in
+        case separate_submitted_cards(submitter_hand0, submitted_cards) of
+        | Some(submitter_hand1) ->
+            let players1 =
+              Quad.update(submitter_seat, { submitter0 | hand = submitter_hand1 }, players0)
+            in
+            let res =
+              if num_gained0 == 7 && num_submitted_cards == 1 then
+                case submitter_gained0 of
+                | [] ->
+                  /* If the submitter gains no card so far:
+                     the submitter does not have a right to attend this trick. */
+                    append_closed_to_table(table0)
+                | _ :: _ ->
+                    update_table(submitted_cards, table0)
+
+                end
+              else
+                update_table(submitted_cards, table0)
+            in
+            case res of
+            | Some(table1) ->
+                let num_gained1 = num_gained0 + num_submitted_cards in
+                if n0 == 3 then
+                /* If this is the last submission within a trick: */
+                  let {winner_trick_index, cards} = get_winner(table1) in
+                  let winner_seat = Quad.advance_seat(start_seat, winner_trick_index) in
+                  let winner = Quad.access(winner_seat, players1) in
+                  let players2 =
+                    Quad.update(
+                      winner_seat,
+                      { winner | gained = Stdlib.List.append(winner.gained, cards) },
+                      players1,
+                    )
+                  in
+                  if num_gained1 == 8 then
+                  /* If this is the last trick within an inning: */
+                    let gained_quad = Quad.map(fun(p) -> p.gained end, players2) in
+                    Some(WinsInning(winner_seat, gained_quad))
+                  else
+                    let inning1 =
+                      {
+                        starts_at = winner_seat,
+                        table     = Starting,
+                        players   = players2,
+                      }
+                    in
+                    Some(WinsTrick(winner_seat, inning1))
+                else
+                  let inning =
+                    {
+                      starts_at = start_seat,
+                      table     = table1,
+                      players   = players1,
+                    }
+                  in
+                  Some(Continues(inning))
+            end
+        | None ->
+            None /* submitter_does_not_own_submitted_cards */
+        end
+      else
+        None /* not_your_turn */
+    else
+      None /* malformed_inning_state */
+
+end

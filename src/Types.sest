@@ -1,0 +1,86 @@
+import Quad
+import SnapshotId
+import Card
+
+module Types = struct
+
+  type room_id = binary
+
+  type user_id = binary
+
+  type snapshot_id = SnapshotId.t
+
+  type whole_room_state = {
+    room_id    : room_id,
+    room_name  : binary,
+    members    : list<user_id>,
+    is_playing : bool,
+  }
+
+  type game_player = {
+    user_id : user_id,
+    score   : int
+  }
+
+  type wenzun =
+    | Minor
+    | Major
+
+  type closed_or<$a> =
+    | Open($a)
+    | Closed
+
+  type exposed<$a> =
+    {$a, list<closed_or<$a>>}
+
+  type table_state =
+    | Starting
+    | Wuzun(exposed<unit>)
+    | Wenzun(exposed<wenzun>)
+    | SingleWen(exposed<Card.wen>)
+    | SingleWu(exposed<Card.wu>)
+    | DoubleWen(exposed<Card.wen>)
+    | DoubleWu(exposed<Card.wu>)
+    | DoubleBoth(exposed<Card.big>)
+    | TripleWen(exposed<Card.big>)
+    | TripleWu(exposed<Card.big>)
+    | Quadruple(exposed<Card.big>)
+
+  type game_meta = {
+    inning_index     : int,
+    num_consecutives : int,
+    parent_seat      : Quad.seat,
+    players          : Quad.t<game_player>
+  }
+
+  type observable_inning_state = {
+    starts_at : Quad.seat,
+    your_hand : list<Card.t>,
+    gains     : Quad.t<list<Card.t>>,
+    table     : table_state
+  }
+
+  type observable_game_state = {
+    meta              : game_meta,
+    observable_inning : observable_inning_state,
+    snapshot_id       : snapshot_id,
+  }
+
+  type log =
+    | LogComment(user_id, binary)
+    | LogEntered(user_id)
+    | LogExited(user_id)
+    | LogGameStart
+
+  type observable_room_state =
+    | Waiting(list<user_id>)
+    | Playing(observable_game_state)
+
+  type personal_room_state = {
+    room_id    : room_id,
+    room_name  : binary,
+    logs       : list<log>,
+    observable : observable_room_state,
+  }
+
+end

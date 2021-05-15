@@ -188,13 +188,13 @@ make_notify_log_object(Log) ->
 -spec make_log_object(tianjiupai_room:log()) -> term().
 make_log_object(Log) ->
     case Log of
-        {comment, From, Text} ->
+        {log_comment, From, Text} ->
             ?LABELED(<<"LogComment">>, #{from => From, text => Text});
-        {entered, UserId} ->
+        {log_entered, UserId} ->
             ?LABELED(<<"LogEntered">>, UserId);
-        {exited, UserId} ->
+        {log_exited, UserId} ->
             ?LABELED(<<"LogExited">>, UserId);
-        game_start ->
+        log_game_start ->
             ?LABEL_ONLY(<<"GameStart">>)
     end.
 
