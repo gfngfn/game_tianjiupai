@@ -144,17 +144,31 @@ module RoomServer = struct
   val start_link(room_id : room_id, room_name : binary) : [info]option<proc> = act
     start_link_impl(pack Callback : Stdlib.GenServer.Behaviour, name(room_id), {room_id, room_name})
 
-  val get_personal_state(room_id, user_id) = act
+  val call<$a>(
+    room_id : room_id,
+    req     : request_impl,
+    f       : fun(response_impl) -> [info]option<$a>
+  ) : [info]option<$a> = act
     do proc_opt <- get_proc(room_id) in
     case proc_opt of
     | None ->
         return(None)
-
     | Some(proc) ->
-        do resp <- Impl.call(proc, GetPersonalState(user_id)) in
-        case resp of
-        | PersonalState ->
-            return(Some({}))
-        end
+        do resp <- Impl.call(proc, req) in
+        f(resp)
     end
+
+  val get_whole_state(room_id) = act
+    call(room_id, GetWholeState, fun(resp) -> act
+      case resp of
+      | WholeState(whole_state) -> return(Some(whole_state))
+      end
+    end)
+
+  val get_personal_state(room_id, user_id) = act
+    call(room_id, GetPersonalState(user_id), fun(resp) -> act
+      case resp of
+      | PersonalState -> return(Some({}))
+      end
+    end)
 end
