@@ -25,6 +25,11 @@ end = struct
     table     : table_state,
   }
 
+  type submit_result =
+    | Continues(t)
+    | WinsTrick(Quad.seat, t)
+    | WinsInning(Quad.seat, Quad.t<list<Card.t>>)
+
   val all_cards : fun() -> list<Card.t> = external 0 ```
     all_cards() ->
         WenHalf = lists:map(fun(N) -> {wen, N} end, lists:seq(1, 11)),
@@ -73,5 +78,129 @@ end = struct
       gains     = Quad.map(fun(p) -> p.gained end, player_quad),
       table     = inning.table,
     }
+
+  val table_length : fun(table_state) -> int = external 1 ```
+    table_length(Table) ->
+        case Table of
+            starting                 -> 0;
+            {_Tag, {_X, XOrCloseds}} -> 1 + erlang:length(XOrCloseds)
+        end.
+  ```
+
+  val count_gained(players) =
+    let {n0, n1, n2, n3} = Quad.map(fun(p) -> Stdlib.List.length(p.gained) end, players) in
+    n0 + n1 + n2 + n3
+
+  val separate_submitted_cards : fun(list<Card.t>, list<Card.t>) -> option<list<Card.t>> = external 2 ```
+    separate_submitted_cards(SubmitterHand0, SubmittedCards) ->
+        SubmitterHand1 = SubmitterHand0 -- SubmittedCards,
+        case erlang:length(SubmitterHand1) + erlang:length(SubmittedCards) =:= erlang:length(SubmitterHand0) of
+            true  -> {some, SubmitterHand1};
+            false -> none
+        end.
+  ```
+
+  val append_closed_to_table : fun(table_state) -> option<table_state> = external 1 ```
+    append_closed_to_table(Table) ->
+        case Table of
+            {Tag, {X, XOrCloseds}} ->
+            %% `Table0' must be other than `starting' here,
+            %% Since the first submitter of a trick after the first trick
+            %% must gain at least one card.
+                {some, {Tag, {X, XOrCloseds ++ [closed]}}};
+            _ ->
+                none
+        end.
+  ```
+
+  val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
+    /* TODO: implement this function */
+    Some(table)
+
+  val get_winner(table : table_state) : option<{int, list<Card.t>}> =
+    /* TODO: implement this function */
+    Some({0, []})
+
+  val submit(submitter_seat : Quad.seat, submitted_cards : list<Card.t>, inning : t) =
+    let start_seat = inning.starts_at in
+    let table0 = inning.table in
+    let players0 = inning.players in
+
+    let n0 = table_length(table0) in
+    let num_gained0 = count_gained(players0) in
+    let num_submitted_cards = Stdlib.List.length(submitted_cards) in
+    if n0 < 4 && num_gained0 < 8 && 0 < num_submitted_cards && num_submitted_cards <= 4 then
+      if Quad.seat_equal(submitter_seat, Quad.advance_seat(start_seat, n0)) then
+        let submitter0 = Quad.access(submitter_seat, players0) in
+        let submitter_hand0 = submitter0.hand in
+        let submitter_gained0 = submitter0.gained in
+        case separate_submitted_cards(submitter_hand0, submitted_cards) of
+        | Some(submitter_hand1) ->
+            let players1 =
+              Quad.update(submitter_seat, { submitter0 | hand = submitter_hand1 }, players0)
+            in
+            let res =
+              if num_gained0 == 7 && num_submitted_cards == 1 then
+                case submitter_gained0 of
+                | [] ->
+                  /* If the submitter gains no card so far:
+                     the submitter does not have a right to attend this trick. */
+                    append_closed_to_table(table0)
+                | _ :: _ ->
+                    update_table(submitted_cards, table0)
+
+                end
+              else
+                update_table(submitted_cards, table0)
+            in
+            case res of
+            | Some(table1) ->
+                let num_gained1 = num_gained0 + num_submitted_cards in
+                if n0 == 3 then
+                /* If this is the last submission within a trick: */
+                  case get_winner(table1) of
+                  | Some({winner_trick_index, cards}) ->
+                      let winner_seat = Quad.advance_seat(start_seat, winner_trick_index) in
+                      let winner = Quad.access(winner_seat, players1) in
+                      let players2 =
+                        Quad.update(
+                          winner_seat,
+                          { winner | gained = Stdlib.List.append(winner.gained, cards) },
+                          players1,
+                        )
+                      in
+                      if num_gained1 == 8 then
+                      /* If this is the last trick within an inning: */
+                        let gained_quad = Quad.map(fun(p) -> p.gained end, players2) in
+                        Some(WinsInning(winner_seat, gained_quad))
+                      else
+                        let inning1 =
+                          {
+                            starts_at = winner_seat,
+                            table     = Starting,
+                            players   = players2,
+                          }
+                        in
+                        Some(WinsTrick(winner_seat, inning1))
+                  | None ->
+                      None /* bug */
+                  end
+                else
+                  let inning =
+                    {
+                      starts_at = start_seat,
+                      table     = table1,
+                      players   = players1,
+                    }
+                  in
+                  Some(Continues(inning))
+            end
+        | None ->
+            None /* submitter_does_not_own_submitted_cards */
+        end
+      else
+        None /* not_your_turn */
+    else
+      None /* malformed_inning_state */
 
 end
