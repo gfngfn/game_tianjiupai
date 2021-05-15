@@ -12,6 +12,19 @@ module Quad = struct
     let {x0, x1, x2, x3} = quad in
     [x0, x1, x2, x3]
 
+  val access<$a>(seat : seat, quad : t<$a>) : $a =
+    let {x0, x1, x2, x3} = quad in
+    case seat of
+    | Seat0 -> x0
+    | Seat1 -> x1
+    | Seat2 -> x2
+    | Seat3 -> x3
+    end
+
+  val map<$a, $b>(f : fun($a) -> $b, quad : t<$a>) : t<$b> =
+    let {x0, x1, x2, x3} = quad in
+    {f(x0), f(x1), f(x2), f(x3)}
+
   val find<$a>(f : fun($a) -> bool, quad : t<$a>) : option<{seat, $a}> =
     let {x0, x1, x2, x3} = quad in
     case {f(x0), f(x1), f(x2), f(x3)} of

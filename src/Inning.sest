@@ -1,4 +1,5 @@
 import Quad
+import Card
 import Types
 
 module Inning :> sig
@@ -13,19 +14,64 @@ end = struct
 
   include Types
 
-  type t = unit
+  type player = {
+    hand   : list<Card.t>,
+    gained : list<Card.t>,
+  }
+
+  type t = {
+    starts_at : Quad.seat,
+    players   : Quad.t<player>,
+    table     : table_state,
+  }
+
+  val all_cards : fun() -> list<Card.t> = external 0 ```
+    all_cards() ->
+        WenHalf = lists:map(fun(N) -> {wen, N} end, lists:seq(1, 11)),
+        Wus = lists:map(fun(N) -> {wu, N} end, [3, 5, 5, 6, 7, 7, 8, 8, 9, 9]),
+        lists:append([WenHalf, WenHalf, Wus]).
+  ```
+
+  val shuffle : fun() -> Quad.t<list<Card.t>> = external 0 ```
+    shuffle() ->
+        %% RandomlyIndexedCards :: [{float(), card()}]
+        RandomlyIndexedCards =
+            lists:map(
+                fun(Card) ->
+                    Index = rand:uniform(),
+                    {Index, Card}
+                end,
+                all_cards()),
+        SortedIndexedCards =
+            lists:sort(
+                fun({Index1, _}, {Index2, _}) ->
+                    Index1 =< Index2
+                end,
+                RandomlyIndexedCards),
+        Sorted0 = lists:map(fun({_, Card}) -> Card end, SortedIndexedCards),
+        {Hand0, Sorted1} = lists:split(8, Sorted0),
+        {Hand1, Sorted2} = lists:split(8, Sorted1),
+        {Hand2, Sorted3} = lists:split(8, Sorted2),
+        {Hand3, []}      = lists:split(8, Sorted3),
+        {Hand0, Hand1, Hand2, Hand3}.
+  ```
 
   val start(seat : Quad.seat) : t =
-    /* TODO: implement this function */
-    {}
+    let hand_quad = shuffle() in
+    {
+      starts_at = seat,
+      players   = Quad.map(fun(hand) -> { hand = hand, gained = [] } end, hand_quad),
+      table     = Starting,
+    }
 
   val observe(seat : Quad.seat, inning : t) : observable_inning_state =
-    /* TODO: implement this function */
+    let player_quad = inning.players in
+    let you = Quad.access(seat, player_quad) in
     {
-      starts_at = Quad.Seat0,
-      your_hand = [],
-      gains     = {[], [], [], []},
-      table     = Starting,
+      starts_at = inning.starts_at,
+      your_hand = you.hand,
+      gains     = Quad.map(fun(p) -> p.gained end, player_quad),
+      table     = inning.table,
     }
 
 end
