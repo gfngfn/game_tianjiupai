@@ -1,5 +1,18 @@
+import Quad
+import Types
+
 module Inning = struct
 
+  include Types
+
   type t = unit
+
+  val observe(seat : Quad.seat, inning : t) : observable_inning_state =
+    {
+      starts_at = Quad.Seat0,
+      your_hand = [],
+      gains     = {[], [], [], []},
+      table     = Starting,
+    } /* TODO: implement this function */
 
 end

@@ -12,4 +12,14 @@ module Quad = struct
     let {x0, x1, x2, x3} = quad in
     [x0, x1, x2, x3]
 
+  val find<$a>(f : fun($a) -> bool, quad : t<$a>) : option<{seat, $a}> =
+    let {x0, x1, x2, x3} = quad in
+    case {f(x0), f(x1), f(x2), f(x3)} of
+    | {true, _, _, _} -> Some({Seat0, x0})
+    | {_, true, _, _} -> Some({Seat1, x1})
+    | {_, _, true, _} -> Some({Seat2, x2})
+    | {_, _, _, true} -> Some({Seat3, x3})
+    | _               -> None
+    end
+
 end

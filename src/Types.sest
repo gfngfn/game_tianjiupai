@@ -9,6 +9,13 @@ module Types = struct
 
   type snapshot_id = binary
 
+  type whole_room_state = {
+    room_id    : room_id,
+    room_name  : binary,
+    members    : list<user_id>,
+    is_playing : bool,
+  }
+
   type game_player = {
     user_id : user_id,
     score   : int
@@ -58,11 +65,21 @@ module Types = struct
     snapshot_id       : snapshot_id,
   }
 
-  type whole_room_state = {
+  type log =
+    | Comment(user_id, binary)
+    | Entered(user_id)
+    | Exited(user_id)
+    | GameStart
+
+  type observable_room_state =
+    | Waiting(list<user_id>)
+    | Playing(observable_game_state)
+
+  type personal_room_state = {
     room_id    : room_id,
     room_name  : binary,
-    members    : list<user_id>,
-    is_playing : bool,
+    logs       : list<log>,
+    observable : observable_room_state,
   }
 
 end
