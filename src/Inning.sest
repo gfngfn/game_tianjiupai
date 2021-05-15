@@ -238,10 +238,43 @@ end = struct
         None
     end
 
+  val expose(x_exposed, x_new) =
+    let {x, x_or_closeds} = x_exposed in
+    {x, Stdlib.List.append(x_or_closeds, [x_new])}
+
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
     case table of
     | Starting ->
         make_starting_table(submitted_cards)
+    | Wuzun(exposed_ok) ->
+        case submitted_cards of
+        | [_, _] ->
+            Some(Wuzun(expose(exposed_ok, Closed)))
+        | _ ->
+            None
+        end
+    | Wenzun(exposed) ->
+        case submitted_cards of
+        | [Card.Wen(2), Card.Wen(2)] ->
+            Some(Wenzun(expose(exposed, Open(Major))))
+        | [_, _] ->
+            Some(Wenzun(expose(exposed, Closed)))
+        | _ ->
+            None
+        end
+    | SingleWen(exposed_wen) ->
+        case submitted_cards of
+        | [Card.Wen(wen)] ->
+            let {_, wen0} = wen_max(exposed_wen) in
+            let new_one =
+              if Card.wen_greater(wen, wen0) then Open(wen) else Closed
+            in
+            Some(SingleWen(expose(exposed_wen, new_one)))
+        | [_] ->
+            Some(SingleWen(expose(exposed_wen, Closed)))
+        | _ ->
+            None
+        end
     | _ ->
         /* TODO: implement this function */
         Some(table)
