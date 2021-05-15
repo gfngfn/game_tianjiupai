@@ -24,6 +24,8 @@
 %%====================================================================================================
 -type log() :: tianjiupai_room_server:log().
 
+-define(ROOM_SERVER_MODULE, 'Tianjiupai.RoomServer').
+
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
@@ -40,7 +42,7 @@ get_all_rooms() ->
     RoomServerProcs = tianjiupai_room_server_sup:which_children(),
     lists:filtermap(
         fun(RoomServerProc) ->
-            case tianjiupai_room_server:get_whole_state_by_proc(RoomServerProc) of
+            case ?ROOM_SERVER_MODULE:get_whole_state_by_proc(RoomServerProc) of
                 {ok, WholeRoomState} -> {true, WholeRoomState};
                 {error, _Reason}     -> false
             end
@@ -49,26 +51,26 @@ get_all_rooms() ->
 
 -spec get_whole_state(tianjiupai:room_id()) -> {ok, #whole_room_state{}} | {error, Reason :: term()}.
 get_whole_state(RoomId) ->
-    tianjiupai_room_server:get_whole_state(RoomId).
+    ?ROOM_SERVER_MODULE:get_whole_state(RoomId).
 
 -spec get_personal_state(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
 get_personal_state(RoomId, UserId) ->
-    tianjiupai_room_server:get_personal_state(RoomId, UserId).
+    ?ROOM_SERVER_MODULE:get_personal_state(RoomId, UserId).
 
 -spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
 attend(RoomId, UserId) ->
-    tianjiupai_room_server:attend(RoomId, UserId).
+    ?ROOM_SERVER_MODULE:attend(RoomId, UserId).
 
 -spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
 exit(RoomId, UserId) ->
-    tianjiupai_room_server:exit(RoomId, UserId).
+    ?ROOM_SERVER_MODULE:exit(RoomId, UserId).
 
 send_chat(RoomId, From, Text) ->
-    tianjiupai_room_server:send_chat(RoomId, From, Text).
+    ?ROOM_SERVER_MODULE:send_chat(RoomId, From, Text).
 
 -spec monitor(tinajiupai:room_id()) -> {ok, reference()} | {error, {room_not_found, tianjiupai:room_id()}}.
 monitor(RoomId) ->
-    tianjiupai_room_server:monitor(RoomId).
+    ?ROOM_SERVER_MODULE:monitor(RoomId).
 
 %%====================================================================================================
 %% Internal Functions

@@ -67,10 +67,10 @@ module Types = struct
   }
 
   type log =
-    | Comment(user_id, binary)
-    | Entered(user_id)
-    | Exited(user_id)
-    | GameStart
+    | LogComment(user_id, binary)
+    | LogEntered(user_id)
+    | LogExited(user_id)
+    | LogGameStart
 
   type observable_room_state =
     | Waiting(list<user_id>)
