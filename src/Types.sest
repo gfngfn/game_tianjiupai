@@ -1,4 +1,5 @@
 import Quad
+import SnapshotId
 import Card
 
 module Types = struct
@@ -7,7 +8,7 @@ module Types = struct
 
   type user_id = binary
 
-  type snapshot_id = binary
+  type snapshot_id = SnapshotId.t
 
   type whole_room_state = {
     room_id    : room_id,

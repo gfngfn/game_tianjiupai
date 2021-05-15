@@ -1,5 +1,6 @@
-import Types
 import Quad
+import SnapshotId
+import Types
 import Inning
 
 module RoomServer :> sig
@@ -47,6 +48,9 @@ end = struct
   type response_impl =
     | WholeState(whole_room_state)
     | PersonalState(option<personal_room_state>)
+    | ChatSent
+    | Attended(bool)
+    | Exited(bool)
 
   module Callback = struct
     type init_arg = {room_id, binary}
@@ -128,6 +132,70 @@ end = struct
           })
       end
 
+    val notify_logs_for_each(targets : list<user_id>, logs : list<log>) = act
+      /* TODO: implement this function */
+      return({})
+
+    val handle_send_chat(user_id : user_id, text : binary, state : state) = act
+      let {_, members} = get_members_from_state(state.room_state) in
+      let log = Comment(user_id, text) in
+      do dummy <- notify_logs_for_each(members, [log]) in
+      Stdlib.GenServer.reply(ChatSent, { state | reversed_logs = log :: state.reversed_logs })
+
+    val handle_attend(user_id : user_id, state : state) = act
+      case state.room_state of
+      | InternalPlaying(_) ->
+          Stdlib.GenServer.reply(Attended(false), state)
+      | InternalWaiting(waiting_state) ->
+          let members = waiting_state.members in
+          if Stdlib.List.any(fun(u) -> Stdlib.Binary.equal(u, user_id) end, members) then
+            Stdlib.GenServer.reply(Attended(true), state)
+          else
+            case members of
+            | u0 :: u1 :: u2 :: _ ->
+                let player_quad =
+                  let player0 = { user_id = u0, score = 0 } in
+                  let player1 = { user_id = u1, score = 0 } in
+                  let player2 = { user_id = u2, score = 0 } in
+                  let player3 = { user_id = user_id, score = 0 } in
+                  {player0, player1, player2, player3}
+                in
+                let parent_seat = Quad.Seat0 in
+                let game_meta =
+                  {
+                    inning_index     = 0,
+                    num_consecutives = 1,
+                    parent_seat      = parent_seat,
+                    players          = player_quad,
+                  }
+                in
+                let snapshot_id = SnapshotId.generate() in
+                let inning = Inning.start(parent_seat) in
+                let game_state =
+                  {
+                    meta        = game_meta,
+                    inning      = inning,
+                    snapshot_id = snapshot_id,
+                  }
+                in
+                Stdlib.GenServer.reply(Attended(true), { state | room_state = InternalPlaying(game_state) })
+            end
+      end
+
+    val handle_exit(user_id : user_id, state : state) = act
+      case state.room_state of
+      | InternalPlaying(_) ->
+          Stdlib.GenServer.reply(Exited(false), state)
+      | InternalWaiting(waiting_state) ->
+          let members =
+            Stdlib.List.filter(
+              fun(u) -> Stdlib.Bool.not(Stdlib.Binary.equal(u, user_id)) end,
+              waiting_state.members)
+          in
+          let room_state = InternalWaiting({ waiting_state | members = members }) in
+          Stdlib.GenServer.reply(Exited(true), { state | room_state = room_state })
+      end
+
     val handle_call(req, from, state) = act
       case req of
       | GetWholeState ->
@@ -136,6 +204,12 @@ end = struct
       | GetPersonalState(user_id) ->
           let personal_state = make_personal_room_state(state, user_id) in
           Stdlib.GenServer.reply(PersonalState(personal_state), state)
+      | SendChat(user_id, text) ->
+          handle_send_chat(user_id, text, state)
+      | Attend(user_id) ->
+          handle_attend(user_id, state)
+      | Exit(user_id) ->
+          handle_exit(user_id, state)
       end
 
     val handle_cast(msg, state) = act

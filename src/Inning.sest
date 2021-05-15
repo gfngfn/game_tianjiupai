@@ -1,18 +1,31 @@
 import Quad
 import Types
 
-module Inning = struct
+module Inning :> sig
+
+  type t :: o
+
+  val start : fun(Quad.seat) -> t
+
+  val observe : fun(Quad.seat, t) -> Types.observable_inning_state
+
+end = struct
 
   include Types
 
   type t = unit
 
+  val start(seat : Quad.seat) : t =
+    /* TODO: implement this function */
+    {}
+
   val observe(seat : Quad.seat, inning : t) : observable_inning_state =
+    /* TODO: implement this function */
     {
       starts_at = Quad.Seat0,
       your_hand = [],
       gains     = {[], [], [], []},
       table     = Starting,
-    } /* TODO: implement this function */
+    }
 
 end

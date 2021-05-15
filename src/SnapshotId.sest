@@ -1,0 +1,11 @@
+module SnapshotId = struct
+
+  type t = binary
+
+  val generate : fun() -> t = external 0 ```
+    generate() ->
+        Uuid = uuid:get_v4(),
+        list_to_binary(uuid:uuid_to_string(Uuid)).
+  ```
+
+end
