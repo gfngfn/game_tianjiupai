@@ -1,0 +1,17 @@
+module Card = struct
+
+  type wen = int
+
+  type wu = int
+
+  type t =
+    | Wen(wen)
+    | Wu(wu)
+
+  type big =
+    | Big1
+    | Big2
+    | Big3
+    | Big4
+
+end

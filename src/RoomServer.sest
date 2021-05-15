@@ -1,0 +1,114 @@
+import Types
+import Quad
+import Inning
+
+module RoomServer = struct
+
+  include Types
+
+  type log =
+    | Comment(user_id, binary)
+    | Entered(user_id)
+    | Exited(user_id)
+    | GameStart
+
+  type settings = {
+    room_id   : room_id,
+    room_name : binary,
+  }
+
+  type waiting_state = {
+    members : list<user_id>,
+  }
+
+  type whole_game_state = {
+    meta        : game_meta,
+    inning      : Inning.t,
+    snapshot_id : snapshot_id,
+  }
+
+  type internal_room_state =
+    | InternalWaiting(waiting_state)
+    | InternalPlaying(whole_game_state)
+
+  type observable_room_state =
+    | Waiting(list<user_id>)
+    | Playing(observable_game_state)
+
+  module Callback = struct
+    type init_arg = {room_id, binary}
+
+    type request =
+      | GetWholeState
+      | GetPersonalState(user_id)
+      | SendChat(user_id, binary)
+      | Attend(user_id)
+      | Exit(user_id)
+
+    type response =
+      | WholeState(whole_room_state)
+
+    type cast_message =
+      | DummyCastMessage
+
+    type info =
+      | DummyInfo
+
+    type state = {
+      settings      : settings,
+      reversed_logs : list<log>,
+      room_state    : internal_room_state,
+    }
+
+    val init(init_arg) = act
+      let {room_id, room_name} = init_arg in
+      let settings = {room_id = room_id, room_name = room_name} in
+      Stdlib.GenServer.init_ok({
+        settings      = settings,
+        reversed_logs = [],
+        room_state    = InternalWaiting({members = []})
+      })
+
+    val get_members_from_state(room_state : internal_room_state) : {bool, list<user_id>} =
+      case room_state of
+      | InternalWaiting(waiting_state) ->
+          {false, waiting_state.members}
+      | InternalPlaying(whole_game_state) ->
+          let game_players = Quad.to_list(whole_game_state.meta.players) in
+          let members = Stdlib.List.map(fun(g) -> g.user_id end, game_players) in
+          {true, members}
+      end
+
+    val make_whole_room_state(state : state) : whole_room_state =
+      let settings = state.settings in
+      let {is_playing, members} = get_members_from_state(state.room_state) in
+      {
+        room_id    = settings.room_id,
+        room_name  = settings.room_name,
+        is_playing = is_playing,
+        members    = members,
+      }
+
+    val handle_call(req, from, state) = act
+      case req of
+      | GetWholeState ->
+          let whole_room_state = make_whole_room_state(state) in
+          Stdlib.GenServer.reply(WholeState(whole_room_state), state)
+      end
+
+    val handle_cast(msg, state) = act
+      let _ = print_debug({"unexpected cast message", msg}) in
+      Stdlib.GenServer.no_reply(state)
+
+    val handle_info(info, state) = act
+      let _ = print_debug({"unexpected info", info}) in
+      Stdlib.GenServer.no_reply(state)
+
+    val terminate(state) = act
+      let _ = print_debug({"terminate", state}) in
+      return({})
+  end
+
+  module Impl = Stdlib.GenServer.Make(Callback)
+
+end

@@ -1,0 +1,58 @@
+package: "tianjiupai"
+
+source_directories:
+  - "./src"
+
+main_module: "Tianjiupai"
+
+dependencies:
+  - name: "sesterl_stdlib"
+    source:
+      type: "git"
+      repository: "https://github.com/gfngfn/sesterl_stdlib"
+      spec:
+        type: "branch"
+        value: "master"
+
+erlang:
+  output_directory: "./_generated"
+  erlang_dependencies:
+    - name: "jsone"
+      source:
+        type: "hex"
+        version: "1.5.7"
+
+    - name: "uuid"
+      source:
+        type: "git"
+        repository: "https://github.com/okeuday/uuid.git"
+        spec:
+          type: "tag"
+          value: "v2.0.1"
+
+    - name: "bbmustache"
+      source:
+        type: "hex"
+        version: "1.12.1"
+
+    - name: "cowboy"
+      source:
+        type: "hex"
+        version: "2.8.0"
+
+    - name: "cowboy_session"
+      source:
+        type: "git"
+        repository: "https://github.com/gfngfn/cowboy_session.git"
+        spec:
+          type: "branch"
+          value: "master"
+
+  relx:
+    release:
+      name: "tianjiupai"
+      version: "0.1.0"
+      applications:
+        - "cowboy"
+        - "tianjiupai"
+    dev_mode: true

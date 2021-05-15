@@ -1,0 +1,5 @@
+module Inning = struct
+
+  type t = unit
+
+end
