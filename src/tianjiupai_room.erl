@@ -47,7 +47,7 @@ get_all_rooms() ->
         end,
         RoomServerProcs).
 
--spec get_whole_state(tianjiupai:room_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
+-spec get_whole_state(tianjiupai:room_id()) -> {ok, #whole_room_state{}} | {error, Reason :: term()}.
 get_whole_state(RoomId) ->
     tianjiupai_room_server:get_whole_state(RoomId).
 

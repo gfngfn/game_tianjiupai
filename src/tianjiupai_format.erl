@@ -109,15 +109,15 @@ decode_enter_room_request(ReqBody) ->
             {error, {exception, Class, Reason}}
     end.
 
--spec encode_enter_room_response(tianjiupai_room:room_state()) -> binary().
+-spec encode_enter_room_response(#personal_room_state{}) -> binary().
 encode_enter_room_response(PersonalState) ->
     encode_personal_state(PersonalState).
 
--spec encode_get_personal_room_response(tianjiupai_room:room_state()) -> binary().
+-spec encode_get_personal_room_response(#personal_room_state{}) -> binary().
 encode_get_personal_room_response(PersonalState) ->
     encode_personal_state(PersonalState).
 
--spec encode_get_all_rooms_response([tianjiupai_room:room_state()]) -> binary().
+-spec encode_get_all_rooms_response([#whole_room_state{}]) -> binary().
 encode_get_all_rooms_response(RoomSummaries) ->
     RoomSummaryObjs = lists:map(fun make_room_summary_object/1, RoomSummaries),
     jsone:encode(#{rooms => RoomSummaryObjs}).
@@ -221,13 +221,13 @@ make_room_summary_object(WholeRoomState) ->
 
 %% TODO: replace room states with personally observed states
 -spec make_personal_state_object(#personal_room_state{}) -> term().
-make_personal_state_object(RoomState) ->
+make_personal_state_object(PersonalRoomState) ->
     #personal_room_state{
         room_id    = RoomId,
         room_name  = RoomName,
         logs       = Logs,
         observable = Observable
-    } = RoomState,
+    } = PersonalRoomState,
     case Observable of
         {waiting, Members} ->
             #{
@@ -281,10 +281,43 @@ make_table_object(Table) ->
         starting ->
             ?LABEL_ONLY(<<"Starting">>);
         {wuzun, Exposed} ->
-            ?LABELED(<<"Wuzun">>, make_exposed_object(fun make_ok_object/1, Exposed));
+            ?LABELED(<<"TrickWuzun">>, make_exposed_object(fun make_ok_object/1, Exposed));
         {wenzun, Exposed} ->
-            ?LABELED(<<"Wenzun">>, make_exposed_object(fun make_bool_object/1, Exposed))
+            ?LABELED(<<"TrickWenzun">>, make_exposed_object(fun make_bool_object/1, Exposed));
+        {single_wen, WenExposed} ->
+            ?LABELED(<<"TrickSingleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
+        {single_wu, WuExposed} ->
+            ?LABELED(<<"TrickSingleWu">>, make_exposed_object(fun make_card_wu_object/1, WuExposed));
+        {double_wen, WenExposed} ->
+            ?LABELED(<<"TrickDoubleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
+        {double_wu, WuExposed} ->
+            ?LABELED(<<"TrickDoubleWu">>, make_exposed_object(fun make_card_wu_object/1, WuExposed));
+        {double_both, BigExposed} ->
+            ?LABELED(<<"TrickDoubleBoth">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
+        {triple_wen, BigExposed} ->
+            ?LABELED(<<"TrickTripleWen">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
+        {triple_wu, BigExposed} ->
+            ?LABELED(<<"TrickTripleWu">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
+        {quadruple, BigExposed} ->
+            ?LABELED(<<"TrickQuadruple">>, make_exposed_object(fun make_card_big_object/1, BigExposed))
     end.
+
+-spec make_card_big_object(tianjiupai_game:card_big()) -> term().
+make_card_big_object(Big) ->
+    case Big of
+        big1 -> 1;
+        big2 -> 2;
+        big3 -> 3;
+        big4 -> 4
+    end.
+
+-spec make_card_wen_object(tianjiupai_game:card_wen()) -> term().
+make_card_wen_object(Wen) ->
+    Wen.
+
+-spec make_card_wu_object(tianjiupai_game:card_wu()) -> term().
+make_card_wu_object(Wu) ->
+    Wu.
 
 -spec make_ok_object(ok) -> term().
 make_ok_object(ok) ->

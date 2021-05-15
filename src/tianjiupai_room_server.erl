@@ -73,8 +73,8 @@
 }).
 
 -type internal_room_state() ::
-    {waiting, #waiting_state{}}
-  | {playing, #whole_game_state{}}.
+    {internal_waiting, #waiting_state{}}
+  | {internal_playing, #whole_game_state{}}.
 
 -type observable_room_state() ::
     {waiting, [tianjiupai:user_id()]}
@@ -103,7 +103,7 @@ init({RoomId, RoomName}) ->
     {ok, #state{
         settings      = Settings,
         reversed_logs = [],
-        room_state    = {waiting, #waiting_state{waiting_members = []}}
+        room_state    = {internal_waiting, #waiting_state{waiting_members = []}}
     }}.
 
 handle_call(CallMsg, _From, State0) ->
@@ -205,9 +205,9 @@ handle_progress(SnapshotId, ProgressMsg, State0) ->
     %%  | {error, Reason}
     Result =
         case RoomState0 of
-            {waiting, _} ->
+            {internal_waiting, _} ->
                 {error, waiting};
-            {playing, GameState0} ->
+            {internal_playing, GameState0} ->
                 #whole_game_state{
                     meta =
                         #game_meta{
@@ -244,7 +244,7 @@ handle_progress(SnapshotId, ProgressMsg, State0) ->
                                                                snapshot_id = SnapshotId1,
                                                                inning      = InningState1
                                                             },
-                                                        RoomState1 = {playing, GameState1},
+                                                        RoomState1 = {internal_playing, GameState1},
                                                         Reply1 = ok,
                                                         {ok, {Reply1, RoomState1}};
                                                     {wins_trick, _WinnerSeat, _InningState1} ->
@@ -300,7 +300,7 @@ handle_exit(UserId, State0) ->
     %% Reply :: ok | {error, error_reason()}
     {RoomState1, LogAcc1, Reply} =
         case RoomState0 of
-            {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
+            {internal_waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
                 WaitingMembers1 =
                     lists:filter(
                         fun(#waiting_member{user_id = UserId0}) ->
@@ -311,9 +311,9 @@ handle_exit(UserId, State0) ->
                 %% Log :: log()
                 Log = {exited, UserId},
                 notify_logs_for_each(Members, [Log]),
-                RoomState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
+                RoomState = {internal_waiting, #waiting_state{waiting_members = WaitingMembers1}},
                 {RoomState, [Log | LogAcc0], ok};
-            {playing, _} ->
+            {internal_playing, _} ->
                 {RoomState0, LogAcc0, {error, playing}}
         end,
     {reply, Reply, State0#state{room_state = RoomState1, reversed_logs = LogAcc1}}.
@@ -329,9 +329,9 @@ handle_attend(UserId, State0) ->
     %% Result :: ok | {error, error_reason()}
     {RoomState1, LogAcc1, Result} =
         case RoomState0 of
-            {playing, _} ->
+            {internal_playing, _} ->
                 {RoomState0, LogAcc0, {error, playing}};
-            {waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
+            {internal_waiting, #waiting_state{waiting_members = WaitingMembers0}} ->
                 case
                     lists:any(
                         fun(#waiting_member{user_id = UserId0}) ->
@@ -375,7 +375,7 @@ handle_attend(UserId, State0) ->
                                         inning           = InningState,
                                         snapshot_id      = SnapshotId
                                     },
-                                RoomState = {playing, PlayingState},
+                                RoomState = {internal_playing, PlayingState},
                                 LogGameStart = game_start,
                                 notify_logs_for_each(MembersOtherThanNewOne, [LogEnter, LogGameStart]),
                                 {RoomState, [LogGameStart, LogEnter | LogAcc0], ok};
@@ -386,7 +386,7 @@ handle_attend(UserId, State0) ->
                                         is_ready = false
                                     },
                                 WaitingMembers1 = [WaitingMember | WaitingMembers0],
-                                RoomState = {waiting, #waiting_state{waiting_members = WaitingMembers1}},
+                                RoomState = {internal_waiting, #waiting_state{waiting_members = WaitingMembers1}},
                                 notify_logs_for_each(MembersOtherThanNewOne, [LogEnter]),
                                 {RoomState, [LogEnter | LogAcc0], ok}
                         end
@@ -395,8 +395,11 @@ handle_attend(UserId, State0) ->
     State1 = State0#state{room_state = RoomState1, reversed_logs = LogAcc1},
     Reply =
         case Result of
-            ok               -> {ok, make_whole_room_state(State1)};
-            {error, _} = Err -> Err
+            ok ->
+                {ok, PersonalRoomState} = make_personal_room_state(State1, UserId),
+                {ok, PersonalRoomState};
+            {error, _} = Err ->
+                Err
         end,
     {reply, Reply, State1}.
 
@@ -460,10 +463,10 @@ make_personal_room_state(State, UserId) ->
     {ok, observable_room_state()} | {error, you_are_not_a_member}.
 make_observable(RoomState, UserId) ->
     case RoomState of
-        {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
+        {internal_waiting, #waiting_state{waiting_members = WaitingMembers}} ->
             Members = lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers),
-            {waiting, Members};
-        {playing, GameState} ->
+            {ok, {waiting, Members}};
+        {internal_playing, GameState} ->
             #whole_game_state{
                meta        = GameMeta,
                inning      = InningState,
@@ -490,9 +493,9 @@ make_observable(RoomState, UserId) ->
 -spec get_members_from_state(internal_room_state()) -> {boolean(), [tianjiupai:user_id()]}.
 get_members_from_state(RoomState) ->
     case RoomState of
-        {waiting, #waiting_state{waiting_members = WaitingMembers}} ->
+        {internal_waiting, #waiting_state{waiting_members = WaitingMembers}} ->
             {false, lists:map(fun(#waiting_member{user_id = U}) -> U end, WaitingMembers)};
-        {playing, #whole_game_state{meta = #game_meta{players = PlayerQuad}}} ->
+        {internal_playing, #whole_game_state{meta = #game_meta{players = PlayerQuad}}} ->
             {U0, U1, U2, U3} = tianjiupai_quad:map(fun(#game_player{user_id = U}) -> U end, PlayerQuad),
             {true, [U0, U1, U2, U3]}
     end.
