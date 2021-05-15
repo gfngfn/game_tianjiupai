@@ -9,7 +9,8 @@ module RoomServer :> sig
 
   type proc :: o
 
-  val start_link<$a> : fun(Types.room_id, binary) -> [$a]option<proc>
+  val start_link<$a> : fun(Types.room_id, binary) -> [$a]Stdlib.RawValue.t
+    /* For external use; return values are of the form `{ok, pid()} | error` */
 
   val get_whole_state<$a> : fun(Types.room_id) -> [$a]option<Types.whole_room_state>
 
@@ -255,16 +256,22 @@ end = struct
         end.
   ```
 
-  val start_link_impl<$a> : fun(pack Stdlib.GenServer.Behaviour, Stdlib.RawValue.t, Callback.init_arg) -> [$a]option<proc> = external 3 ```
-    start_link_impl(CallbackModule, Name, InitArg) ->
-        case gen_server:start_link({global, Name}, CallbackModule, InitArg, []) of
-            {ok, Pid} -> {some, Pid};
-            _         -> none
+  val monitor<$a> : fun(room_id) -> [$a]option<Stdlib.RawValue.t> = external 1 ```
+    monitor(RoomId) ->
+        case get_proc(RoomId) of
+            none        -> none;
+            {some, Pid} -> {some, erlang:monitor(process, Pid)}
         end.
   ```
 
-  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]option<proc> = act
-    start_link_impl(pack Callback : Stdlib.GenServer.Behaviour, name(room_id), {room_id, room_name})
+  val start_link_impl<$a, $start> : fun($start, Stdlib.RawValue.t, Callback.init_arg) -> [$a]Stdlib.RawValue.t = external 3 ```
+    start_link_impl(Mfargs, Name, InitArg) ->
+        {M, start_link, []} = Mfargs,
+        gen_server:start_link({global, Name}, M, InitArg, []).
+  ```
+
+  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]Stdlib.RawValue.t = act
+    start_link_impl(freeze Impl.start_link(_), name(room_id), {room_id, room_name})
 
   val call<$a, $ret>(
     room_id : room_id,
@@ -287,10 +294,23 @@ end = struct
       end
     end)
 
+  val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<whole_room_state> = act
+    do resp <- Impl.call(proc, GetWholeState) in
+    case resp of
+    | WholeState(whole_state) -> return(Some(whole_state))
+    end
+
   val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_room_state> = act
     call(room_id, GetPersonalState(user_id), fun(resp) -> act
       case resp of
       | PersonalState(personal_state_opt) -> return(personal_state_opt)
+      end
+    end)
+
+  val send_chat<$a>(room_id, user_id, text) : [$a]option<unit> = act
+    call(room_id, SendChat(user_id, text), fun(resp) -> act
+      case resp of
+      | ChatSent -> return(Some({}))
       end
     end)
 
