@@ -275,9 +275,120 @@ end = struct
         | _ ->
             None
         end
-    | _ ->
-        /* TODO: implement this function */
-        Some(table)
+    | SingleWu(exposed_wu) ->
+        case submitted_cards of
+        | [Card.Wu(wu)] ->
+            let {_, wu0} = wu_max(exposed_wu) in
+            let new_one =
+              if Card.wu_greater(wu, wu0) then Open(wu) else Closed
+            in
+            Some(SingleWu(expose(exposed_wu, new_one)))
+        | [_] ->
+            Some(SingleWu(expose(exposed_wu, Closed)))
+        | _ ->
+            None
+        end
+    | DoubleWen(exposed_wen) ->
+        case submitted_cards of
+        | [Card.Wen(wen1), Card.Wen(wen2)] ->
+            if Card.wen_equal(wen1, wen2) then
+              let {_, wen0} = wen_max(exposed_wen) in
+              let new_one = if Card.wen_greater(wen1, wen0) then Open(wen1) else Closed in
+              Some(DoubleWen(expose(exposed_wen, new_one)))
+            else
+              Some(DoubleWen(expose(exposed_wen, Closed)))
+        | [_, _] ->
+            Some(DoubleWen(expose(exposed_wen, Closed)))
+        | _ ->
+            None
+        end
+    | DoubleWu(exposed_wu) ->
+        case submitted_cards of
+        | [Card.Wu(wu1), Card.Wu(wu2)] ->
+            if Card.wu_equal(wu1, wu2) then
+              let {_, wu0} = wu_max(exposed_wu) in
+              let new_one = if Card.wu_greater(wu1, wu0) then Open(wu1) else Closed in
+              Some(DoubleWen(expose(exposed_wu, new_one)))
+            else
+              Some(DoubleWen(expose(exposed_wu, Closed)))
+        | [_, _] ->
+            Some(DoubleWen(expose(exposed_wu, Closed)))
+        | _ ->
+            None
+        end
+    | DoubleBoth(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen), Card.Wu(wu)] ->
+            case Card.wen_and_wu_to_big(wen, wu) of
+            | Some(big) ->
+                let {_, big0} = big_max(exposed_big) in
+                let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                Some(DoubleBoth(expose(exposed_big, new_one)))
+            | None ->
+                Some(DoubleBoth(expose(exposed_big, Closed)))
+            end
+        | [_, _] ->
+            Some(DoubleBoth(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
+    | TripleWen(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu)] ->
+            if Card.wen_equal(wen1, wen2) then
+              case Card.wen_and_wu_to_big(wen1, wu) of
+              | Some(big) ->
+                  let {_, big0} = big_max(exposed_big) in
+                  let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                  Some(DoubleBoth(expose(exposed_big, new_one)))
+              | None ->
+                  Some(DoubleBoth(expose(exposed_big, Closed)))
+              end
+            else
+              Some(DoubleBoth(expose(exposed_big, Closed)))
+        | [_, _, _] ->
+            Some(DoubleBoth(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
+    | TripleWu(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen), Card.Wu(wu1), Card.Wu(wu2)] ->
+            if Card.wu_equal(wu1, wu2) then
+              case Card.wen_and_wu_to_big(wen, wu1) of
+              | Some(big) ->
+                  let {_, big0} = big_max(exposed_big) in
+                  let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                  Some(DoubleBoth(expose(exposed_big, new_one)))
+              | None ->
+                  Some(DoubleBoth(expose(exposed_big, Closed)))
+              end
+            else
+              Some(DoubleBoth(expose(exposed_big, Closed)))
+        | [_, _, _] ->
+            Some(DoubleBoth(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
+    | Quadruple(exposed_big) ->
+        case Card.sort(submitted_cards) of
+        | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu1), Card.Wu(wu2)] ->
+            if Card.wen_equal(wen1, wen2) && Card.wu_equal(wu1, wu2) then
+              case Card.wen_and_wu_to_big(wen1, wu1) of
+              | Some(big) ->
+                  let {_, big0} = big_max(exposed_big) in
+                  let new_one = if Card.big_greater(big, big0) then Open(big) else Closed in
+                  Some(DoubleBoth(expose(exposed_big, new_one)))
+              | None ->
+                  Some(DoubleBoth(expose(exposed_big, Closed)))
+              end
+            else
+              Some(DoubleBoth(expose(exposed_big, Closed)))
+        | [_, _, _, _] ->
+            Some(DoubleBoth(expose(exposed_big, Closed)))
+        | _ ->
+            None
+        end
     end
 
   val get_winner(table : table_state) : {int, list<Card.t>} =
