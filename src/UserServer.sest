@@ -1,0 +1,169 @@
+import Types
+
+module UserServer = struct
+
+  include Types
+
+  module Callback = struct
+
+    type init_arg = {user_id, binary}
+
+    type monitor_ref = Stdlib.RawValue.t
+
+    type settings = {
+      user_id   : user_id,
+      user_name : binary,
+    }
+
+    type state = {
+      settings             : settings,
+      belongs_to           : option<{room_id, monitor_ref}>,
+      websocket_connection : option<monitor_ref>,
+    }
+
+    type user_state = {
+      user_name  : binary,
+      belongs_to : option<room_id>,
+    }
+
+    type request =
+      | SetRoom(room_id)
+      | GetUserState
+
+    type response =
+      | RoomSet(bool)
+      | UserStateGot(user_state)
+
+    type cast_message =
+      | DummyCastMessage
+
+    type info =
+      Stdlib.RawValue.t
+
+    val init(init_arg) = act
+      let {user_id, user_name} = init_arg in
+      let settings = { user_id = user_id, user_name = user_name } in
+      let state =
+        {
+          settings             = settings,
+          belongs_to           = None,
+          websocket_connection = None,
+        }
+      in
+      Stdlib.GenServer.init_ok(state)
+
+    val monitor<$a> : fun(room_id) -> [$a]option<monitor_ref> = external 1 ```
+      monitor(RoomId) ->
+          case tianjiupai_room:monitor(RoomId) of
+              {error, _}       -> none;
+              {ok, MonitorRef} -> {some, MonitorRef}
+          end.
+    ```
+
+    val demonitor<$a> : fun(monitor_ref) -> [$a]unit = external 1 ```
+      demonitor(MonitorRef) ->
+          erlang:demonitor(MonitorRef).
+    ```
+
+    val handle_call(req, from, state) = act
+      case req of
+      | GetUserState ->
+          let belongs_to =
+            Stdlib.Option.map(fun(pair) -> let {room_id, _} = pair in room_id end, state.belongs_to)
+          in
+          let user_state =
+            {
+              user_name  = state.settings.user_name,
+              belongs_to = belongs_to,
+            }
+          in
+          Stdlib.GenServer.reply(UserStateGot(user_state), state)
+      | SetRoom(room_id) ->
+          do monitor_ref_opt <- monitor(room_id) in
+          case monitor_ref_opt of
+          | None ->
+              Stdlib.GenServer.reply(RoomSet(false), state)
+          | Some(monitor_ref_new) ->
+              do dummy <-
+                case state.belongs_to of
+                | None                   -> return({})
+                | Some({_, monitor_ref}) -> demonitor(monitor_ref)
+                end
+              in
+              let state = { state | belongs_to = Some({room_id, monitor_ref_new}) } in
+              Stdlib.GenServer.reply(RoomSet(true), state)
+          end
+      end
+
+    val handle_cast(msg, state) = act
+      let _ = print_debug({"unexpected cast message", msg}) in
+      Stdlib.GenServer.no_reply(state)
+
+    val check_down_message : fun(info, monitor_ref) -> option<Stdlib.RawValue.t> = external 2 ```
+      check_down_message(Info, MonitorRef) ->
+        case Info of
+            {'DOWN', MonitorRef, process, _Pid, Reason} -> {some, Reason};
+            _                                           -> none
+        end.
+    ```
+
+    val check_room_down(info, state) =
+      case state.belongs_to of
+      | None                   -> None
+      | Some({_, monitor_ref}) -> check_down_message(info, monitor_ref)
+      end
+
+    val check_websocket_down(info, state) =
+      case state.websocket_connection of
+      | None              -> None
+      | Some(monitor_ref) -> check_down_message(info, monitor_ref)
+      end
+
+    val handle_info(info : Stdlib.RawValue.t, state : state) = act
+      let user_id = state.settings.user_id in
+      let state =
+        case check_room_down(info, state) of
+        | Some(reason) ->
+            let _ =
+              print_debug(
+                format(
+                  f'Room closed (user_id: ~p, reason: ~p)~n',
+                  {user_id, reason}))
+            in
+            { state | belongs_to = None }
+        | None ->
+            case check_websocket_down(info, state) of
+            | Some(reason) ->
+                let _ =
+                  print_debug(
+                    format(
+                      f'WebSocket connection closed (user_id: ~p, reason: ~p)~n',
+                      {user_id, reason}))
+                in
+                { state | websocket_connection = None }
+            | None ->
+                let _ =
+                  print_debug(
+                    format(
+                      f'Unexpected info (user_id: ~p, message: ~p)',
+                      {user_id, info}))
+                in
+                state
+            end
+        end
+      in
+      Stdlib.GenServer.no_reply(state)
+
+    val terminate(state) = act
+      let _ =
+        print_debug(
+          format(
+            f'terminate (user_id: ~p)',
+            {state.settings.user_id}))
+      in
+      return({})
+  end
+
+  module Impl = Stdlib.GenServer.Make(Callback)
+
+end
