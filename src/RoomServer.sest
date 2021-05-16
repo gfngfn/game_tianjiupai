@@ -16,6 +16,12 @@ module RoomServer :> sig
 
   val get_personal_state<$a> : fun(Types.room_id, Types.user_id) -> [$a]option<Types.personal_room_state>
 
+  val send_chat<$a> : fun(Types.room_id, Types.user_id, binary) -> [$a]option<unit>
+
+  val attend<$a> : fun(Types.room_id, Types.user_id) -> [$a]option<Types.personal_room_state>
+
+  val exit<$a> : fun(Types.room_id, Types.user_id) -> [$a]option<unit>
+
 end = struct
 
   include Types
