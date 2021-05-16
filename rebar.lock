@@ -18,7 +18,7 @@
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.7.1">>},1},
  {<<"sesterl_stdlib">>,
   {git,"https://github.com/gfngfn/sesterl_stdlib",
-       {ref,"281b0e51c7abdb6e707011c21d5181111ecac050"}},
+       {ref,"cb6ded51c776ad643024c1ca3531b9f4585f6ac4"}},
   0},
  {<<"uuid">>,
   {git,"https://github.com/okeuday/uuid.git",
