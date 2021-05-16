@@ -1,6 +1,17 @@
 import Types
 
-module UserServer = struct
+module UserServer :> sig
+
+  val start_link<$a> : fun(Types.user_id, binary) -> [$a]Stdlib.RawValue.t
+    /* For external use; return values are of the form `{ok, pid()} | error` */
+
+  val get_user_state<$a> : fun(Types.user_id) -> [$a]option<Types.user_state>
+
+  val get_name<$a> : fun(Types.user_id) -> [$a]option<binary>
+
+  val get_room<$a> : fun(Types.user_id) -> [$a]option<Types.room_id>
+
+end = struct
 
   include Types
 
@@ -19,11 +30,6 @@ module UserServer = struct
       settings             : settings,
       belongs_to           : option<{room_id, monitor_ref}>,
       websocket_connection : option<monitor_ref>,
-    }
-
-    type user_state = {
-      user_name  : binary,
-      belongs_to : option<room_id>,
     }
 
     type request =
@@ -165,5 +171,58 @@ module UserServer = struct
   end
 
   module Impl = Stdlib.GenServer.Make(Callback)
+
+  val name : fun(room_id) -> Stdlib.RawValue.t = external 1 ```
+    name(RoomId) ->
+        {?MODULE, RoomId}.
+  ```
+
+  type proc = Impl.proc
+
+  val get_proc<$a> : fun(room_id) -> [$a]option<proc> = external 1 ```
+    get_proc(RoomId) ->
+        case global:whereis_name(name(RoomId)) of
+            undefined -> none;
+            Pid       -> {some, Pid}
+        end.
+  ```
+
+  val start_link_impl<$a, $start> : fun($start, Stdlib.RawValue.t, Callback.init_arg) -> [$a]Stdlib.RawValue.t = external 3 ```
+    start_link_impl(Mfargs, Name, InitArg) ->
+        {M, start_link, []} = Mfargs,
+        gen_server:start_link({global, Name}, M, InitArg, []).
+  ```
+
+  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]Stdlib.RawValue.t = act
+    start_link_impl(freeze Impl.start_link(_), name(room_id), {room_id, room_name})
+
+  val call<$a, $ret>(
+    user_id : user_id,
+    req     : Callback.request,
+    f       : fun(Callback.response) -> [$a]option<$ret>
+  ) : [$a]option<$ret> = act
+    do proc_opt <- get_proc(user_id) in
+    case proc_opt of
+    | None ->
+        return(None)
+    | Some(proc) ->
+        do resp <- Impl.call(proc, req) in
+        f(resp)
+    end
+
+  val get_user_state(user_id) = act
+    call(user_id, Callback.GetUserState, fun(resp) -> act
+      case resp of
+      | Callback.UserStateGot(user_state) -> return(Some(user_state))
+      end
+    end)
+
+  val get_name(user_id) = act
+    do opt <- get_user_state(user_id) in
+    return(Stdlib.Option.map(fun(u) -> u.user_name end, opt))
+
+  val get_room(user_id) = act
+    do opt <- get_user_state(user_id) in
+    return(Stdlib.Option.bind(opt, fun(u) -> u.belongs_to end))
 
 end

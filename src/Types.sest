@@ -8,6 +8,11 @@ module Types = struct
 
   type user_id = binary
 
+  type user_state = {
+    user_name  : binary,
+    belongs_to : option<room_id>,
+  }
+
   type snapshot_id = SnapshotId.t
 
   type whole_room_state = {
