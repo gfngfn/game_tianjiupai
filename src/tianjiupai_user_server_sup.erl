@@ -21,6 +21,8 @@
 %%====================================================================================================
 -define(SUP_REF, {global, ?MODULE}).
 
+-define(USER_SERVER_MODULE, 'Tianjiupai.UserServer').
+
 %%====================================================================================================
 %% `supervisor' Callback Functions
 %%====================================================================================================
@@ -32,7 +34,7 @@ init({}) ->
     },
     ChildSpec = #{
         id    => undefined,
-        start => {tianjiupai_user_server, start_link, []},
+        start => {?USER_SERVER_MODULE, start_link, []},
         type  => worker
     },
     {ok, {SupFlags, [ChildSpec]}}.

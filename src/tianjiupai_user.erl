@@ -20,7 +20,12 @@
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--type info() :: tianjiupai_user_server:info().
+-type info() :: #{
+    user_name  := binary(),
+    belongs_to := none | {value, tianjiupai:room_id()}
+}.
+
+-define(USER_SERVER_MODULE, 'Tianjiupai.UserServer').
 
 %%====================================================================================================
 %% Exported Functions
@@ -35,31 +40,49 @@ create(UserName) ->
 
 -spec exists(tianjiupai:user_id()) -> boolean().
 exists(UserId) ->
-    tianjiupai_user_server:exists(UserId).
+    ?USER_SERVER_MODULE:exists(UserId).
 
 -spec get_name(tianjiupai:user_id()) -> {ok, binary()} | {error, Reason :: term()}.
 get_name(UserId) ->
-    tianjiupai_user_server:get_name(UserId).
+    case ?USER_SERVER_MODULE:get_name(UserId) of
+        {some, UserName} -> {ok, UserName};
+        none             -> {error, get_name_failed}
+    end.
 
 -spec get_info(tianjiupai:user_id()) -> {ok, info()} | {error, Reason :: term()}.
 get_info(UserId) ->
-    tianjiupai_user_server:get_info(UserId).
+    case ?USER_SERVER_MODULE:get_user_state(UserId) of
+        {some, #{user_name := UserName, belongs_to := RoomIdOption}} ->
+            MaybeRoomId =
+                case RoomIdOption of
+                    none           -> none;
+                    {some, RoomId} -> {value, RoomId}
+                end,
+            {ok, #{user_name => UserName, belongs_to => MaybeRoomId}};
+        none ->
+            {error, get_info}
+    end.
 
 -spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, Reason :: term()}.
 set_room(UserId, RoomId) ->
-    tianjiupai_user_server:set_room(UserId, RoomId).
+    case ?USER_SERVER_MODULE:set_room(UserId, RoomId) of
+        none       -> {error, set_room_failed};
+        {some, ok} -> ok
+    end.
 
 -spec send_chat(tianjiupai:user_id(), binary()) -> ok | {error, Reason :: term()}.
 send_chat(UserId, Text) ->
-    case tianjiupai_user_server:get_room(UserId) of
-        {error, _} = Err      -> Err;
-        {ok, none}            -> {error, {does_not_belong_to_any_room, UserId}};
-        {ok, {value, RoomId}} -> tianjiupai_room:send_chat(RoomId, UserId, Text)
+    case ?USER_SERVER_MODULE:get_room(UserId) of
+        none           -> {error, {does_not_belong_to_any_room, UserId}};
+        {some, RoomId} -> tianjiupai_room:send_chat(RoomId, UserId, Text)
     end.
 
 -spec set_websocket_connection(tianjiupai:user_id(), WsPid :: pid()) -> ok | {error, Reason :: term()}.
 set_websocket_connection(UserId, WsPid) ->
-    tianjiupai_user_server:set_websocket_connection(UserId, WsPid).
+    case ?USER_SERVER_MODULE:set_websocket_connection(UserId, WsPid) of
+        {some, ok} -> ok;
+        none       -> {error, set_websocket_connection_failed}
+    end.
 
 -spec notify(
     To   :: tianjiupai:user_id(),

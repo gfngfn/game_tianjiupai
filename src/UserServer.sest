@@ -9,11 +9,22 @@ module UserServer :> sig
 
   val get_name<$a> : fun(Types.user_id) -> [$a]option<binary>
 
+  val exists<$a> : fun(Types.user_id) -> [$a]bool
+
   val get_room<$a> : fun(Types.user_id) -> [$a]option<Types.room_id>
+
+  val set_room<$a> : fun(Types.user_id, Types.room_id) -> [$a]option<unit>
+
+  type websocket_proc = Stdlib.RawValue.t
+    /* For external use; corresponds to `pid()` */
+
+  val set_websocket_connection<$a> : fun(Types.user_id, websocket_proc) -> [$a]option<unit>
 
 end = struct
 
   include Types
+
+  type websocket_proc = Stdlib.RawValue.t
 
   module Callback = struct
 
@@ -34,10 +45,12 @@ end = struct
 
     type request =
       | SetRoom(room_id)
+      | SetWebsocketConnection(websocket_proc)
       | GetUserState
 
     type response =
       | RoomSet(bool)
+      | WebsocketConnectionSet
       | UserStateGot(user_state)
 
     type cast_message =
@@ -58,12 +71,17 @@ end = struct
       in
       Stdlib.GenServer.init_ok(state)
 
-    val monitor<$a> : fun(room_id) -> [$a]option<monitor_ref> = external 1 ```
-      monitor(RoomId) ->
+    val monitor_room<$a> : fun(room_id) -> [$a]option<monitor_ref> = external 1 ```
+      monitor_room(RoomId) ->
           case tianjiupai_room:monitor(RoomId) of
               {error, _}       -> none;
               {ok, MonitorRef} -> {some, MonitorRef}
           end.
+    ```
+
+    val monitor<$a> : fun(websocket_proc) -> [$a]monitor_ref = external 1 ```
+      monitor(WsProc) ->
+          erlang:monitor(process, WsProc).
     ```
 
     val demonitor<$a> : fun(monitor_ref) -> [$a]unit = external 1 ```
@@ -85,7 +103,7 @@ end = struct
           in
           Stdlib.GenServer.reply(UserStateGot(user_state), state)
       | SetRoom(room_id) ->
-          do monitor_ref_opt <- monitor(room_id) in
+          do monitor_ref_opt <- monitor_room(room_id) in
           case monitor_ref_opt of
           | None ->
               Stdlib.GenServer.reply(RoomSet(false), state)
@@ -99,6 +117,16 @@ end = struct
               let state = { state | belongs_to = Some({room_id, monitor_ref_new}) } in
               Stdlib.GenServer.reply(RoomSet(true), state)
           end
+      | SetWebsocketConnection(ws_proc) ->
+          do dummy <-
+            case state.websocket_connection of
+            | None              -> return({})
+            | Some(monitor_ref) -> demonitor(monitor_ref)
+            end
+          in
+          do monitor_ref_new <- monitor(ws_proc) in
+          let state = { state | websocket_connection = Some(monitor_ref_new) } in
+          Stdlib.GenServer.reply(WebsocketConnectionSet, state)
       end
 
     val handle_cast(msg, state) = act
@@ -187,6 +215,13 @@ end = struct
         end.
   ```
 
+  val exists(user_id) = act
+    do opt <- get_proc(user_id) in
+    case opt of
+    | None    -> return(false)
+    | Some(_) -> return(true)
+    end
+
   val start_link_impl<$a, $start> : fun($start, Stdlib.RawValue.t, Callback.init_arg) -> [$a]Stdlib.RawValue.t = external 3 ```
     start_link_impl(Mfargs, Name, InitArg) ->
         {M, start_link, []} = Mfargs,
@@ -224,5 +259,20 @@ end = struct
   val get_room(user_id) = act
     do opt <- get_user_state(user_id) in
     return(Stdlib.Option.bind(opt, fun(u) -> u.belongs_to end))
+
+  val set_room(user_id, room_id) = act
+    call(user_id, Callback.SetRoom(room_id), fun(resp) -> act
+      case resp of
+      | Callback.RoomSet(true)  -> return(Some({}))
+      | Callback.RoomSet(false) -> return(None)
+      end
+    end)
+
+  val set_websocket_connection(user_id, ws_proc) = act
+    call(user_id, Callback.SetWebsocketConnection(ws_proc), fun(resp) -> act
+      case resp of
+      | Callback.WebsocketConnectionSet -> return(Some({}))
+      end
+    end)
 
 end
