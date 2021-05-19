@@ -1,0 +1,51 @@
+import Quad
+
+module QuadTests = #[test] struct
+
+  #[test]
+  val advance_seat_test() =
+    Testing.list(
+      Stdlib.List.map(
+        fun(test_case) ->
+          let {seat, n, expected} = test_case in
+          Testing.it("advance_seat", fun() ->
+            assert Testing.equal(
+              -expect expected,
+              -got Quad.advance_seat(seat, n))
+          end)
+        end,
+        [
+          {Quad.Seat3, 4, Quad.Seat3},
+          {Quad.Seat2, 3, Quad.Seat1},
+          {Quad.Seat2, 0 - 3, Quad.Seat3},
+        ]))
+
+  val map_test() =
+    Testing.it("map", fun() ->
+      let f(x) = x + 1 in
+      assert Testing.equal(
+        -expect {5, 5, 3, 4},
+        -got Quad.map(f, {4, 4, 2, 3}))
+    end)
+
+  type elem = X | Y | Z | W | A
+
+  val update_test() =
+    Testing.list(
+      Stdlib.List.map(
+        fun(test_case) ->
+          let {seat, v, input, expected} = test_case in
+          Testing.it("update", fun() ->
+            assert Testing.equal(
+              -expect expected,
+              -got Quad.update(seat, v, input))
+          end)
+        end,
+        [
+          {Quad.Seat0, A, {X, Y, Z, W}, {A, Y, Z, W}},
+          {Quad.Seat1, A, {X, Y, Z, W}, {X, A, Z, W}},
+          {Quad.Seat2, A, {X, Y, Z, W}, {X, Y, A, W}},
+          {Quad.Seat3, A, {X, Y, Z, W}, {X, Y, Z, A}},
+        ]))
+
+end
