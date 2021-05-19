@@ -1,0 +1,23 @@
+import Quad
+import Inning
+
+module InningTests = #[test] struct
+
+  #[test]
+  val all_cards_test() =
+    Testing.it("The number of all cards is 32.", fun() ->
+      assert Testing.equal(
+        -expect 32,
+        -got Stdlib.List.length(Inning.all_cards())
+      )
+    end)
+
+  #[test]
+  val shuffle_test() =
+    Testing.it("Every generated hand consists of eight cards.", fun() ->
+      let quad = Inning.shuffle() in
+      assert Testing.equal(
+        -expect {8, 8, 8, 8},
+        -got Quad.map(Stdlib.List.length, quad))
+    end)
+end

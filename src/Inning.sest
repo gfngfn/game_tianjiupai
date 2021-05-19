@@ -11,6 +11,12 @@ module Inning :> sig
     | WinsTrick(Quad.seat, t)
     | WinsInning(Quad.seat, Quad.t<list<Card.t>>)
 
+  /* exported for tests */
+  val all_cards : fun() -> list<Card.t>
+
+  /* exported for tests */
+  val shuffle : fun() -> Quad.t<list<Card.t>>
+
   val start : fun(Quad.seat) -> t
 
   val observe : fun(Quad.seat, t) -> Types.observable_inning_state
