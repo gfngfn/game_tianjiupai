@@ -17,6 +17,9 @@ module Inning :> sig
   /* exported for tests */
   val shuffle : fun() -> Quad.t<list<Card.t>>
 
+  /* exported for tests */
+  val make_starting_table : fun(list<Card.t>) -> option<Types.table_state>
+
   val start : fun(Quad.seat) -> t
 
   val observe : fun(Quad.seat, t) -> Types.observable_inning_state
