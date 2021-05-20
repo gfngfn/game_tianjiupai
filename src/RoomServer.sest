@@ -4,27 +4,28 @@ import Types
 import Inning
 
 module RoomServer :> sig
+  open Types
 
   type info :: o
 
   type proc :: o
 
-  val start_link<$a> : fun(Types.room_id, binary) -> [$a]Stdlib.RawValue.t
+  val start_link<$a> : fun(room_id, binary) -> [$a]Stdlib.RawValue.t
     /* For external use; return values are of the form `{ok, pid()} | error` */
 
-  val get_whole_state<$a> : fun(Types.room_id) -> [$a]option<Types.whole_room_state>
+  val get_whole_state<$a> : fun(room_id) -> [$a]option<whole_room_state>
 
-  val get_personal_state<$a> : fun(Types.room_id, Types.user_id) -> [$a]option<Types.personal_room_state>
+  val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
 
-  val send_chat<$a> : fun(Types.room_id, Types.user_id, binary) -> [$a]option<unit>
+  val send_chat<$a> : fun(room_id, user_id, binary) -> [$a]option<unit>
 
-  val attend<$a> : fun(Types.room_id, Types.user_id) -> [$a]option<Types.personal_room_state>
+  val attend<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
 
-  val exit<$a> : fun(Types.room_id, Types.user_id) -> [$a]option<unit>
+  val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
 
 end = struct
-
-  include Types
+  open Stdlib
+  open Types
 
   type settings = {
     room_id   : room_id,
@@ -81,7 +82,7 @@ end = struct
     val init(init_arg) = act
       let {room_id, room_name} = init_arg in
       let settings = {room_id = room_id, room_name = room_name} in
-      Stdlib.GenServer.init_ok({
+      GenServer.init_ok({
         settings      = settings,
         reversed_logs = [],
         room_state    = InternalWaiting({members = []})
@@ -93,7 +94,7 @@ end = struct
           {false, waiting_state.members}
       | InternalPlaying(whole_game_state) ->
           let game_players = Quad.to_list(whole_game_state.meta.players) in
-          let members = Stdlib.List.map(fun(g) -> g.user_id end, game_players) in
+          let members = List.map(fun(g) -> g.user_id end, game_players) in
           {true, members}
       end
 
@@ -112,7 +113,7 @@ end = struct
       | InternalWaiting(waiting_state) ->
           Some(Waiting(waiting_state.members))
       | InternalPlaying(game_state) ->
-          case Quad.find(fun(p) -> Stdlib.Binary.equal(p.user_id, user_id) end, game_state.meta.players) of
+          case Quad.find(fun(p) -> Binary.equal(p.user_id, user_id) end, game_state.meta.players) of
           | None ->
               None
           | Some({seat, _}) ->
@@ -134,7 +135,7 @@ end = struct
           Some({
             room_id    = settings.room_id,
             room_name  = settings.room_name,
-            logs       = Stdlib.List.reverse(state.reversed_logs),
+            logs       = List.reverse(state.reversed_logs),
             observable = observable,
           })
       end
@@ -153,17 +154,17 @@ end = struct
       let {_, members} = get_members_from_state(state.room_state) in
       let log = LogComment(user_id, text) in
       do dummy <- notify_logs_for_each(members, [log]) in
-      Stdlib.GenServer.reply(ChatSent, { state | reversed_logs = log :: state.reversed_logs })
+      GenServer.reply(ChatSent, { state | reversed_logs = log :: state.reversed_logs })
 
     val handle_attend(user_id : user_id, state : state) = act
       case state.room_state of
       | InternalPlaying(_) ->
-          Stdlib.GenServer.reply(Attended(None), state)
+          GenServer.reply(Attended(None), state)
       | InternalWaiting(waiting_state) ->
           let members = waiting_state.members in
-          if Stdlib.List.any(fun(u) -> Stdlib.Binary.equal(u, user_id) end, members) then
+          if List.any(fun(u) -> Binary.equal(u, user_id) end, members) then
             let Some(personal_state) = make_personal_room_state(state, user_id) in
-            Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
+            GenServer.reply(Attended(Some(personal_state)), state)
           else
             let log_enter = LogEntered(user_id) in
             case members of
@@ -202,9 +203,9 @@ end = struct
                   }
                 in
                 let Some(personal_state) = make_personal_room_state(state, user_id) in
-                Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
+                GenServer.reply(Attended(Some(personal_state)), state)
             | _ ->
-                let waiting_state = { waiting_state | members = Stdlib.List.append(members, [user_id]) } in
+                let waiting_state = { waiting_state | members = List.append(members, [user_id]) } in
                 do dummy <- notify_logs_for_each(members, [log_enter]) in
                 let state =
                   { state |
@@ -213,32 +214,32 @@ end = struct
                   }
                 in
                 let Some(personal_state) = make_personal_room_state(state, user_id) in
-                Stdlib.GenServer.reply(Attended(Some(personal_state)), state)
+                GenServer.reply(Attended(Some(personal_state)), state)
             end
       end
 
     val handle_exit(user_id : user_id, state : state) = act
       case state.room_state of
       | InternalPlaying(_) ->
-          Stdlib.GenServer.reply(Exited(false), state)
+          GenServer.reply(Exited(false), state)
       | InternalWaiting(waiting_state) ->
           let members =
-            Stdlib.List.filter(
-              fun(u) -> Stdlib.Bool.not(Stdlib.Binary.equal(u, user_id)) end,
+            List.filter(
+              fun(u) -> Bool.not(Binary.equal(u, user_id)) end,
               waiting_state.members)
           in
           let room_state = InternalWaiting({ waiting_state | members = members }) in
-          Stdlib.GenServer.reply(Exited(true), { state | room_state = room_state })
+          GenServer.reply(Exited(true), { state | room_state = room_state })
       end
 
     val handle_call(req, from, state) = act
       case req of
       | GetWholeState ->
           let whole_state = make_whole_room_state(state) in
-          Stdlib.GenServer.reply(WholeState(whole_state), state)
+          GenServer.reply(WholeState(whole_state), state)
       | GetPersonalState(user_id) ->
           let personal_state = make_personal_room_state(state, user_id) in
-          Stdlib.GenServer.reply(PersonalState(personal_state), state)
+          GenServer.reply(PersonalState(personal_state), state)
       | SendChat(user_id, text) ->
           handle_send_chat(user_id, text, state)
       | Attend(user_id) ->
@@ -249,24 +250,24 @@ end = struct
 
     val handle_cast(msg, state) = act
       let _ = print_debug({"unexpected cast message", msg}) in
-      Stdlib.GenServer.no_reply(state)
+      GenServer.no_reply(state)
 
     val handle_info(info, state) = act
       let _ = print_debug({"unexpected info", info}) in
-      Stdlib.GenServer.no_reply(state)
+      GenServer.no_reply(state)
 
     val terminate(state) = act
       let _ = print_debug({"terminate", state}) in
       return({})
   end
 
-  module Impl = Stdlib.GenServer.Make(Callback)
+  module Impl = GenServer.Make(Callback)
 
   type info = Callback.info
 
   type proc = Impl.proc
 
-  val name : fun(room_id) -> Stdlib.RawValue.t = external 1 ```
+  val name : fun(room_id) -> RawValue.t = external 1 ```
     name(RoomId) ->
         {?MODULE, RoomId}.
   ```
@@ -279,7 +280,7 @@ end = struct
         end.
   ```
 
-  val monitor<$a> : fun(room_id) -> [$a]option<Stdlib.RawValue.t> = external 1 ```
+  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t> = external 1 ```
     monitor(RoomId) ->
         case get_proc(RoomId) of
             none        -> none;
@@ -287,13 +288,13 @@ end = struct
         end.
   ```
 
-  val start_link_impl<$a, $start> : fun($start, Stdlib.RawValue.t, Callback.init_arg) -> [$a]Stdlib.RawValue.t = external 3 ```
+  val start_link_impl<$a, $start> : fun($start, RawValue.t, Callback.init_arg) -> [$a]RawValue.t = external 3 ```
     start_link_impl(Mfargs, Name, InitArg) ->
         {M, start_link, []} = Mfargs,
         gen_server:start_link({global, Name}, M, InitArg, []).
   ```
 
-  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]Stdlib.RawValue.t = act
+  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]RawValue.t = act
     start_link_impl(freeze Impl.start_link(_), name(room_id), {room_id, room_name})
 
   val call<$a, $ret>(

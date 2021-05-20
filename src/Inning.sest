@@ -3,6 +3,7 @@ import Card
 import Types
 
 module Inning :> sig
+  open Types
 
   type t :: o
 
@@ -18,17 +19,17 @@ module Inning :> sig
   val shuffle : fun() -> Quad.t<list<Card.t>>
 
   /* exported for tests */
-  val make_starting_table : fun(list<Card.t>) -> option<Types.table_state>
+  val make_starting_table : fun(list<Card.t>) -> option<table_state>
 
   val start : fun(Quad.seat) -> t
 
-  val observe : fun(Quad.seat, t) -> Types.observable_inning_state
+  val observe : fun(Quad.seat, t) -> observable_inning_state
 
   val submit : fun(Quad.seat, list<Card.t>, t) -> option<submit_result>
 
 end = struct
-
-  include Types
+  open Stdlib
+  open Types
 
   type player = {
     hand   : list<Card.t>,
@@ -104,7 +105,7 @@ end = struct
   ```
 
   val count_gained(players) =
-    let {n0, n1, n2, n3} = Quad.map(fun(p) -> Stdlib.List.length(p.gained) end, players) in
+    let {n0, n1, n2, n3} = Quad.map(fun(p) -> List.length(p.gained) end, players) in
     n0 + n1 + n2 + n3
 
   val separate_submitted_cards : fun(list<Card.t>, list<Card.t>) -> option<list<Card.t>> = external 2 ```
@@ -249,7 +250,7 @@ end = struct
 
   val expose(x_exposed, x_new) =
     let {x, x_or_closeds} = x_exposed in
-    {x, Stdlib.List.append(x_or_closeds, [x_new])}
+    {x, List.append(x_or_closeds, [x_new])}
 
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
     case table of
@@ -406,7 +407,7 @@ end = struct
         {0, [Card.Wu(3), Card.Wu(6)]}
     | Wenzun({Minor, major_or_closeds}) ->
         let ns =
-          Stdlib.List.map(
+          List.map(
             fun(x) ->
               case x of
               | Open(Major) -> 2
@@ -461,7 +462,7 @@ end = struct
 
     let n0 = table_length(table0) in
     let num_gained0 = count_gained(players0) in
-    let num_submitted_cards = Stdlib.List.length(submitted_cards) in
+    let num_submitted_cards = List.length(submitted_cards) in
     if n0 < 4 && num_gained0 < 8 && 0 < num_submitted_cards && num_submitted_cards <= 4 then
       if Quad.seat_equal(submitter_seat, Quad.advance_seat(start_seat, n0)) then
         let submitter0 = Quad.access(submitter_seat, players0) in
@@ -497,7 +498,7 @@ end = struct
                   let players2 =
                     Quad.update(
                       winner_seat,
-                      { winner | gained = Stdlib.List.append(winner.gained, cards) },
+                      { winner | gained = List.append(winner.gained, cards) },
                       players1,
                     )
                   in

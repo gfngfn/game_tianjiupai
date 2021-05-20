@@ -4,15 +4,15 @@ import Types
 import Inning
 
 module InningTests = #[test] struct
-
-  include Types
+  open Stdlib
+  open Types
 
   #[test]
   val all_cards_test() =
     Testing.it("The number of all cards is 32.", fun() ->
       assert Testing.equal(
         -expect 32,
-        -got Stdlib.List.length(Inning.all_cards())
+        -got List.length(Inning.all_cards())
       )
     end)
 
@@ -22,7 +22,7 @@ module InningTests = #[test] struct
       let quad = Inning.shuffle() in
       assert Testing.equal(
         -expect {8, 8, 8, 8},
-        -got Quad.map(Stdlib.List.length, quad))
+        -got Quad.map(List.length, quad))
     end)
 
   #[test]
@@ -31,7 +31,7 @@ module InningTests = #[test] struct
     let ok(x) = Some(x) in
     let error() = None in
     Testing.list(
-      Stdlib.List.map(
+      List.map(
         fun(test_case) ->
           let {submitted_cards, expected} = test_case in
           Testing.it("Makes a starting table", fun() ->
@@ -41,8 +41,8 @@ module InningTests = #[test] struct
             )
           end)
         end,
-        Stdlib.List.append(
-          Stdlib.List.map(
+        List.append(
+          List.map(
             fun(test_case) ->
               let {submitted_cards, expected_table} = test_case in
               {submitted_cards, ok(expected_table)}

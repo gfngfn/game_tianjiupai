@@ -1,11 +1,12 @@
 import Quad
 
 module QuadTests = #[test] struct
+  open Stdlib
 
   #[test]
   val advance_seat_test() =
     Testing.list(
-      Stdlib.List.map(
+      List.map(
         fun(test_case) ->
           let {seat, n, expected} = test_case in
           Testing.it("advance_seat", fun() ->
@@ -32,7 +33,7 @@ module QuadTests = #[test] struct
 
   val update_test() =
     Testing.list(
-      Stdlib.List.map(
+      List.map(
         fun(test_case) ->
           let {seat, v, input, expected} = test_case in
           Testing.it("update", fun() ->
