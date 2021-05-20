@@ -54,28 +54,6 @@
 %%====================================================================================================
 %% Unit Tests
 %%====================================================================================================
-all_cards_test_() ->
-    [
-     {"The number of all cards is 32.",
-      fun() ->
-          AllCards = ?TARGET_MODULE:all_cards(),
-          ?assertEqual(32, erlang:length(AllCards))
-      end}
-    ].
-
-shuffle_test_() ->
-    [
-     {"Every generated hand consists of eight cards.",
-      fun() ->
-          %% Strictly speaking, we should mock `rand'.
-          {H0, H1, H2, H3} = ?TARGET_MODULE:shuffle(),
-          ?assertEqual(8, erlang:length(H0)),
-          ?assertEqual(8, erlang:length(H1)),
-          ?assertEqual(8, erlang:length(H2)),
-          ?assertEqual(8, erlang:length(H3))
-      end}
-    ].
-
 zip_with_indices_test_() ->
     [
      {"zip_with_indices/1",
@@ -90,70 +68,6 @@ max_with_index_test_() ->
       fun() ->
           ?assertEqual({2, d}, ?TARGET_MODULE:max_with_index(fun(X1, X2) -> X1 > X2 end, [a, c, d, b]))
       end}
-    ].
-
-make_starting_table_test_() ->
-    First = fun(X) -> {X, []} end,
-    [
-     {"Makes a starting table",
-      fun() ->
-          Got = ?TARGET_MODULE:make_starting_table(SubmittedCards),
-          ?assertEqual(Expected, Got)
-      end}
-    ||
-        {SubmittedCards, Expected} <- [
-            {[{wen, 11}],
-               ?OK({single_wen, First(11)})},
-
-            {[{wu, 8}],
-               ?OK({single_wu, First(8)})},
-
-            {[{wen, 4}, {wen, 4}],
-               ?OK({double_wen, First(4)})},
-
-            {[{wu, 7}, {wu, 7}],
-               ?OK({double_wu, First(7)})},
-
-            {[{wen, 1}, {wen, 1}],
-               ?OK({wenzun, First(minor)})},
-
-            {[{wu, 3}, {wu, 6}],
-               ?OK({wuzun, First(ok)})},
-
-            {[{wen, 11}, {wu, 9}],
-               ?OK({double_both, First(big4)})},
-            {[{wen, 10}, {wu, 8}],
-               ?OK({double_both, First(big3)})},
-            {[{wen, 9}, {wu, 7}],
-               ?OK({double_both, First(big2)})},
-            {[{wen, 8}, {wu, 5}],
-               ?OK({double_both, First(big1)})},
-
-            {[{wu, 9}, {wen, 11}],
-               ?OK({double_both, First(big4)})},
-            {[{wu, 8}, {wen, 10}],
-               ?OK({double_both, First(big3)})},
-            {[{wu, 7}, {wen, 9}],
-               ?OK({double_both, First(big2)})},
-            {[{wu, 5}, {wen, 8}],
-               ?OK({double_both, First(big1)})},
-
-            {[{wen, 11}, {wu, 9}, {wen, 11}],
-               ?OK({triple_wen, First(big4)})},
-            {[{wu, 8}, {wen, 10}, {wen, 10}],
-               ?OK({triple_wen, First(big3)})},
-            {[{wen, 9}, {wen, 9}, {wu, 7}],
-               ?OK({triple_wen, First(big2)})},
-            {[{wen, 8}, {wu, 5}, {wen, 8}],
-               ?OK({triple_wen, First(big1)})},
-
-            {[],
-               ?ERROR},
-            {[{wen, 4}, {wen, 5}],
-               ?ERROR},
-            {[{wen, 11}, {wu, 8}],
-               ?ERROR}
-        ]
     ].
 
 update_table_success_test_() ->
