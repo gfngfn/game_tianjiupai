@@ -43,8 +43,8 @@ get_all_rooms() ->
     lists:filtermap(
         fun(RoomServerProc) ->
             case ?ROOM_SERVER_MODULE:get_whole_state_by_proc(RoomServerProc) of
-                {some, Map} -> {true, recordify_whole_room_state(Map)};
-                none        -> false
+                {ok, Map} -> {true, recordify_whole_room_state(Map)};
+                error     -> false
             end
         end,
         RoomServerProcs).
@@ -52,15 +52,15 @@ get_all_rooms() ->
 -spec get_whole_state(tianjiupai:room_id()) -> {ok, #whole_room_state{}} | {error, Reason :: term()}.
 get_whole_state(RoomId) ->
     case ?ROOM_SERVER_MODULE:get_whole_state(RoomId) of
-        {some, Map} -> {ok, recordify_whole_room_state(Map)};
-        none        -> {error, failed_to_get_whole_state}
+        {ok, Map} -> {ok, recordify_whole_room_state(Map)};
+        error     -> {error, failed_to_get_whole_state}
     end.
 
 -spec get_personal_state(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
 get_personal_state(RoomId, UserId) ->
     case ?ROOM_SERVER_MODULE:get_personal_state(RoomId, UserId) of
-        {some, Map} -> {ok, recordify_personal_room_state(Map)};
-        none        -> {error, failed_to_get_personal_state}
+        {ok, Map} -> {ok, recordify_personal_room_state(Map)};
+        error     -> {error, failed_to_get_personal_state}
     end.
 
 -spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
@@ -68,28 +68,28 @@ attend(RoomId, UserId) ->
     Result = ?ROOM_SERVER_MODULE:attend(RoomId, UserId),
     io:format("attend (result: ~p)~n", [Result]),
     case Result of
-        {some, Map} -> {ok, recordify_personal_room_state(Map)};
-        none        -> {error, failed_to_attend}
+        {ok, Map} -> {ok, recordify_personal_room_state(Map)};
+        error     -> {error, failed_to_attend}
     end.
 
 -spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
 exit(RoomId, UserId) ->
     case ?ROOM_SERVER_MODULE:exit(RoomId, UserId) of
-        {some, ok} -> ok;
-        none       -> {error, failed_to_exit}
+        {ok, ok} -> ok;
+        error    -> {error, failed_to_exit}
     end.
 
 send_chat(RoomId, From, Text) ->
     case ?ROOM_SERVER_MODULE:send_chat(RoomId, From, Text) of
-        {some, ok} -> ok;
-        none       -> {error, failed_to_send_chat}
+        {ok, ok} -> ok;
+        error    -> {error, failed_to_send_chat}
     end.
 
 -spec monitor(tinajiupai:room_id()) -> {ok, reference()} | {error, {room_not_found, tianjiupai:room_id()}}.
 monitor(RoomId) ->
     case ?ROOM_SERVER_MODULE:monitor(RoomId) of
-        {some, MonitorRef} -> {ok, MonitorRef};
-        none               -> {error, {room_not_found, RoomId}}
+        {ok, MonitorRef} -> {ok, MonitorRef};
+        error            -> {error, {room_not_found, RoomId}}
     end.
 
 %%====================================================================================================

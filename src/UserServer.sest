@@ -74,8 +74,8 @@ end = struct
     val monitor_room<$a> : fun(room_id) -> [$a]option<monitor_ref> = external 1 ```
       monitor_room(RoomId) ->
           case tianjiupai_room:monitor(RoomId) of
-              {error, _}       -> none;
-              {ok, MonitorRef} -> {some, MonitorRef}
+              {error, _}       -> error;
+              {ok, MonitorRef} -> {ok, MonitorRef}
           end.
     ```
 
@@ -136,8 +136,8 @@ end = struct
     val check_down_message : fun(info, monitor_ref) -> option<Stdlib.RawValue.t> = external 2 ```
       check_down_message(Info, MonitorRef) ->
         case Info of
-            {'DOWN', MonitorRef, process, _Pid, Reason} -> {some, Reason};
-            _                                           -> none
+            {'DOWN', MonitorRef, process, _Pid, Reason} -> {ok, Reason};
+            _                                           -> error
         end.
     ```
 
@@ -210,8 +210,8 @@ end = struct
   val get_proc<$a> : fun(room_id) -> [$a]option<proc> = external 1 ```
     get_proc(RoomId) ->
         case global:whereis_name(name(RoomId)) of
-            undefined -> none;
-            Pid       -> {some, Pid}
+            undefined -> error;
+            Pid       -> {ok, Pid}
         end.
   ```
 

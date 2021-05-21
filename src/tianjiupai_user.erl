@@ -45,43 +45,43 @@ exists(UserId) ->
 -spec get_name(tianjiupai:user_id()) -> {ok, binary()} | {error, Reason :: term()}.
 get_name(UserId) ->
     case ?USER_SERVER_MODULE:get_name(UserId) of
-        {some, UserName} -> {ok, UserName};
-        none             -> {error, get_name_failed}
+        {ok, UserName} -> {ok, UserName};
+        error          -> {error, get_name_failed}
     end.
 
 -spec get_info(tianjiupai:user_id()) -> {ok, info()} | {error, Reason :: term()}.
 get_info(UserId) ->
     case ?USER_SERVER_MODULE:get_user_state(UserId) of
-        {some, #{user_name := UserName, belongs_to := RoomIdOption}} ->
+        {ok, #{user_name := UserName, belongs_to := RoomIdOption}} ->
             MaybeRoomId =
                 case RoomIdOption of
-                    none           -> none;
-                    {some, RoomId} -> {value, RoomId}
+                    error        -> none;
+                    {ok, RoomId} -> {value, RoomId}
                 end,
             {ok, #{user_name => UserName, belongs_to => MaybeRoomId}};
-        none ->
+        error ->
             {error, get_info}
     end.
 
 -spec set_room(tianjiupai:user_id(), tianjiupai:room_id()) -> ok | {error, Reason :: term()}.
 set_room(UserId, RoomId) ->
     case ?USER_SERVER_MODULE:set_room(UserId, RoomId) of
-        none       -> {error, set_room_failed};
-        {some, ok} -> ok
+        error    -> {error, set_room_failed};
+        {ok, ok} -> ok
     end.
 
 -spec send_chat(tianjiupai:user_id(), binary()) -> ok | {error, Reason :: term()}.
 send_chat(UserId, Text) ->
     case ?USER_SERVER_MODULE:get_room(UserId) of
-        none           -> {error, {does_not_belong_to_any_room, UserId}};
-        {some, RoomId} -> tianjiupai_room:send_chat(RoomId, UserId, Text)
+        error        -> {error, {does_not_belong_to_any_room, UserId}};
+        {ok, RoomId} -> tianjiupai_room:send_chat(RoomId, UserId, Text)
     end.
 
 -spec set_websocket_connection(tianjiupai:user_id(), WsPid :: pid()) -> ok | {error, Reason :: term()}.
 set_websocket_connection(UserId, WsPid) ->
     case ?USER_SERVER_MODULE:set_websocket_connection(UserId, WsPid) of
-        {some, ok} -> ok;
-        none       -> {error, set_websocket_connection_failed}
+        {ok, ok} -> ok;
+        error    -> {error, set_websocket_connection_failed}
     end.
 
 -spec notify(

@@ -275,16 +275,16 @@ end = struct
   val get_proc<$a> : fun(room_id) -> [$a]option<proc> = external 1 ```
     get_proc(RoomId) ->
         case global:whereis_name(name(RoomId)) of
-            undefined -> none;
-            Pid       -> {some, Pid}
+            undefined -> error;
+            Pid       -> {ok, Pid}
         end.
   ```
 
   val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t> = external 1 ```
     monitor(RoomId) ->
         case get_proc(RoomId) of
-            none        -> none;
-            {some, Pid} -> {some, erlang:monitor(process, Pid)}
+            error     -> error;
+            {ok, Pid} -> {ok, erlang:monitor(process, Pid)}
         end.
   ```
 

@@ -112,8 +112,8 @@ end = struct
     separate_submitted_cards(SubmitterHand0, SubmittedCards) ->
         SubmitterHand1 = SubmitterHand0 -- SubmittedCards,
         case erlang:length(SubmitterHand1) + erlang:length(SubmittedCards) =:= erlang:length(SubmitterHand0) of
-            true  -> {some, SubmitterHand1};
-            false -> none
+            true  -> {ok, SubmitterHand1};
+            false -> error
         end.
   ```
 
@@ -124,9 +124,9 @@ end = struct
             %% `Table0' must be other than `starting' here,
             %% Since the first submitter of a trick after the first trick
             %% must gain at least one card.
-                {some, {Tag, {X, XOrCloseds ++ [closed]}}};
+                {ok, {Tag, {X, XOrCloseds ++ [closed]}}};
             _ ->
-                none
+                error
         end.
   ```
 
