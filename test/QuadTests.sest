@@ -29,7 +29,8 @@ module QuadTests = #[test] struct
         -got Quad.map(f, {4, 4, 2, 3}))
     end)
 
-  type elem = X | Y | Z | W | A
+  type elem =
+    | X | Y | Z | W | A
 
   val update_test() =
     Testing.list(
