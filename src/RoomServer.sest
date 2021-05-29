@@ -27,6 +27,8 @@ module RoomServer :> sig
 
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
 
+  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
+
 end = struct
   open Stdlib
   open Types

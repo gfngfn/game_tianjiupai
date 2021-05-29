@@ -17,4 +17,22 @@ module Room = struct
     do res <- RoomServerSup.start_child(-room_id room_id, -room_name room_name) in
     return(Result.map(fun(proc) -> room_id end, res))
 
+  val get_whole_state(room_id : room_id) = act
+    RoomServer.get_whole_state(room_id)
+
+  val get_personal_state(room_id, user_id) = act
+    RoomServer.get_personal_state(room_id, user_id)
+
+  val attend(room_id, user_id) = act
+    RoomServer.attend(room_id, user_id)
+
+  val exit(room_id, user_id) = act
+    RoomServer.exit(room_id, user_id)
+
+  val send_chat(room_id, from, text) = act
+    RoomServer.send_chat(room_id, from, text)
+
+  val monitor(room_id) = act
+    RoomServer.monitor(room_id)
+
 end
