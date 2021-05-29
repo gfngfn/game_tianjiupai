@@ -1,0 +1,65 @@
+import Types
+import UserServerSup
+import UserServer
+import Room
+
+module User :> sig
+  open Stdlib
+  open Types
+
+  val create<$a> : fun(binary) -> [$a]result<user_id, GenServer.start_link_error>
+
+  val exists<$a> : fun(user_id) -> [$a]bool
+
+  val get_name<$a> : fun(user_id) -> [$a]option<binary>
+
+  val get_info<$a> : fun(user_id) -> [$a]option<{user_name : binary, belongs_to : option<room_id>}>
+
+  val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
+
+  val get_room<$a> : fun(user_id) -> [$a]option<room_id>
+
+  val send_chat<$a> : fun(user_id, binary) -> [$a]option<unit>
+
+  val set_websocket_connection<$a> : fun(user_id, RawValue.t) -> [$a]option<unit>
+
+end = struct
+  open Stdlib
+  open Types
+
+  val generate_user_id<$a> : fun() -> [$a]user_id = external 0 ```
+    generate_user_id() ->
+        Uuid = uuid:get_v4(),
+        list_to_binary(uuid:uuid_to_string(Uuid)).
+  ```
+
+  val create(user_name) = act
+    do user_id <- generate_user_id() in
+    do res <- UserServerSup.start_child(-user_id user_id, -user_name user_name) in
+    return(Result.map(fun(proc) -> user_id end, res))
+
+  val exists(user_id) = act
+    UserServer.exists(user_id)
+
+  val get_name(user_id) = act
+    UserServer.get_name(user_id)
+
+  val get_info(user_id) = act
+    UserServer.get_user_state(user_id)
+
+  val set_room(user_id, room_id) = act
+    UserServer.set_room(user_id, room_id)
+
+  val get_room(user_id) = act
+    UserServer.get_room(user_id)
+
+  val send_chat(user_id, text) = act
+    do opt <- get_room(user_id) in
+    case opt of
+    | None          -> return(None)
+    | Some(room_id) -> Room.send_chat(room_id, user_id, text)
+    end
+
+  val set_websocket_connection(user_id, ws_pid) = act
+    UserServer.set_websocket_connection(user_id, ws_pid)
+end

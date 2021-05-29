@@ -84,11 +84,6 @@ monitor(RoomId) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
--spec generate_room_id() -> binary().
-generate_room_id() ->
-    Uuid = uuid:get_v4(),
-    list_to_binary(uuid:uuid_to_string(Uuid)).
-
 recordify_whole_room_state(Map) ->
     #{
         room_id    := RoomId,
