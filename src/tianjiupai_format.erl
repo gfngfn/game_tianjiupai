@@ -1,7 +1,5 @@
 -module(tianjiupai_format).
 
--include("tianjiupai.hrl").
-
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
@@ -111,23 +109,20 @@ decode_enter_room_request(ReqBody) ->
 
 -spec encode_enter_room_response(tianjiupai:personal_room_state()) -> binary().
 encode_enter_room_response(PersonalStateMap) ->
-    PersonalState = recordify_personal_room_state(PersonalStateMap),
-    encode_personal_state(PersonalState).
+    encode_personal_state(PersonalStateMap).
 
 -spec encode_get_personal_room_response(tianjiupai:personal_room_state()) -> binary().
 encode_get_personal_room_response(PersonalStateMap) ->
-    PersonalState = recordify_personal_room_state(PersonalStateMap),
-    encode_personal_state(PersonalState).
+    encode_personal_state(PersonalStateMap).
 
 -spec encode_get_all_rooms_response([tianjiupai:whole_room_state()]) -> binary().
 encode_get_all_rooms_response(WholeStateMaps) ->
-    WholeStates = lists:map(fun(Map) -> recordify_whole_room_state(Map) end, WholeStateMaps),
-    WholeStateObjs = lists:map(fun make_room_summary_object/1, WholeStates),
+    WholeStateObjs = lists:map(fun make_room_summary_object/1, WholeStateMaps),
     jsone:encode(#{rooms => WholeStateObjs}).
 
--spec encode_personal_state(#personal_room_state{}) -> binary().
-encode_personal_state(PersonalState) ->
-    PersonalStateObj = make_personal_state_object(PersonalState),
+-spec encode_personal_state(tianjiupai:personal_room_state()) -> binary().
+encode_personal_state(PersonalStateMap) ->
+    PersonalStateObj = make_personal_state_object(PersonalStateMap),
     jsone:encode(PersonalStateObj).
 
 -spec encode_failure_response(Reason :: term()) -> binary().
@@ -154,64 +149,6 @@ decode_command(Data) ->
 encode_notify_log(Log) ->
     NotifyLogObj = make_notify_log_object(Log),
     jsone:encode(NotifyLogObj).
-
--spec recordify_whole_room_state(tianjiupai:whole_room_state()) -> #whole_room_state{}.
-recordify_whole_room_state(Map) ->
-    #{
-        room_id    := RoomId,
-        room_name  := RoomName,
-        members    := Members,
-        is_playing := IsPlaying
-    } = Map,
-    #whole_room_state{
-        room_id    = RoomId,
-        room_name  = RoomName,
-        members    = Members,
-        is_playing = IsPlaying
-    }.
-
--spec recordify_personal_room_state(tianjiupai:personal_room_state()) -> #personal_room_state{}.
-recordify_personal_room_state(Map) ->
-    #{
-        room_id    := RoomId,
-        room_name  := RoomName,
-        logs       := Logs,
-        observable := Observable
-    } = Map,
-    #personal_room_state{
-        room_id    = RoomId,
-        room_name  = RoomName,
-        logs       = Logs,
-        observable = recordify_observable_room_state(Observable)
-    }.
-
-recordify_observable_room_state({waiting, _} = Waiting) ->
-    Waiting;
-recordify_observable_room_state({playing, ObservableGameState}) ->
-    #{
-        meta              := Meta,
-        observable_inning := ObservableInning,
-        snapshot_id       := SnapshotId
-    } = ObservableGameState,
-    {playing, #observable_game_state{
-        meta              = Meta,
-        observable_inning = recordify_observable_inning_state(ObservableInning),
-        snapshot_id       = SnapshotId
-    }}.
-
-recordify_observable_inning_state(ObservableInning) ->
-    #{
-        starts_at := StartsAt,
-        your_hand := YourHand,
-        gains     := Gains,
-        table     := Table
-    } = ObservableInning,
-    #observable_inning_state{
-        starts_at = StartsAt,
-        your_hand = YourHand,
-        gains     = Gains,
-        table     = Table
-    }.
 
 make_flags_object(MaybeInfo) ->
     case MaybeInfo of
@@ -266,29 +203,28 @@ make_room_object(RoomId, RoomName) ->
         room_name  => RoomName
     }.
 
--spec make_room_summary_object(#whole_room_state{}) -> term().
-make_room_summary_object(WholeRoomState) ->
-    #whole_room_state{
-        room_id    = RoomId,
-        room_name  = RoomName,
-        is_playing = IsPlaying,
-        members    = Members
-    } = WholeRoomState,
+-spec make_room_summary_object(tianjiupai:whole_room_state()) -> term().
+make_room_summary_object(WholeStateMap) ->
+    #{
+        room_id    := RoomId,
+        room_name  := RoomName,
+        members    := Members,
+        is_playing := IsPlaying
+    } = WholeStateMap,
     #{
         room       => make_room_object(RoomId, RoomName),
         is_playing => IsPlaying,
         members    => Members
     }.
 
-%% TODO: replace room states with personally observed states
--spec make_personal_state_object(#personal_room_state{}) -> term().
-make_personal_state_object(PersonalState) ->
-    #personal_room_state{
-        room_id    = RoomId,
-        room_name  = RoomName,
-        logs       = Logs,
-        observable = Observable
-    } = PersonalState,
+-spec make_personal_state_object(tianjiupai:personal_room_state()) -> term().
+make_personal_state_object(PersonalStateMap) ->
+    #{
+        room_id    := RoomId,
+        room_name  := RoomName,
+        logs       := Logs,
+        observable := Observable
+    } = PersonalStateMap,
     case Observable of
         {waiting, Members} ->
             #{
@@ -305,13 +241,13 @@ make_personal_state_object(PersonalState) ->
             }
     end.
 
--spec make_observable_game_state_object(#observable_game_state{}) -> term().
-make_observable_game_state_object(ObservableGameState) ->
-    #observable_game_state{
-        meta              = GameMeta,
-        observable_inning = ObservableInning,
-        snapshot_id       = SnapshotId
-    } = ObservableGameState,
+-spec make_observable_game_state_object(tianjiupai:observable_game_state()) -> term().
+make_observable_game_state_object(ObservableGameStateMap) ->
+    #{
+        meta              := GameMeta,
+        observable_inning := ObservableInning,
+        snapshot_id       := SnapshotId
+    } = ObservableGameStateMap,
     GameMetaObj = make_game_meta_object(GameMeta),
     ObservableInningObj = make_observable_inning_state_object(ObservableInning),
     #{
@@ -320,19 +256,18 @@ make_observable_game_state_object(ObservableGameState) ->
         snapshot_id       => SnapshotId
     }.
 
-
--spec make_observable_inning_state_object(#observable_inning_state{}) -> term().
-make_observable_inning_state_object(ObservableInning) ->
-    #observable_inning_state{
-        starts_at = StartSeat,
-        your_hand = Hand,
-        gains     = GainedQuad,
-        table     = Table
-    } = ObservableInning,
+-spec make_observable_inning_state_object(tianjiupai:observable_inning_state()) -> term().
+make_observable_inning_state_object(ObservableInningMap) ->
     #{
-        starts_at => StartSeat,
-        your_hand => lists:map(fun make_card_object/1, Hand),
-        gains     => make_quad_object(fun make_gained_object/1, GainedQuad),
+        starts_at := StartsAt,
+        your_hand := YourHand,
+        gains     := Gains,
+        table     := Table
+    } = ObservableInningMap,
+    #{
+        starts_at => StartsAt,
+        your_hand => lists:map(fun make_card_object/1, YourHand),
+        gains     => make_quad_object(fun make_gained_object/1, Gains),
         table     => make_table_object(Table)
     }.
 
@@ -417,24 +352,24 @@ make_card_object(Card) ->
 make_gained_object(Gained) ->
     lists:map(fun make_card_object/1, Gained).
 
--spec make_game_player_object(#game_player{}) -> term().
+-spec make_game_player_object(tianjiupai:game_player()) -> term().
 make_game_player_object(GamePlayer) ->
-    #game_player{
-        user_id = UserId,
-        score   = Score
+    #{
+        user_id := UserId,
+        score   := Score
     } = GamePlayer,
     #{
         user_id => UserId,
         score   => Score
     }.
 
--spec make_game_meta_object(#game_meta{}) -> term().
+-spec make_game_meta_object(tianjiupai:game_meta()) -> term().
 make_game_meta_object(GameMeta) ->
-    #game_meta{
-        inning_index     = InningIndex,
-        num_consecutives = NumConsecutives,
-        parent_seat      = ParentSeat,
-        players          = GamePlayerQuad
+    #{
+        inning_index     := InningIndex,
+        num_consecutives := NumConsecutives,
+        parent_seat      := ParentSeat,
+        players          := GamePlayerQuad
     } = GameMeta,
     #{
         inning_index     => InningIndex,
