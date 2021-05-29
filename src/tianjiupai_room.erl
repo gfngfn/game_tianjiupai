@@ -24,48 +24,37 @@
 %%====================================================================================================
 -type log() :: tianjiupai_room_server:log().
 
--define(ROOM_SERVER_MODULE, 'Tianjiupai.RoomServer').
+-define(ROOM_FRONT, 'Tianjiupai.Room').
 
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
 -spec create(RoomName :: binary()) -> {ok, tianjiupai:room_id()} | {error, Reason :: term()}.
 create(RoomName) ->
-    RoomId = generate_room_id(),
-    case tianjiupai_room_server_sup:start_child(RoomId, RoomName) of
-        {ok, _Pid}       -> {ok, RoomId};
-        {error, _} = Err -> Err
-    end.
+    ?ROOM_FRONT:create(RoomName).
 
 -spec get_all_rooms() -> [#whole_room_state{}].
 get_all_rooms() ->
-    RoomServerProcs = tianjiupai_room_server_sup:which_children(),
-    lists:filtermap(
-        fun(RoomServerProc) ->
-            case ?ROOM_SERVER_MODULE:get_whole_state_by_proc(RoomServerProc) of
-                {ok, Map} -> {true, recordify_whole_room_state(Map)};
-                error     -> false
-            end
-        end,
-        RoomServerProcs).
+    Maps = ?ROOM_FRONT:get_all_rooms(),
+    lists:map(fun(Map) -> recordify_whole_room_state(Map) end, Maps).
 
 -spec get_whole_state(tianjiupai:room_id()) -> {ok, #whole_room_state{}} | {error, Reason :: term()}.
 get_whole_state(RoomId) ->
-    case ?ROOM_SERVER_MODULE:get_whole_state(RoomId) of
+    case ?ROOM_FRONT:get_whole_state(RoomId) of
         {ok, Map} -> {ok, recordify_whole_room_state(Map)};
         error     -> {error, failed_to_get_whole_state}
     end.
 
 -spec get_personal_state(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
 get_personal_state(RoomId, UserId) ->
-    case ?ROOM_SERVER_MODULE:get_personal_state(RoomId, UserId) of
+    case ?ROOM_FRONT:get_personal_state(RoomId, UserId) of
         {ok, Map} -> {ok, recordify_personal_room_state(Map)};
         error     -> {error, failed_to_get_personal_state}
     end.
 
 -spec attend(tianjiupai:room_id(), tianjiupai:user_id()) -> {ok, #personal_room_state{}} | {error, Reason :: term()}.
 attend(RoomId, UserId) ->
-    Result = ?ROOM_SERVER_MODULE:attend(RoomId, UserId),
+    Result = ?ROOM_FRONT:attend(RoomId, UserId),
     io:format("attend (result: ~p)~n", [Result]),
     case Result of
         {ok, Map} -> {ok, recordify_personal_room_state(Map)};
@@ -74,20 +63,20 @@ attend(RoomId, UserId) ->
 
 -spec exit(tianjiupai:room_id(), tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
 exit(RoomId, UserId) ->
-    case ?ROOM_SERVER_MODULE:exit(RoomId, UserId) of
+    case ?ROOM_FRONT:exit(RoomId, UserId) of
         {ok, ok} -> ok;
         error    -> {error, failed_to_exit}
     end.
 
 send_chat(RoomId, From, Text) ->
-    case ?ROOM_SERVER_MODULE:send_chat(RoomId, From, Text) of
+    case ?ROOM_FRONT:send_chat(RoomId, From, Text) of
         {ok, ok} -> ok;
         error    -> {error, failed_to_send_chat}
     end.
 
 -spec monitor(tinajiupai:room_id()) -> {ok, reference()} | {error, {room_not_found, tianjiupai:room_id()}}.
 monitor(RoomId) ->
-    case ?ROOM_SERVER_MODULE:monitor(RoomId) of
+    case ?ROOM_FRONT:monitor(RoomId) of
         {ok, MonitorRef} -> {ok, MonitorRef};
         error            -> {error, {room_not_found, RoomId}}
     end.

@@ -14,8 +14,8 @@ dependencies:
       type: "git"
       repository: "https://github.com/gfngfn/sesterl_stdlib"
       spec:
-        type: "branch"
-        value: "master"
+        type: "tag"
+        value: "v0.1.2"
 
 test_dependencies:
   - name: "sesterl_testing"

@@ -1,0 +1,83 @@
+import Types
+import RoomServer
+
+module RoomServerSup :> sig
+  open Stdlib
+  open Types
+
+  type info :: o
+
+  type proc :: o
+
+  val start_link<$a> : fun() -> [$a]result<proc, Supervisor.Static.start_link_error>
+
+  val start_child<$a> : fun(-room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, GenServer.start_link_error>
+
+  val which_children<$a> : fun() -> [$a]list<RoomServer.proc>
+
+end = struct
+  open Stdlib
+  open Types
+
+  module SD = Supervisor.Dynamic
+
+  val start_child_impl(start_arg : {room_id, binary}) = act
+    let {room_id, room_name} = start_arg in
+    SD.make_child_proc(fun() -> act
+      do res <- RoomServer.start_link(room_id, room_name) in
+      return(Result.map(RoomServer.as_pid, res))
+    end)
+
+  module Callback = struct
+    type init_arg = unit
+
+    type info =
+      | InfoDummy
+
+    type global = unit
+
+    type start_arg = {room_id, binary}
+
+    type child_info = RoomServer.info
+
+    val init(init_arg) : [info]SD.initialized<info, start_arg, child_info> = act
+      let sup_flags = SD.make_sup_flags() in
+      let child_spec =
+        SD.make_child_spec(-start (freeze start_child_impl(_)))
+      in
+      SD.init_ok(sup_flags, child_spec)
+
+  end
+
+  module Impl = SD.Make(Callback)
+
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val start_link() = act
+    Impl.start_link_name({}, -name Global({}))
+
+  val start_child(-room_id room_id, -room_name room_name) = act
+    do opt <- Impl.where_is_global({}) in
+    case opt of
+    | Some(proc) ->
+        do res <- Impl.start_child(proc, {room_id, room_name}) in
+        return(Result.map(RoomServer.from_pid, res))
+
+    | None ->
+        return(Error(RawValue.forget("supervisor not found")))
+    end
+
+  val which_children() = act
+    do opt <- Impl.where_is_global({}) in
+    case opt of
+    | Some(proc) ->
+        do pids <- Impl.which_children(proc) in
+        return(List.map(RoomServer.from_pid, pids))
+
+    | None ->
+        return([])
+    end
+
+end
