@@ -109,18 +109,21 @@ decode_enter_room_request(ReqBody) ->
             {error, {exception, Class, Reason}}
     end.
 
--spec encode_enter_room_response(#personal_room_state{}) -> binary().
-encode_enter_room_response(PersonalState) ->
+-spec encode_enter_room_response(term()) -> binary().
+encode_enter_room_response(PersonalStateMap) ->
+    PersonalState = recordify_personal_room_state(PersonalStateMap),
     encode_personal_state(PersonalState).
 
--spec encode_get_personal_room_response(#personal_room_state{}) -> binary().
-encode_get_personal_room_response(PersonalState) ->
+-spec encode_get_personal_room_response(term()) -> binary().
+encode_get_personal_room_response(PersonalStateMap) ->
+    PersonalState = recordify_personal_room_state(PersonalStateMap),
     encode_personal_state(PersonalState).
 
--spec encode_get_all_rooms_response([#whole_room_state{}]) -> binary().
-encode_get_all_rooms_response(RoomSummaries) ->
-    RoomSummaryObjs = lists:map(fun make_room_summary_object/1, RoomSummaries),
-    jsone:encode(#{rooms => RoomSummaryObjs}).
+-spec encode_get_all_rooms_response([term()]) -> binary().
+encode_get_all_rooms_response(WholeStateMaps) ->
+    WholeStates = lists:map(fun(Map) -> recordify_whole_room_state(Map) end, WholeStateMaps),
+    WholeStateObjs = lists:map(fun make_room_summary_object/1, WholeStates),
+    jsone:encode(#{rooms => WholeStateObjs}).
 
 -spec encode_personal_state(#personal_room_state{}) -> binary().
 encode_personal_state(PersonalState) ->
@@ -151,6 +154,62 @@ decode_command(Data) ->
 encode_notify_log(Log) ->
     NotifyLogObj = make_notify_log_object(Log),
     jsone:encode(NotifyLogObj).
+
+recordify_whole_room_state(Map) ->
+    #{
+        room_id    := RoomId,
+        room_name  := RoomName,
+        members    := Members,
+        is_playing := IsPlaying
+    } = Map,
+    #whole_room_state{
+        room_id    = RoomId,
+        room_name  = RoomName,
+        members    = Members,
+        is_playing = IsPlaying
+    }.
+
+recordify_personal_room_state(Map) ->
+    #{
+        room_id    := RoomId,
+        room_name  := RoomName,
+        logs       := Logs,
+        observable := Observable
+    } = Map,
+    #personal_room_state{
+        room_id    = RoomId,
+        room_name  = RoomName,
+        logs       = Logs,
+        observable = recordify_observable_room_state(Observable)
+    }.
+
+recordify_observable_room_state({waiting, _} = Waiting) ->
+    Waiting;
+recordify_observable_room_state({playing, ObservableGameState}) ->
+    #{
+        meta              := Meta,
+        observable_inning := ObservableInning,
+        snapshot_id       := SnapshotId
+    } = ObservableGameState,
+    {playing, #observable_game_state{
+        meta              = Meta,
+        observable_inning = recordify_observable_inning_state(ObservableInning),
+        snapshot_id       = SnapshotId
+    }}.
+
+recordify_observable_inning_state(ObservableInning) ->
+    #{
+        starts_at := StartsAt,
+        your_hand := YourHand,
+        gains     := Gains,
+        table     := Table
+    } = ObservableInning,
+    #observable_inning_state{
+        starts_at = StartsAt,
+        your_hand = YourHand,
+        gains     = Gains,
+        table     = Table
+    }.
 
 make_flags_object(MaybeInfo) ->
     case MaybeInfo of

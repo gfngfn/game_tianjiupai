@@ -165,8 +165,7 @@ provide_json(Req0, State) ->
         case State of
             #state{method = <<"GET">>, endpoint = all_rooms} ->
                 RoomStateMaps = ?ROOM_FRONT:get_all_rooms(),
-                RoomStates = lists:map(fun(Map) -> recordify_whole_room_state(Map) end, RoomStateMaps),
-                tianjiupai_format:encode_get_all_rooms_response(RoomStates);
+                tianjiupai_format:encode_get_all_rooms_response(RoomStateMaps);
             #state{
                 method       = <<"GET">>,
                 endpoint     = {specific_room_and_user, RoomId, UserId},
@@ -176,8 +175,7 @@ provide_json(Req0, State) ->
                     true ->
                         case ?ROOM_FRONT:get_personal_state(RoomId, UserId) of
                             {ok, PersonalStateMap} ->
-                                PersonalState = recordify_personal_room_state(PersonalStateMap),
-                                tianjiupai_format:encode_get_personal_room_response(PersonalState);
+                                tianjiupai_format:encode_get_personal_room_response(PersonalStateMap);
                             error ->
                                 tianjiupai_format:encode_failure_response(failed_to_get_whole_state)
                                 %% TODO: error
@@ -298,8 +296,7 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                                     Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
                                     {false, Req2};
                                 {ok, PersonalStateMap} ->
-                                    PersonalState = recordify_personal_room_state(PersonalStateMap),
-                                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalState),
+                                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalStateMap),
                                     Req2 = cowboy_req:set_resp_body(RespBody, Req1),
                                     {true, Req2}
                             end;
@@ -341,59 +338,3 @@ validate_cookie(MaybeInfo, UserId) ->
 make_flags_from_cookie(MaybeInfo) ->
     JsonBin = tianjiupai_format:encode_flags_object(MaybeInfo),
     <<"'", JsonBin/binary, "'">>.
-
-recordify_whole_room_state(Map) ->
-    #{
-        room_id    := RoomId,
-        room_name  := RoomName,
-        members    := Members,
-        is_playing := IsPlaying
-    } = Map,
-    #whole_room_state{
-        room_id    = RoomId,
-        room_name  = RoomName,
-        members    = Members,
-        is_playing = IsPlaying
-    }.
-
-recordify_personal_room_state(Map) ->
-    #{
-        room_id    := RoomId,
-        room_name  := RoomName,
-        logs       := Logs,
-        observable := Observable
-    } = Map,
-    #personal_room_state{
-        room_id    = RoomId,
-        room_name  = RoomName,
-        logs       = Logs,
-        observable = recordify_observable_room_state(Observable)
-    }.
-
-recordify_observable_room_state({waiting, _} = Waiting) ->
-    Waiting;
-recordify_observable_room_state({playing, ObservableGameState}) ->
-    #{
-        meta              := Meta,
-        observable_inning := ObservableInning,
-        snapshot_id       := SnapshotId
-    } = ObservableGameState,
-    {playing, #observable_game_state{
-        meta              = Meta,
-        observable_inning = recordify_observable_inning_state(ObservableInning),
-        snapshot_id       = SnapshotId
-    }}.
-
-recordify_observable_inning_state(ObservableInning) ->
-    #{
-        starts_at := StartsAt,
-        your_hand := YourHand,
-        gains     := Gains,
-        table     := Table
-    } = ObservableInning,
-    #observable_inning_state{
-        starts_at = StartsAt,
-        your_hand = YourHand,
-        gains     = Gains,
-        table     = Table
-    }.
