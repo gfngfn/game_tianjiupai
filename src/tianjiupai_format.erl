@@ -31,6 +31,8 @@
     {set_user_id, tianjiupai:user_id()}
   | {comment, binary()}.
 
+-type encodable() :: term().
+
 -define(LABEL_ONLY(_Label_), #{'_label' => _Label_}).
 -define(LABELED(_Label_, _Arg_), #{'_label' => _Label_, '_arg' => _Arg_}).
 
@@ -178,12 +180,12 @@ make_flags_object(MaybeInfo) ->
             end
     end.
 
--spec make_notify_log_object(tianjiupai:log()) -> term().
+-spec make_notify_log_object(tianjiupai:log()) -> encodable().
 make_notify_log_object(Log) ->
     LogObj = make_log_object(Log),
     ?LABELED(<<"NotifyLog">>, LogObj).
 
--spec make_log_object(tianjiupai:log()) -> term().
+-spec make_log_object(tianjiupai:log()) -> encodable().
 make_log_object(Log) ->
     case Log of
         {log_comment, From, Text} ->
@@ -196,14 +198,14 @@ make_log_object(Log) ->
             ?LABEL_ONLY(<<"GameStart">>)
     end.
 
--spec make_room_object(tianjiupai:room_id(), binary()) -> term().
+-spec make_room_object(tianjiupai:room_id(), binary()) -> encodable().
 make_room_object(RoomId, RoomName) ->
     #{
         room_id    => RoomId,
         room_name  => RoomName
     }.
 
--spec make_room_summary_object(tianjiupai:whole_room_state()) -> term().
+-spec make_room_summary_object(tianjiupai:whole_room_state()) -> encodable().
 make_room_summary_object(WholeStateMap) ->
     #{
         room_id    := RoomId,
@@ -217,7 +219,7 @@ make_room_summary_object(WholeStateMap) ->
         members    => Members
     }.
 
--spec make_personal_state_object(tianjiupai:personal_room_state()) -> term().
+-spec make_personal_state_object(tianjiupai:personal_room_state()) -> encodable().
 make_personal_state_object(PersonalStateMap) ->
     #{
         room_id    := RoomId,
@@ -241,7 +243,7 @@ make_personal_state_object(PersonalStateMap) ->
             }
     end.
 
--spec make_observable_game_state_object(tianjiupai:observable_game_state()) -> term().
+-spec make_observable_game_state_object(tianjiupai:observable_game_state()) -> encodable().
 make_observable_game_state_object(ObservableGameStateMap) ->
     #{
         meta              := GameMeta,
@@ -256,7 +258,7 @@ make_observable_game_state_object(ObservableGameStateMap) ->
         snapshot_id       => SnapshotId
     }.
 
--spec make_observable_inning_state_object(tianjiupai:observable_inning_state()) -> term().
+-spec make_observable_inning_state_object(tianjiupai:observable_inning_state()) -> encodable().
 make_observable_inning_state_object(ObservableInningMap) ->
     #{
         starts_at := StartsAt,
@@ -271,7 +273,7 @@ make_observable_inning_state_object(ObservableInningMap) ->
         table     => make_table_object(Table)
     }.
 
-%% `Table : Tianjiupai.Inning.table_state'
+-spec make_table_object(tianjiupai:table_state()) -> encodable().
 make_table_object(Table) ->
     case Table of
         starting ->
@@ -315,11 +317,11 @@ make_card_wen_object(Wen) ->
 make_card_wu_object(Wu) ->
     Wu.
 
--spec make_ok_object(ok) -> term().
+-spec make_ok_object(ok) -> encodable().
 make_ok_object(ok) ->
     ?LABEL_ONLY(<<"Unit">>).
 
--spec make_bool_object(boolean()) -> term().
+-spec make_bool_object(boolean()) -> encodable().
 make_bool_object(true)  -> true;
 make_bool_object(false) -> false.
 
@@ -341,18 +343,18 @@ make_closed_or_objects(F, XOrCloseds) ->
         end,
         XOrCloseds).
 
-%% `Card : Tianjiupai.Card.t'
+-spec make_card_object(tianjiupai:card()) -> encodable().
 make_card_object(Card) ->
     case Card of
-        {wen, Wen} -> ?LABELED(<<"Wen">>, Wen);
-        {wu, Wu}   -> ?LABELED(<<"Wu">>, Wu)
+        {wen, Wen} -> ?LABELED(<<"Wen">>, make_card_wen_object(Wen));
+        {wu, Wu}   -> ?LABELED(<<"Wu">>, make_card_wu_object(Wu))
     end.
 
-%% `Gained : list<Tianjiupai.Card.t>'
+-spec make_gained_object([tianjiupai:card()]) -> encodable().
 make_gained_object(Gained) ->
     lists:map(fun make_card_object/1, Gained).
 
--spec make_game_player_object(tianjiupai:game_player()) -> term().
+-spec make_game_player_object(tianjiupai:game_player()) -> encodable().
 make_game_player_object(GamePlayer) ->
     #{
         user_id := UserId,
@@ -363,7 +365,7 @@ make_game_player_object(GamePlayer) ->
         score   => Score
     }.
 
--spec make_game_meta_object(tianjiupai:game_meta()) -> term().
+-spec make_game_meta_object(tianjiupai:game_meta()) -> encodable().
 make_game_meta_object(GameMeta) ->
     #{
         inning_index     := InningIndex,
@@ -378,8 +380,8 @@ make_game_meta_object(GameMeta) ->
         players          => make_quad_object(fun make_game_player_object/1, GamePlayerQuad)
     }.
 
--spec make_quad_object(F, tianjiupai_quad:quad(X)) -> term() when
-    F :: fun((X) -> term()),
+-spec make_quad_object(F, tianjiupai:quad(X)) -> encodable() when
+    F :: fun((X) -> encodable()),
     X :: term().
 make_quad_object(F, Quad) ->
     {X0, X1, X2, X3} = Quad,
