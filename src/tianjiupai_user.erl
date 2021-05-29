@@ -82,7 +82,7 @@ set_websocket_connection(UserId, WsPid) ->
 
 -spec notify(
     To   :: tianjiupai:user_id(),
-    Logs :: [tianjiupai_room:log()]
+    Logs :: [tianjiupai:log()]
 ) ->
     ok.
 notify(UserId, Logs) ->

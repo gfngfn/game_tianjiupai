@@ -29,7 +29,7 @@
 }).
 
 -type message() ::
-    {logs, [tianjiupai_room:log()]}.
+    {logs, [tianjiupai:log()]}.
 
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
@@ -86,7 +86,7 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec notify(tianjiupai:user_id(), [tianjiupai_room:log()]) -> ok | {error, error_reason()}.
+-spec notify(tianjiupai:user_id(), [tianjiupai:log()]) -> ok | {error, error_reason()}.
 notify(UserId, Logs) ->
     try
         _ = global:send(name(UserId), {logs, Logs}),

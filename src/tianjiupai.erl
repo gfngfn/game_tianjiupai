@@ -5,7 +5,8 @@
 %%====================================================================================================
 -export_type([
     user_id/0,
-    room_id/0
+    room_id/0,
+    log/0
 ]).
 
 %%====================================================================================================
@@ -14,3 +15,9 @@
 -type user_id() :: binary().
 
 -type room_id() :: binary().
+
+-type log() ::
+    {log_comment, user_id(), binary()}
+  | {log_entered, user_id()}
+  | {log_exited, user_id()}
+  | log_game_start.

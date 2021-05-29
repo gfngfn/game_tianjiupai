@@ -122,9 +122,9 @@ encode_get_all_rooms_response(RoomSummaries) ->
     RoomSummaryObjs = lists:map(fun make_room_summary_object/1, RoomSummaries),
     jsone:encode(#{rooms => RoomSummaryObjs}).
 
--spec encode_personal_state(tianjiupai_room:room_state()) -> binary().
-encode_personal_state(RoomState) ->
-    PersonalStateObj = make_personal_state_object(RoomState),
+-spec encode_personal_state(#personal_room_state{}) -> binary().
+encode_personal_state(PersonalState) ->
+    PersonalStateObj = make_personal_state_object(PersonalState),
     jsone:encode(PersonalStateObj).
 
 -spec encode_failure_response(Reason :: term()) -> binary().
@@ -147,7 +147,7 @@ decode_command(Data) ->
             {error, {exception, Class, Reason}}
     end.
 
--spec encode_notify_log(tianjiupai_room:log()) -> binary().
+-spec encode_notify_log(tianjiupai:log()) -> binary().
 encode_notify_log(Log) ->
     NotifyLogObj = make_notify_log_object(Log),
     jsone:encode(NotifyLogObj).
@@ -180,12 +180,12 @@ make_flags_object(MaybeInfo) ->
             end
     end.
 
--spec make_notify_log_object(tianjiupai_room:log()) -> term().
+-spec make_notify_log_object(tianjiupai:log()) -> term().
 make_notify_log_object(Log) ->
     LogObj = make_log_object(Log),
     ?LABELED(<<"NotifyLog">>, LogObj).
 
--spec make_log_object(tianjiupai_room:log()) -> term().
+-spec make_log_object(tianjiupai:log()) -> term().
 make_log_object(Log) ->
     case Log of
         {log_comment, From, Text} ->
@@ -221,13 +221,13 @@ make_room_summary_object(WholeRoomState) ->
 
 %% TODO: replace room states with personally observed states
 -spec make_personal_state_object(#personal_room_state{}) -> term().
-make_personal_state_object(PersonalRoomState) ->
+make_personal_state_object(PersonalState) ->
     #personal_room_state{
         room_id    = RoomId,
         room_name  = RoomName,
         logs       = Logs,
         observable = Observable
-    } = PersonalRoomState,
+    } = PersonalState,
     case Observable of
         {waiting, Members} ->
             #{

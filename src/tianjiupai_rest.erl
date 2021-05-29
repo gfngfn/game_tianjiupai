@@ -50,6 +50,8 @@
     session_info :: undefined | tianjiupai_session:info()
 }).
 
+-define(ROOM_FRONT, 'Tianjiupai.Room').
+
 %%====================================================================================================
 %% `cowboy_rest' Callback Functions
 %%====================================================================================================
@@ -162,8 +164,8 @@ provide_json(Req0, State) ->
     RespBody =
         case State of
             #state{method = <<"GET">>, endpoint = all_rooms} ->
-                %% RoomStates :: [tianjiupai_room:room_state()]
-                RoomStates = tianjiupai_room:get_all_rooms(),
+                RoomStateMaps = ?ROOM_FRONT:get_all_rooms(),
+                RoomStates = lists:map(fun(Map) -> recordify_whole_room_state(Map) end, RoomStateMaps),
                 tianjiupai_format:encode_get_all_rooms_response(RoomStates);
             #state{
                 method       = <<"GET">>,
@@ -172,9 +174,13 @@ provide_json(Req0, State) ->
             } ->
                 case validate_cookie(MaybeInfo, UserId) of
                     true ->
-                        case tianjiupai_room:get_personal_state(RoomId, UserId) of
-                            {ok, PersonalState} -> tianjiupai_format:encode_get_personal_room_response(PersonalState);
-                            {error, Reason}     -> tianjiupai_format:encode_failure_response(Reason) % TODO: error
+                        case ?ROOM_FRONT:get_personal_state(RoomId, UserId) of
+                            {ok, PersonalStateMap} ->
+                                PersonalState = recordify_personal_room_state(PersonalStateMap),
+                                tianjiupai_format:encode_get_personal_room_response(PersonalState);
+                            error ->
+                                tianjiupai_format:encode_failure_response(failed_to_get_whole_state)
+                                %% TODO: error
                         end;
                     false ->
                         <<"">> % TODO: error
@@ -252,7 +258,7 @@ handle_room_creation(Req0, MaybeInfo) ->
         {ok, {UserId, RoomName}} ->
             case validate_cookie(MaybeInfo, UserId) of
                 true ->
-                    case tianjiupai_room:create(RoomName) of
+                    case ?ROOM_FRONT:create(RoomName) of
                         {ok, RoomId} ->
                             RespBody = tianjiupai_format:encode_create_room_response(RoomId),
                             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
@@ -274,7 +280,7 @@ handle_room_creation(Req0, MaybeInfo) ->
 -spec handle_attending(
     Req       :: cowboy_req:req(),
     MaybeInfo :: undefined | tinajiupai_session:info(),
-    RoomId    :: tianjiupai_room:room_id()
+    RoomId    :: tianjiupai:room_id()
 ) ->
     {boolean(), cowboy_req:req()}.
 handle_attending(Req0, MaybeInfo, RoomId) ->
@@ -285,12 +291,15 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                 true ->
                     case tianjiupai_user:set_room(UserId, RoomId) of
                         ok ->
-                            case tianjiupai_room:attend(RoomId, UserId) of
+                            Result = ?ROOM_FRONT:attend(RoomId, UserId),
+                            io:format("attend (result: ~p)~n", [Result]),
+                            case Result of
                                 {error, Reason2} ->
                                     Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
                                     {false, Req2};
-                                {ok, PersonalRoomState} ->
-                                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalRoomState),
+                                {ok, PersonalStateMap} ->
+                                    PersonalState = recordify_personal_room_state(PersonalStateMap),
+                                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalState),
                                     Req2 = cowboy_req:set_resp_body(RespBody, Req1),
                                     {true, Req2}
                             end;
@@ -332,3 +341,59 @@ validate_cookie(MaybeInfo, UserId) ->
 make_flags_from_cookie(MaybeInfo) ->
     JsonBin = tianjiupai_format:encode_flags_object(MaybeInfo),
     <<"'", JsonBin/binary, "'">>.
+
+recordify_whole_room_state(Map) ->
+    #{
+        room_id    := RoomId,
+        room_name  := RoomName,
+        members    := Members,
+        is_playing := IsPlaying
+    } = Map,
+    #whole_room_state{
+        room_id    = RoomId,
+        room_name  = RoomName,
+        members    = Members,
+        is_playing = IsPlaying
+    }.
+
+recordify_personal_room_state(Map) ->
+    #{
+        room_id    := RoomId,
+        room_name  := RoomName,
+        logs       := Logs,
+        observable := Observable
+    } = Map,
+    #personal_room_state{
+        room_id    = RoomId,
+        room_name  = RoomName,
+        logs       = Logs,
+        observable = recordify_observable_room_state(Observable)
+    }.
+
+recordify_observable_room_state({waiting, _} = Waiting) ->
+    Waiting;
+recordify_observable_room_state({playing, ObservableGameState}) ->
+    #{
+        meta              := Meta,
+        observable_inning := ObservableInning,
+        snapshot_id       := SnapshotId
+    } = ObservableGameState,
+    {playing, #observable_game_state{
+        meta              = Meta,
+        observable_inning = recordify_observable_inning_state(ObservableInning),
+        snapshot_id       = SnapshotId
+    }}.
+
+recordify_observable_inning_state(ObservableInning) ->
+    #{
+        starts_at := StartsAt,
+        your_hand := YourHand,
+        gains     := Gains,
+        table     := Table
+    } = ObservableInning,
+    #observable_inning_state{
+        starts_at = StartsAt,
+        your_hand = YourHand,
+        gains     = Gains,
+        table     = Table
+    }.

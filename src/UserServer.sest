@@ -1,4 +1,5 @@
 import Types
+import Room
 
 module UserServer :> sig
   open Stdlib
@@ -86,13 +87,8 @@ end = struct
       in
       GenServer.init_ok(state)
 
-    val monitor_room<$a> : fun(room_id) -> [$a]option<monitor_ref> = external 1 ```
-      monitor_room(RoomId) ->
-          case tianjiupai_room:monitor(RoomId) of
-              {error, _}       -> error;
-              {ok, MonitorRef} -> {ok, MonitorRef}
-          end.
-    ```
+    val monitor_room<$a>(room_id) : [$a]option<monitor_ref> = act
+      Room.monitor(room_id)
 
     val monitor<$a> : fun(websocket_proc) -> [$a]monitor_ref = external 1 ```
       monitor(WsProc) ->
