@@ -4,6 +4,8 @@ module UserServer :> sig
   open Stdlib
   open Types
 
+  type info :: o
+
   type proc :: o
 
   val start_link<$a> : fun(user_id, binary) -> [$a]result<proc, GenServer.start_link_error>
@@ -17,6 +19,10 @@ module UserServer :> sig
   val get_room<$a> : fun(user_id) -> [$a]option<room_id>
 
   val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
+
+  val as_pid : fun(proc) -> pid<info>
+
+  val from_pid : fun(pid<info>) -> proc
 
   type websocket_proc = RawValue.t
     /* For external use; corresponds to `pid()` */
@@ -209,6 +215,8 @@ end = struct
 
   module Impl = GenServer.Make(Callback)
 
+  type info = Callback.info
+
   type proc = Impl.proc
 
   val get_proc<$a>(user_id) : [$a]option<proc> = act
@@ -223,6 +231,12 @@ end = struct
 
   val start_link<$a>(user_id : user_id, user_name : binary) : [$a]result<proc, GenServer.start_link_error> = act
     Impl.start_link_name({user_id, user_name}, -name Global(user_id))
+
+  val as_pid(proc) =
+    Impl.as_pid(proc)
+
+  val from_pid(pid) =
+    Impl.from_pid(pid)
 
   val call<$a, $ret>(
     user_id : user_id,
