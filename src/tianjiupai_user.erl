@@ -47,7 +47,7 @@ get_name(UserId) ->
 
 -spec get_info(tianjiupai:user_id()) -> {ok, info()} | {error, Reason :: term()}.
 get_info(UserId) ->
-    case ?USER_FRONT:get_user_state(UserId) of
+    case ?USER_FRONT:get_info(UserId) of
         {ok, #{user_name := UserName, belongs_to := RoomIdOption}} ->
             MaybeRoomId =
                 case RoomIdOption of

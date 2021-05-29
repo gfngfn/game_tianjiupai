@@ -109,17 +109,17 @@ decode_enter_room_request(ReqBody) ->
             {error, {exception, Class, Reason}}
     end.
 
--spec encode_enter_room_response(term()) -> binary().
+-spec encode_enter_room_response(tianjiupai:personal_room_state()) -> binary().
 encode_enter_room_response(PersonalStateMap) ->
     PersonalState = recordify_personal_room_state(PersonalStateMap),
     encode_personal_state(PersonalState).
 
--spec encode_get_personal_room_response(term()) -> binary().
+-spec encode_get_personal_room_response(tianjiupai:personal_room_state()) -> binary().
 encode_get_personal_room_response(PersonalStateMap) ->
     PersonalState = recordify_personal_room_state(PersonalStateMap),
     encode_personal_state(PersonalState).
 
--spec encode_get_all_rooms_response([term()]) -> binary().
+-spec encode_get_all_rooms_response([tianjiupai:whole_room_state()]) -> binary().
 encode_get_all_rooms_response(WholeStateMaps) ->
     WholeStates = lists:map(fun(Map) -> recordify_whole_room_state(Map) end, WholeStateMaps),
     WholeStateObjs = lists:map(fun make_room_summary_object/1, WholeStates),
@@ -155,6 +155,7 @@ encode_notify_log(Log) ->
     NotifyLogObj = make_notify_log_object(Log),
     jsone:encode(NotifyLogObj).
 
+-spec recordify_whole_room_state(tianjiupai:whole_room_state()) -> #whole_room_state{}.
 recordify_whole_room_state(Map) ->
     #{
         room_id    := RoomId,
@@ -169,6 +170,7 @@ recordify_whole_room_state(Map) ->
         is_playing = IsPlaying
     }.
 
+-spec recordify_personal_room_state(tianjiupai:personal_room_state()) -> #personal_room_state{}.
 recordify_personal_room_state(Map) ->
     #{
         room_id    := RoomId,
