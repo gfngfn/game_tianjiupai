@@ -13,6 +13,8 @@ module RoomServerSup :> sig
 
   val start_child<$a> : fun(-room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, GenServer.start_link_error>
 
+  val which_children<$a> : fun() -> [$a]list<RoomServer.proc>
+
 end = struct
   open Stdlib
   open Types
@@ -65,6 +67,17 @@ end = struct
 
     | None ->
         return(Error(RawValue.forget("supervisor not found")))
+    end
+
+  val which_children() = act
+    do opt <- Impl.where_is_global({}) in
+    case opt of
+    | Some(proc) ->
+        do pids <- Impl.which_children(proc) in
+        return(List.map(RoomServer.from_pid, pids))
+
+    | None ->
+        return([])
     end
 
 end

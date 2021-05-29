@@ -19,6 +19,8 @@ module RoomServer :> sig
 
   val get_whole_state<$a> : fun(room_id) -> [$a]option<whole_room_state>
 
+  val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<whole_room_state>
+
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
 
   val send_chat<$a> : fun(room_id, user_id, binary) -> [$a]option<unit>
