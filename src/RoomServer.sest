@@ -4,14 +4,18 @@ import Types
 import Inning
 
 module RoomServer :> sig
+  open Stdlib
   open Types
 
   type info :: o
 
   type proc :: o
 
-  val start_link<$a> : fun(room_id, binary) -> [$a]Stdlib.RawValue.t
-    /* For external use; return values are of the form `{ok, pid()} | error` */
+  val start_link<$a> : fun(room_id, binary) -> [$a]result<proc, GenServer.start_link_error>
+
+  val as_pid : fun(proc) -> pid<info>
+
+  val from_pid : fun(pid<info>) -> proc
 
   val get_whole_state<$a> : fun(room_id) -> [$a]option<whole_room_state>
 
@@ -78,6 +82,10 @@ end = struct
       reversed_logs : list<log>,
       room_state    : internal_room_state,
     }
+
+    type global = room_id
+
+    type stop_reason = RawValue.t
 
     val init(init_arg) = act
       let {room_id, room_name} = init_arg in
@@ -267,42 +275,32 @@ end = struct
 
   type proc = Impl.proc
 
-  val name : fun(room_id) -> RawValue.t = external 1 ```
-    name(RoomId) ->
-        {?MODULE, RoomId}.
-  ```
-
-  val get_proc<$a> : fun(room_id) -> [$a]option<proc> = external 1 ```
-    get_proc(RoomId) ->
-        case global:whereis_name(name(RoomId)) of
-            undefined -> error;
-            Pid       -> {ok, Pid}
-        end.
-  ```
-
-  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t> = external 1 ```
-    monitor(RoomId) ->
-        case get_proc(RoomId) of
+  val monitor_impl<$a> : fun(pack sig end, room_id) -> [$a]option<RawValue.t> = external 2 ```
+    monitor_impl(Impl, RoomId) ->
+        case Impl:where_is_global(RoomId) of
             error     -> error;
             {ok, Pid} -> {ok, erlang:monitor(process, Pid)}
         end.
   ```
 
-  val start_link_impl<$a, $start> : fun($start, RawValue.t, Callback.init_arg) -> [$a]RawValue.t = external 3 ```
-    start_link_impl(Mfargs, Name, InitArg) ->
-        {M, start_link, []} = Mfargs,
-        gen_server:start_link({global, Name}, M, InitArg, []).
-  ```
+  val monitor(room_id) = act
+    monitor_impl(pack Impl : sig end, room_id)
 
-  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]RawValue.t = act
-    start_link_impl(freeze Impl.start_link(_), name(room_id), {room_id, room_name})
+  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]result<proc, GenServer.start_link_error> = act
+    Impl.start_link_name({room_id, room_name}, -name Global(room_id))
+
+  val as_pid(proc) =
+    Impl.as_pid(proc)
+
+  val from_pid(proc) =
+    Impl.from_pid(proc)
 
   val call<$a, $ret>(
     room_id : room_id,
     req     : request_impl,
     f       : fun(response_impl) -> [$a]option<$ret>
   ) : [$a]option<$ret> = act
-    do proc_opt <- get_proc(room_id) in
+    do proc_opt <- Impl.where_is_global(room_id) in
     case proc_opt of
     | None ->
         return(None)

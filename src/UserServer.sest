@@ -1,36 +1,39 @@
 import Types
 
 module UserServer :> sig
+  open Stdlib
+  open Types
 
-  val start_link<$a> : fun(Types.user_id, binary) -> [$a]Stdlib.RawValue.t
-    /* For external use; return values are of the form `{ok, pid()} | error` */
+  type proc :: o
 
-  val get_user_state<$a> : fun(Types.user_id) -> [$a]option<Types.user_state>
+  val start_link<$a> : fun(user_id, binary) -> [$a]result<proc, GenServer.start_link_error>
 
-  val get_name<$a> : fun(Types.user_id) -> [$a]option<binary>
+  val get_user_state<$a> : fun(user_id) -> [$a]option<user_state>
 
-  val exists<$a> : fun(Types.user_id) -> [$a]bool
+  val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
-  val get_room<$a> : fun(Types.user_id) -> [$a]option<Types.room_id>
+  val exists<$a> : fun(user_id) -> [$a]bool
 
-  val set_room<$a> : fun(Types.user_id, Types.room_id) -> [$a]option<unit>
+  val get_room<$a> : fun(user_id) -> [$a]option<room_id>
 
-  type websocket_proc = Stdlib.RawValue.t
+  val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
+
+  type websocket_proc = RawValue.t
     /* For external use; corresponds to `pid()` */
 
-  val set_websocket_connection<$a> : fun(Types.user_id, websocket_proc) -> [$a]option<unit>
+  val set_websocket_connection<$a> : fun(user_id, websocket_proc) -> [$a]option<unit>
 
 end = struct
+  open Stdlib
+  open Types
 
-  include Types
-
-  type websocket_proc = Stdlib.RawValue.t
+  type websocket_proc = RawValue.t
 
   module Callback = struct
 
     type init_arg = {user_id, binary}
 
-    type monitor_ref = Stdlib.RawValue.t
+    type monitor_ref = RawValue.t
 
     type settings = {
       user_id   : user_id,
@@ -57,7 +60,13 @@ end = struct
       | DummyCastMessage
 
     type info =
-      Stdlib.RawValue.t
+      RawValue.t
+
+    type stop_reason =
+      RawValue.t
+
+    type global =
+      user_id
 
     val init(init_arg) = act
       let {user_id, user_name} = init_arg in
@@ -69,7 +78,7 @@ end = struct
           websocket_connection = None,
         }
       in
-      Stdlib.GenServer.init_ok(state)
+      GenServer.init_ok(state)
 
     val monitor_room<$a> : fun(room_id) -> [$a]option<monitor_ref> = external 1 ```
       monitor_room(RoomId) ->
@@ -93,7 +102,7 @@ end = struct
       case req of
       | GetUserState ->
           let belongs_to =
-            Stdlib.Option.map(fun(pair) -> let {room_id, _} = pair in room_id end, state.belongs_to)
+            Option.map(fun(pair) -> let {room_id, _} = pair in room_id end, state.belongs_to)
           in
           let user_state =
             {
@@ -101,12 +110,12 @@ end = struct
               belongs_to = belongs_to,
             }
           in
-          Stdlib.GenServer.reply(UserStateGot(user_state), state)
+          GenServer.reply(UserStateGot(user_state), state)
       | SetRoom(room_id) ->
           do monitor_ref_opt <- monitor_room(room_id) in
           case monitor_ref_opt of
           | None ->
-              Stdlib.GenServer.reply(RoomSet(false), state)
+              GenServer.reply(RoomSet(false), state)
           | Some(monitor_ref_new) ->
               do dummy <-
                 case state.belongs_to of
@@ -115,7 +124,7 @@ end = struct
                 end
               in
               let state = { state | belongs_to = Some({room_id, monitor_ref_new}) } in
-              Stdlib.GenServer.reply(RoomSet(true), state)
+              GenServer.reply(RoomSet(true), state)
           end
       | SetWebsocketConnection(ws_proc) ->
           do dummy <-
@@ -126,14 +135,14 @@ end = struct
           in
           do monitor_ref_new <- monitor(ws_proc) in
           let state = { state | websocket_connection = Some(monitor_ref_new) } in
-          Stdlib.GenServer.reply(WebsocketConnectionSet, state)
+          GenServer.reply(WebsocketConnectionSet, state)
       end
 
     val handle_cast(msg, state) = act
       let _ = print_debug({"unexpected cast message", msg}) in
-      Stdlib.GenServer.no_reply(state)
+      GenServer.no_reply(state)
 
-    val check_down_message : fun(info, monitor_ref) -> option<Stdlib.RawValue.t> = external 2 ```
+    val check_down_message : fun(info, monitor_ref) -> option<RawValue.t> = external 2 ```
       check_down_message(Info, MonitorRef) ->
         case Info of
             {'DOWN', MonitorRef, process, _Pid, Reason} -> {ok, Reason};
@@ -153,7 +162,7 @@ end = struct
       | Some(monitor_ref) -> check_down_message(info, monitor_ref)
       end
 
-    val handle_info(info : Stdlib.RawValue.t, state : state) = act
+    val handle_info(info : RawValue.t, state : state) = act
       let user_id = state.settings.user_id in
       let state =
         case check_room_down(info, state) of
@@ -186,7 +195,7 @@ end = struct
             end
         end
       in
-      Stdlib.GenServer.no_reply(state)
+      GenServer.no_reply(state)
 
     val terminate(state) = act
       let _ =
@@ -198,22 +207,12 @@ end = struct
       return({})
   end
 
-  module Impl = Stdlib.GenServer.Make(Callback)
-
-  val name : fun(room_id) -> Stdlib.RawValue.t = external 1 ```
-    name(RoomId) ->
-        {?MODULE, RoomId}.
-  ```
+  module Impl = GenServer.Make(Callback)
 
   type proc = Impl.proc
 
-  val get_proc<$a> : fun(room_id) -> [$a]option<proc> = external 1 ```
-    get_proc(RoomId) ->
-        case global:whereis_name(name(RoomId)) of
-            undefined -> error;
-            Pid       -> {ok, Pid}
-        end.
-  ```
+  val get_proc<$a>(user_id) : [$a]option<proc> = act
+    Impl.where_is_global(user_id)
 
   val exists(user_id) = act
     do opt <- get_proc(user_id) in
@@ -222,14 +221,8 @@ end = struct
     | Some(_) -> return(true)
     end
 
-  val start_link_impl<$a, $start> : fun($start, Stdlib.RawValue.t, Callback.init_arg) -> [$a]Stdlib.RawValue.t = external 3 ```
-    start_link_impl(Mfargs, Name, InitArg) ->
-        {M, start_link, []} = Mfargs,
-        gen_server:start_link({global, Name}, M, InitArg, []).
-  ```
-
-  val start_link<$a>(room_id : room_id, room_name : binary) : [$a]Stdlib.RawValue.t = act
-    start_link_impl(freeze Impl.start_link(_), name(room_id), {room_id, room_name})
+  val start_link<$a>(user_id : user_id, user_name : binary) : [$a]result<proc, GenServer.start_link_error> = act
+    Impl.start_link_name({user_id, user_name}, -name Global(user_id))
 
   val call<$a, $ret>(
     user_id : user_id,
@@ -254,11 +247,11 @@ end = struct
 
   val get_name(user_id) = act
     do opt <- get_user_state(user_id) in
-    return(Stdlib.Option.map(fun(u) -> u.user_name end, opt))
+    return(Option.map(fun(u) -> u.user_name end, opt))
 
   val get_room(user_id) = act
     do opt <- get_user_state(user_id) in
-    return(Stdlib.Option.bind(opt, fun(u) -> u.belongs_to end))
+    return(Option.bind(opt, fun(u) -> u.belongs_to end))
 
   val set_room(user_id, room_id) = act
     call(user_id, Callback.SetRoom(room_id), fun(resp) -> act
