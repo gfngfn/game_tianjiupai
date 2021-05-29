@@ -19,6 +19,7 @@
 %% Macros & Types
 %%====================================================================================================
 -define(ROOM_SERVER_SUP, 'Tianjiupai.RoomServerSup').
+-define(USER_SERVER_SUP, 'Tianjiupai.UserServerSup').
 
 %%====================================================================================================
 %% `supervisor' Callback Functions
@@ -36,8 +37,8 @@ init(_) ->
             type  => supervisor
         },
         #{
-            id    => tianjiupai_user_server_sup,
-            start => {tianjiupai_user_server_sup, start_link, []},
+            id    => ?USER_SERVER_SUP,
+            start => {?USER_SERVER_SUP, start_link, []},
             type  => supervisor
         }
     ],
