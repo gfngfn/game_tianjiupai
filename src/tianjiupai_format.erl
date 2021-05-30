@@ -269,7 +269,7 @@ make_observable_game_state_object(ObservableGameStateMap) ->
         snapshot_id       := SnapshotId
     } = ObservableGameStateMap,
     GameMetaObj = make_game_meta_object(GameMeta),
-    ObservableInningObj = make_observable_inning_state_object(ObservableInning),
+    ObservableInningObj = make_observable_inning_object(ObservableInning),
     #{
         meta              => GameMetaObj,
         observable_inning => ObservableInningObj,
@@ -277,18 +277,29 @@ make_observable_game_state_object(ObservableGameStateMap) ->
         snapshot_id       => SnapshotId
     }.
 
+-spec make_observable_inning_object(tianjiupai:observable_inning()) -> encodable().
+make_observable_inning_object(ObservableInning) ->
+    case ObservableInning of
+        {observable_during_inning, ObservableInningStateMap} ->
+            ?LABELED(<<"ObservableDuringInning">>,
+                make_observable_inning_state_object(ObservableInningStateMap));
+        {observable_inning_end, GainsQuad} ->
+            ?LABELED(<<"ObservableInningEnd">>,
+                make_quad_object(fun make_gained_object/1, GainsQuad))
+    end.
+
 -spec make_observable_inning_state_object(tianjiupai:observable_inning_state()) -> encodable().
-make_observable_inning_state_object(ObservableInningMap) ->
+make_observable_inning_state_object(ObservableInningStateMap) ->
     #{
         starts_at := StartsAt,
         your_hand := YourHand,
-        gains     := Gains,
+        gains     := GainsQuad,
         table     := Table
-    } = ObservableInningMap,
+    } = ObservableInningStateMap,
     #{
         starts_at => StartsAt,
         your_hand => lists:map(fun make_card_object/1, YourHand),
-        gains     => make_quad_object(fun make_gained_object/1, Gains),
+        gains     => make_quad_object(fun make_gained_object/1, GainsQuad),
         table     => make_table_object(Table)
     }.
 

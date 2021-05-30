@@ -65,9 +65,13 @@ module Types = struct
     table     : table_state
   }
 
+  type observable_inning =
+    | ObservableDuringInning(observable_inning_state)
+    | ObservableInningEnd(Quad.t<list<Card.t>>)
+
   type observable_game_state = {
     meta              : game_meta,
-    observable_inning : observable_inning_state,
+    observable_inning : observable_inning,
     synchronizing     : bool,
     snapshot_id       : snapshot_id,
   }

@@ -174,9 +174,13 @@ observable_inning_state := {
   table     : table,
 }
 
+observable_inning :=
+  | ObservableDuringInning : observable_inning_state
+  | ObservableInningEnd    : per_seat(list(card))
+
 observable_game_state := {
   meta              : game_meta,
-  observable_inning : observable_inning_state,
+  observable_inning : observable_inning,
   synchronizing     : bool,
   snapshot_id       : snapshot_id,
 }

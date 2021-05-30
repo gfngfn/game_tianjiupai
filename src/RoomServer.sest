@@ -47,9 +47,13 @@ end = struct
     | WaitingInput
     | WaitingSync(Quad.t<bool>)
 
+  type whole_inning =
+    | DuringInning(Inning.t)
+    | InningEnd(Quad.t<list<Card.t>>)
+
   type whole_game_state = {
     meta        : game_meta,
-    inning      : Inning.t,
+    inning      : whole_inning,
     snapshot_id : snapshot_id,
     sync        : sync, /* Tracks whether each player is ready for the next step. */
   }
@@ -167,7 +171,12 @@ end = struct
             | WaitingSync(_) -> true
             end
           in
-          let observable_inning = Inning.observe(seat, game_state.inning) in
+          let observable_inning =
+            case game_state.inning of
+            | DuringInning(inning)  -> ObservableDuringInning(Inning.observe(seat, inning))
+            | InningEnd(gains_quad) -> ObservableInningEnd(gains_quad)
+            end
+          in
           Some({
             meta              = game_state.meta,
             observable_inning = observable_inning,
@@ -259,7 +268,7 @@ end = struct
                 let game_state =
                   {
                     meta        = game_meta,
-                    inning      = inning,
+                    inning      = DuringInning(inning),
                     snapshot_id = snapshot_id,
                     sync        = WaitingSync(make_initial_sync(Quad.Seat3)),
                   }
@@ -398,43 +407,49 @@ end = struct
                 return(None)
 
             | Some(seat) ->
-                case Inning.submit(seat, cards, game_state.inning) of
-                | None ->
+                case game_state.inning of
+                | InningEnd(_) ->
                     return(None)
 
-                | Some(submit_result) ->
-                    do snapshot_id <- SnapshotId.generate() in
-                    let game_meta = game_state.meta in
-                    let game_state =
-                      case submit_result of
-                      | Inning.Continues(inning) ->
-                          {
-                            meta        = game_meta,
-                            inning      = inning,
-                            snapshot_id = snapshot_id,
-                            sync        = WaitingSync(make_initial_sync(seat)),
-                          }
+                | DuringInning(inning) ->
+                    case Inning.submit(seat, cards, inning) of
+                    | None ->
+                        return(None)
 
-                      | Inning.WinsTrick(winner_seat, inning) ->
-                          {
-                            meta        = game_meta,
-                            inning      = inning,
-                            snapshot_id = snapshot_id,
-                            sync        = WaitingSync(make_initial_sync(seat)),
-                          }
+                    | Some(submit_result) ->
+                        do snapshot_id <- SnapshotId.generate() in
+                        let game_meta = game_state.meta in
+                        let game_state =
+                          case submit_result of
+                          | Inning.Continues(inning) ->
+                              {
+                                meta        = game_meta,
+                                inning      = DuringInning(inning),
+                                snapshot_id = snapshot_id,
+                                sync        = WaitingSync(make_initial_sync(seat)),
+                              }
 
-                      | Inning.WinsInning(winner_seat, gains_quad) ->
-                          {
-                            meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
-                            inning      = todo("empty inning"),
-                            snapshot_id = snapshot_id,
-                            sync        = WaitingSync(make_initial_sync(seat)),
-                          }
-                      end
-                    in
-                    let user_ids = the_other_players(game_state, seat) in
-                    do dummy <- notify_for_each(user_ids, [NotifySubmission(snapshot_id, seat, cards)]) in
-                    return(Some({snapshot_id, game_state}))
+                          | Inning.WinsTrick(winner_seat, inning) ->
+                              {
+                                meta        = game_meta,
+                                inning      = DuringInning(inning),
+                                snapshot_id = snapshot_id,
+                                sync        = WaitingSync(make_initial_sync(seat)),
+                              }
+
+                          | Inning.WinsInning(winner_seat, gains_quad) ->
+                              {
+                                meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
+                                inning      = InningEnd(gains_quad),
+                                snapshot_id = snapshot_id,
+                                sync        = WaitingSync(make_initial_sync(seat)),
+                              }
+                          end
+                        in
+                        let user_ids = the_other_players(game_state, seat) in
+                        do dummy <- notify_for_each(user_ids, [NotifySubmission(snapshot_id, seat, cards)]) in
+                        return(Some({snapshot_id, game_state}))
+                    end
                 end
             end
         end

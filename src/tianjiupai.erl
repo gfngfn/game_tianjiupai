@@ -72,9 +72,13 @@
     table     := table_state()
 }.
 
+-type observable_inning() ::
+    {observable_during_inning, observable_inning_state()}
+  | {observable_inning_end, quad([card()])}.
+
 -type observable_game_state() :: #{
     meta              := game_meta(),
-    observable_inning := observable_inning_state(),
+    observable_inning := observable_inning(),
     synchronizing     := boolean(),
     snapshot_id       := snapshot_id()
 }.
