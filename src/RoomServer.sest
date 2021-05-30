@@ -29,9 +29,9 @@ end = struct
   open Stdlib
   open Types
 
-  val todo : fun(binary, int) -> unit = external 2 ```
-    todo(Filename, Line) ->
-      erlang:error({todo, Filename, Line}).
+  val todo<$a, $b> : fun($a) -> $b = external 1 ```
+    todo(X) ->
+      erlang:error({todo, X}).
   ```
 
   type settings = {
@@ -137,6 +137,14 @@ end = struct
           seat
         end,
         opt)
+
+    val the_other_seats(seat) =
+      case seat of
+      | Quad.Seat0 -> [Quad.Seat1, Quad.Seat2, Quad.Seat3]
+      | Quad.Seat1 -> [Quad.Seat2, Quad.Seat3, Quad.Seat0]
+      | Quad.Seat2 -> [Quad.Seat3, Quad.Seat0, Quad.Seat1]
+      | Quad.Seat3 -> [Quad.Seat0, Quad.Seat1, Quad.Seat2]
+      end
 
     val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<user_id> =
       let {u0, u1, u2, u3} = Quad.map(fun(p) -> p.user_id end, game_state.meta.players) in
@@ -301,6 +309,83 @@ end = struct
           GenServer.reply(Exited(true), { state | room_state = room_state })
       end
 
+    val make_winner_diff(losers) =
+      let loser_diff_sum =
+        List.foldl(
+          fun(acc, loser) -> let {_, loser_diff} = loser in acc + loser_diff end,
+          0,
+          losers)
+      in
+      0 - loser_diff_sum
+
+    val update_score(players, updates) =
+      List.foldl(
+        fun(players, update) ->
+          let {seat, diff} = update in
+          let player = Quad.access(seat, players) in
+          Quad.update(seat, { player | score = player.score + diff }, players)
+        end,
+        players,
+        updates)
+
+    val deal_with_inning_end(game_meta, winner_seat, gains_quad) : game_meta =
+      let loser_seats = the_other_seats(winner_seat) in
+      let num_consecutives = game_meta.num_consecutives in
+      let parent_seat = game_meta.parent_seat in
+      if Quad.seat_equal(winner_seat, parent_seat) then
+      /* If the parent wins: */
+        let losers =
+          List.map(
+            fun(loser_seat) ->
+              let num_gains = List.length(Quad.access(loser_seat, gains_quad)) in
+              let loser_diff =
+                if num_gains == 0 then
+                  0 - 5 * (num_consecutives + 1)
+                else
+                  (num_gains - 4) * (num_consecutives + 1)
+              in
+              {loser_seat, loser_diff}
+            end,
+            loser_seats)
+        in
+        let winner_diff = make_winner_diff(losers) in
+        let players = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+        {
+          inning_index     = game_meta.inning_index,
+          num_consecutives = num_consecutives + 1,
+          parent_seat      = parent_seat,
+          players          = players,
+        }
+      else
+        let losers =
+          List.map(
+            fun(loser_seat) ->
+              let num_gains = List.length(Quad.access(loser_seat, gains_quad)) in
+              let loser_diff =
+                let coeff =
+                  if Quad.seat_equal(loser_seat, parent_seat) then
+                    num_consecutives + 1
+                  else
+                    1
+                in
+                if num_gains == 0 then
+                  0 - 5 * coeff
+                else
+                  (num_gains - 4) * coeff
+              in
+              {loser_seat, loser_diff}
+            end,
+            loser_seats)
+        in
+        let winner_diff = make_winner_diff(losers) in
+        let players = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+        {
+          inning_index     = game_meta.inning_index + 1,
+          num_consecutives = 1,
+          parent_seat      = winner_seat,
+          players          = players,
+        }
+
     val handle_submit(user_id : user_id, cards : list<Card.t>, state : state) = act
       do opt <-
         case state.room_state of
@@ -319,24 +404,32 @@ end = struct
 
                 | Some(submit_result) ->
                     do snapshot_id <- SnapshotId.generate() in
+                    let game_meta = game_state.meta in
                     let game_state =
                       case submit_result of
                       | Inning.Continues(inning) ->
-                          { game_state |
-                            inning = inning,
+                          {
+                            meta        = game_meta,
+                            inning      = inning,
                             snapshot_id = snapshot_id,
                             sync        = WaitingSync(make_initial_sync(seat)),
                           }
 
                       | Inning.WinsTrick(winner_seat, inning) ->
-                          { game_state |
+                          {
+                            meta        = game_meta,
                             inning      = inning,
                             snapshot_id = snapshot_id,
                             sync        = WaitingSync(make_initial_sync(seat)),
                           }
 
                       | Inning.WinsInning(winner_seat, gains_quad) ->
-                          let _ = assert todo in game_state
+                          {
+                            meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
+                            inning      = todo("empty inning"),
+                            snapshot_id = snapshot_id,
+                            sync        = WaitingSync(make_initial_sync(seat)),
+                          }
                       end
                     in
                     let user_ids = the_other_players(game_state, seat) in
