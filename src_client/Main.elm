@@ -167,12 +167,19 @@ update msg model =
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = "[warning] invalid notification" }, Cmd.none )
 
-        ( WaitingStart _, ReceiveNotification (Ok (NotifyLog LogGameStart)) ) ->
-          let ostate = Debug.todo "ostate" in
+        ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
           ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, Cmd.none )
 
-        ( _, ReceiveNotification (Ok (NotifyLog log)) ) ->
-          let pstate1 = { pstate0 | logs = pstate0.logs ++ [log] } in
+        ( _, ReceiveNotification (Ok (NotifyComment comment)) ) ->
+          let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogComment comment ] } in
+          ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
+
+        ( _, ReceiveNotification (Ok (NotifyEntered userIdEntered)) ) ->
+          let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogEntered userIdEntered ] } in
+          ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
+
+        ( _, ReceiveNotification (Ok (NotifyExited userIdExited)) ) ->
+          let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
           ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
 
         _ ->
@@ -187,9 +194,12 @@ view model =
 
 
 showNotification : Notification -> String
-showNotification nt =
-  case nt of
-    NotifyLog _     -> "NotifyLog"
+showNotification notification =
+  case notification of
+    NotifyComment _   -> "NotifyComment"
+    NotifyEntered _   -> "NotifyEntered"
+    NotifyExited _    -> "NotifyExited"
+    NotifyGameStart _ -> "NotifyGameStart"
 
 
 showMessage : Msg -> String

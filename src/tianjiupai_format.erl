@@ -21,7 +21,7 @@
 
     %% WebSocket:
     decode_command/1,
-    encode_notify_log/1
+    encode_notification/1
 ]).
 
 %%====================================================================================================
@@ -147,10 +147,10 @@ decode_command(Data) ->
             {error, {exception, Class, Reason}}
     end.
 
--spec encode_notify_log(tianjiupai:log()) -> binary().
-encode_notify_log(Log) ->
-    NotifyLogObj = make_notify_log_object(Log),
-    jsone:encode(NotifyLogObj).
+-spec encode_notification(tianjiupai:notification()) -> binary().
+encode_notification(Notification) ->
+    NotificationObj = make_notification_object(Notification),
+    jsone:encode(NotificationObj).
 
 make_flags_object(MaybeInfo) ->
     case MaybeInfo of
@@ -180,11 +180,6 @@ make_flags_object(MaybeInfo) ->
             end
     end.
 
--spec make_notify_log_object(tianjiupai:log()) -> encodable().
-make_notify_log_object(Log) ->
-    LogObj = make_log_object(Log),
-    ?LABELED(<<"NotifyLog">>, LogObj).
-
 -spec make_log_object(tianjiupai:log()) -> encodable().
 make_log_object(Log) ->
     case Log of
@@ -195,7 +190,20 @@ make_log_object(Log) ->
         {log_exited, UserId} ->
             ?LABELED(<<"LogExited">>, UserId);
         log_game_start ->
-            ?LABEL_ONLY(<<"GameStart">>)
+            ?LABEL_ONLY(<<"LogGameStart">>)
+    end.
+
+-spec make_notification_object(tianjiupai:notification()) -> encodable().
+make_notification_object(Notification) ->
+    case Notification of
+        {notify_comment, From, Text} ->
+            ?LABELED(<<"NotifyComment">>, #{from => From, text => Text});
+        {notify_entered, UserId} ->
+            ?LABELED(<<"NotifyEntered">>, UserId);
+        {notify_exited, UserId} ->
+            ?LABELED(<<"NotifyExited">>, UserId);
+        notify_game_start ->
+            ?LABEL_ONLY(<<"NotifyGameStart">>)
     end.
 
 -spec make_room_object(tianjiupai:room_id(), binary()) -> encodable().

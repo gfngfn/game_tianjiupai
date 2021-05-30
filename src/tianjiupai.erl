@@ -42,13 +42,6 @@
 %% See `Types.room_id'
 -type room_id() :: binary().
 
-%% See `Types.log'
--type log() ::
-    {log_comment, user_id(), binary()}
-  | {log_entered, user_id()}
-  | {log_exited, user_id()}
-  | log_game_start.
-
 %% See `Types.whole_room_state'
 -type whole_room_state() :: #{
     room_id    := room_id(),
@@ -84,6 +77,20 @@
     observable_inning := observable_inning_state(),
     snapshot_id       := snapshot_id()
 }.
+
+%% See `Types.log'
+-type log() ::
+    {log_comment, user_id(), binary()}
+  | {log_entered, user_id()}
+  | {log_exited, user_id()}
+  | log_game_start.
+
+%% See `Types.notification'
+-type notification() ::
+    {notify_comment, user_id(), binary()}
+  | {notify_entered, user_id()}
+  | {notify_exited, user_id()}
+  | {notify_game_start, observable_game_state()}.
 
 -type observable_room_state() ::
     {waiting, [user_id()]}

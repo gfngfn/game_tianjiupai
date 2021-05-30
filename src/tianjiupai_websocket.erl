@@ -29,7 +29,7 @@
 }).
 
 -type message() ::
-    {logs, [tianjiupai:log()]}.
+    {notifications, [tianjiupai:notification()]}.
 
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
@@ -69,14 +69,14 @@ websocket_handle(MsgFromClient, State) ->
 -spec websocket_info(message(), #state{}) -> {reply, [cow_ws:frame()], #state{}} | {ok, #state{}}.
 websocket_info(Msg, State) ->
     case Msg of
-        {logs, Logs} ->
+        {notifications, Notifications} ->
             Chunks =
                 lists:map(
-                    fun(Log) ->
-                        Bin = tianjiupai_format:encode_notify_log(Log),
+                    fun(Notification) ->
+                        Bin = tianjiupai_format:encode_notification(Notification),
                         {text, Bin}
                     end,
-                    Logs),
+                    Notifications),
             {reply, Chunks, State};
         _ ->
             io:format("~p, unknown message (messge: ~p)~n", [?MODULE, Msg]),
@@ -86,14 +86,15 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec notify(tianjiupai:user_id(), [tianjiupai:log()]) -> ok | {error, error_reason()}.
-notify(UserId, Logs) ->
+-spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok | {error, error_reason()}.
+notify(UserId, Notifications) ->
+    Message = {notifications, Notifications},
     try
-        _ = global:send(name(UserId), {logs, Logs}),
+        _ = global:send(name(UserId), Message),
         ok
     catch
         _:_ ->
-            {error, {failed_to_notify, UserId, Logs}}
+            {error, {failed_to_notify, UserId, Message}}
     end.
 
 %%====================================================================================================

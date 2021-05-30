@@ -82,15 +82,15 @@ set_websocket_connection(UserId, WsPid) ->
 
 -spec notify(
     To   :: tianjiupai:user_id(),
-    Logs :: [tianjiupai:log()]
+    Logs :: [tianjiupai:notifications()]
 ) ->
     ok.
-notify(UserId, Logs) ->
-    case tianjiupai_websocket:notify(UserId, Logs) of
+notify(UserId, Notifications) ->
+    case tianjiupai_websocket:notify(UserId, Notifications) of
         ok ->
             ok;
         {error, Reason} ->
-            io:format("~p, notify_log failed (reason: ~p, to: ~p, logs: ~p)",
-                [?MODULE, Reason, UserId, Logs]),
+            io:format("~p, notify_log failed (reason: ~p, to: ~p, notifications: ~p)",
+                [?MODULE, Reason, UserId, Notifications]),
             ok
     end.

@@ -77,6 +77,12 @@ module Types = struct
     | LogExited(user_id)
     | LogGameStart
 
+  type notification =
+    | NotifyComment(user_id, binary)
+    | NotifyEntered(user_id)
+    | NotifyExited(user_id)
+    | NotifyGameStart(observable_game_state)
+
   type observable_room_state =
     | Waiting(list<user_id>)
     | Playing(observable_game_state)

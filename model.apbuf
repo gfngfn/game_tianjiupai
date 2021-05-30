@@ -82,7 +82,10 @@ log :=
   | LogGameStart
 
 notification :=
-  | NotifyLog : log
+  | NotifyComment   : comment
+  | NotifyEntered   : user_id
+  | NotifyExited    : user_id
+  | NotifyGameStart : observable_game_state
 
 command :=
   | CommandSetUserId : user_id
