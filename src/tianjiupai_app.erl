@@ -9,6 +9,8 @@
     stop/1
 ]).
 
+-define(SUP, 'Tianjiupai.Sup').
+
 %%====================================================================================================
 %% `application' Callback Functions
 %%====================================================================================================
@@ -48,7 +50,7 @@ start(_StartType, _StartArgs) ->
                     cowboy_handler
                 ]
             }),
-    tianjiupai_sup:start_link().
+    ?SUP:start_link().
 
 stop(_State) ->
     ok = cowboy:stop_listener(tianjiupai_listener),

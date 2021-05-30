@@ -1,0 +1,52 @@
+import RoomServerSup
+import UserServerSup
+
+module Sup = struct
+  open Stdlib
+
+  module SS = Supervisor.Static
+
+  module Callback = struct
+
+    type child_id = binary
+    type init_arg = unit
+    type info = RawValue.t
+    type global = unit
+
+    val start_room_server_sup() = act
+      SS.make_child_proc(fun() -> act
+        do res <- RoomServerSup.start_link() in
+        return(Result.map(RoomServerSup.as_pid, res))
+      end)
+
+    val start_user_server_sup() = act
+      SS.make_child_proc(fun() -> act
+        do res <- UserServerSup.start_link() in
+        return(Result.map(UserServerSup.as_pid, res))
+      end)
+
+    val init(init_arg) = act
+      let sup_flags = SS.make_sup_flags(?strategy SS.OneForAll) in
+      let child_specs =
+        [
+          SS.make_child_spec(
+            -id    "room_server_sup",
+            -start (freeze start_room_server_sup()),
+            ?type  Supervisor.Supervisor
+          ),
+          SS.make_child_spec(
+            -id    "user_server_sup",
+            -start (freeze start_user_server_sup()),
+            ?type  Supervisor.Supervisor
+          ),
+        ]
+      in
+      SS.init_ok(sup_flags, child_specs)
+  end
+
+  module Impl = SS.Make(Callback)
+
+  val start_link() = act
+    Impl.start_link({})
+
+end
