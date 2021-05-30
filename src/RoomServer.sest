@@ -153,7 +153,14 @@ end = struct
 
     val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
       notify(UserId, Notifications) ->
-          tianjiupai_user:notify(UserId, Notifications).
+          case tianjiupai_websocket:notify(UserId, Notifications) of
+              ok ->
+                  ok;
+              {error, Reason} ->
+                  io:format("~p, notify_log failed (reason: ~p, to: ~p, notifications: ~p)",
+                      [?MODULE, Reason, UserId, Notifications]),
+                  ok
+          end.
     ```
 
     val notify_for_each<$a>(user_ids : list<user_id>, logs : list<notification>) : [$a]unit = act
