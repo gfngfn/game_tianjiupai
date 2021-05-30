@@ -1,4 +1,5 @@
 import Quad
+import Card
 import SnapshotId
 import Types
 import Inning
@@ -21,11 +22,17 @@ module RoomServer :> sig
   val send_chat<$a> : fun(room_id, user_id, binary) -> [$a]option<unit>
   val attend<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
-  val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]option<bool>
+  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<snapshot_id>
+  val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]option<next_step>
 
 end = struct
   open Stdlib
   open Types
+
+  val todo : fun(binary, int) -> unit = external 2 ```
+    todo(Filename, Line) ->
+      erlang:error({todo, Filename, Line}).
+  ```
 
   type settings = {
     room_id   : room_id,
@@ -51,10 +58,6 @@ end = struct
     | InternalWaiting(waiting_state)
     | InternalPlaying(whole_game_state)
 
-  type next_step =
-    | Transition
-    | StillWaiting
-
   type request_impl =
     | GetWholeState
     | GetPersonalState(user_id)
@@ -62,6 +65,7 @@ end = struct
     | Attend(user_id)
     | Exit(user_id)
     | Ack(user_id, snapshot_id)
+    | Submit(user_id, list<Card.t>)
 
   type response_impl =
     | WholeState(whole_room_state)
@@ -70,6 +74,7 @@ end = struct
     | Attended(option<personal_room_state>)
     | Exited(bool)
     | SynAck(option<next_step>)
+    | SubmissionDone(option<snapshot_id>)
 
   module Callback = struct
     type init_arg = {room_id, binary}
@@ -180,6 +185,9 @@ end = struct
           })
       end
 
+    val make_initial_sync(seat) =
+      Quad.update(seat, true, {false, false, false, false})
+
     val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
       notify(UserId, Notifications) ->
           case tianjiupai_websocket:notify(UserId, Notifications) of
@@ -231,14 +239,14 @@ end = struct
                     players          = player_quad,
                   }
                 in
-                let snapshot_id = SnapshotId.generate() in
+                do snapshot_id <- SnapshotId.generate() in
                 let inning = Inning.start(parent_seat) in
                 let game_state =
                   {
                     meta        = game_meta,
                     inning      = inning,
                     snapshot_id = snapshot_id,
-                    sync        = WaitingSync({false, false, false, true}),
+                    sync        = WaitingSync(make_initial_sync(Quad.Seat3)),
                   }
                   /* The player who lastly attended the room is ready for the next step from the beginning. */
                 in
@@ -284,6 +292,59 @@ end = struct
           in
           let room_state = InternalWaiting({ waiting_state | members = members }) in
           GenServer.reply(Exited(true), { state | room_state = room_state })
+      end
+
+    val handle_submit(user_id : user_id, cards : list<Card.t>, state : state) = act
+      do opt <-
+        case state.room_state of
+        | InternalWaiting(_) ->
+            return(None)
+
+        | InternalPlaying(game_state) ->
+            case find_user_seat(game_state, user_id) of
+            | None ->
+                return(None)
+
+            | Some(seat) ->
+                case Inning.submit(seat, cards, game_state.inning) of
+                | None ->
+                    return(None)
+
+                | Some(submit_result) ->
+                    do snapshot_id <- SnapshotId.generate() in
+                    let game_state =
+                      case submit_result of
+                      | Inning.Continues(inning) ->
+                          { game_state |
+                            inning = inning,
+                            snapshot_id = snapshot_id,
+                            sync        = WaitingSync(make_initial_sync(seat)),
+                          }
+
+                      | Inning.WinsTrick(winner_seat, inning) ->
+                          { game_state |
+                            inning      = inning,
+                            snapshot_id = snapshot_id,
+                            sync        = WaitingSync(make_initial_sync(seat)),
+                          }
+
+                      | Inning.WinsInning(winner_seat, gains_quad) ->
+                          let _ = assert todo in game_state
+                      end
+                    in
+                    let user_ids = the_other_players(game_state, seat) in
+                    do dummy <- notify_for_each(user_ids, [NotifySubmission(snapshot_id, seat, cards)]) in
+                    return(Some({snapshot_id, game_state}))
+                end
+            end
+        end
+      in
+      case opt of
+      | None ->
+          GenServer.reply(SubmissionDone(None), state)
+
+      | Some({snapshot_id, game_state}) ->
+          GenServer.reply(SubmissionDone(Some(snapshot_id)), { state | room_state = InternalPlaying(game_state) })
       end
 
     val handle_ack(user_id : user_id, snapshot_id : snapshot_id, state : state) = act
@@ -347,6 +408,8 @@ end = struct
           handle_exit(user_id, state)
       | Ack(user_id, snapshot_id) ->
           handle_ack(user_id, snapshot_id, state)
+      | Submit(user_id, cards) ->
+          handle_submit(user_id, cards, state)
       end
 
     val handle_cast(msg, state) = act
@@ -445,12 +508,18 @@ end = struct
       end
     end)
 
-  val ack<$a>(room_id, user_id, snapshot_id) : [$a]option<bool> = act
+  val submit<$a>(room_id, user_id, cards) : [$a]option<snapshot_id> = act
+    call(room_id, Submit(user_id, cards), fun(resp) -> act
+      case resp of
+      | SubmissionDone(snapshot_id_opt) -> return(snapshot_id_opt)
+      end
+    end)
+
+  val ack<$a>(room_id, user_id, snapshot_id) : [$a]option<next_step> = act
     call(room_id, Ack(user_id, snapshot_id), fun(resp) -> act
       case resp of
-      | SynAck(None)               -> return(None)
-      | SynAck(Some(StillWaiting)) -> return(Some(false))
-      | SynAck(Some(Transition))   -> return(Some(true))
+      | SynAck(None)            -> return(None)
+      | SynAck(Some(next_step)) -> return(Some(next_step))
       end
     end)
 end

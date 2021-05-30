@@ -82,10 +82,18 @@ log :=
   | LogGameStart
 
 notification :=
-  | NotifyComment   : comment
-  | NotifyEntered   : user_id
-  | NotifyExited    : user_id
-  | NotifyGameStart : observable_game_state
+  | NotifyComment    : comment
+  | NotifyEntered    : user_id
+  | NotifyExited     : user_id
+  | NotifyGameStart  : observable_game_state
+  | NotifyNextStep
+  | NotifySubmission : submission
+
+submission := {
+    snapshot_id : snapshot_id,
+    seat        : seat,
+    cards       : list(card),
+}
 
 command :=
   | CommandSetUserId : user_id

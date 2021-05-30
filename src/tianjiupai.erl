@@ -90,7 +90,8 @@
     {notify_comment, user_id(), binary()}
   | {notify_entered, user_id()}
   | {notify_exited, user_id()}
-  | {notify_game_start, observable_game_state()}.
+  | {notify_game_start, observable_game_state()}
+  | notify_next_step.
 
 -type observable_room_state() ::
     {waiting, [user_id()]}
@@ -103,3 +104,5 @@
     logs       := [log()],
     observable := observable_room_state()
 }.
+
+-type next_step() :: transition | still_waiting.

@@ -204,8 +204,15 @@ make_notification_object(Notification) ->
             ?LABELED(<<"NotifyEntered">>, UserId);
         {notify_exited, UserId} ->
             ?LABELED(<<"NotifyExited">>, UserId);
-        notify_game_start ->
-            ?LABEL_ONLY(<<"NotifyGameStart">>)
+        {notify_game_start, ObservableGameState} ->
+            ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
+            ?LABELED(<<"NotifyGameStart">>, ObservableGameStateObj);
+        notify_next_step ->
+            ?LABEL_ONLY(<<"NotifyNextStep">>);
+        {notify_submission, SnapshotId, Seat, Cards} ->
+            SeatObj = make_seat_object(Seat),
+            CardObjs = lists:map(fun make_card_object/1, Cards),
+            ?LABELED(<<"NotifySubmission">>, #{snapshot_id => SnapshotId, seat => SeatObj, cards => CardObjs})
     end.
 
 -spec make_room_object(tianjiupai:room_id(), binary()) -> encodable().
@@ -386,7 +393,7 @@ make_game_meta_object(GameMeta) ->
     #{
         inning_index     => InningIndex,
         num_consecutives => NumConsecutives,
-        parent_seat      => ParentSeat,
+        parent_seat      => make_seat_object(ParentSeat),
         players          => make_quad_object(fun make_game_player_object/1, GamePlayerQuad)
     }.
 
@@ -401,3 +408,9 @@ make_quad_object(F, Quad) ->
         west  => F(X2),
         north => F(X3)
     }.
+
+-spec make_seat_object(tianjiupai:seat()) -> encodable().
+make_seat_object(seat0) -> 0;
+make_seat_object(seat1) -> 1;
+make_seat_object(seat2) -> 2;
+make_seat_object(seat3) -> 3.

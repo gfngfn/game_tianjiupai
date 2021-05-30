@@ -196,10 +196,12 @@ view model =
 showNotification : Notification -> String
 showNotification notification =
   case notification of
-    NotifyComment _   -> "NotifyComment"
-    NotifyEntered _   -> "NotifyEntered"
-    NotifyExited _    -> "NotifyExited"
-    NotifyGameStart _ -> "NotifyGameStart"
+    NotifyComment _    -> "NotifyComment"
+    NotifyEntered _    -> "NotifyEntered"
+    NotifyExited _     -> "NotifyExited"
+    NotifyGameStart _  -> "NotifyGameStart"
+    NotifyNextStep     -> "NotifyNextStep"
+    NotifySubmission _ -> "NotifySubmission"
 
 
 showMessage : Msg -> String
