@@ -13,13 +13,13 @@ viewBody model =
   let
     elemMain =
       case model.state of
-        AtEntrance userNameInput ->
+        AtEntrance userNameInput _ ->
           viewEntrance userNameInput
 
-        AtPlaza user roomNameInput maybeRoomSummaries ->
+        AtPlaza _ user roomNameInput maybeRoomSummaries ->
           viewPlaza user roomNameInput maybeRoomSummaries
 
-        InRoom user personalState chatTextInput ->
+        InRoom _ user personalState chatTextInput ->
           viewRoom user personalState chatTextInput
   in
   [ div []

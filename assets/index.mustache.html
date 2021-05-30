@@ -12,17 +12,20 @@
           flags: {{flags}}
         })
 
-        var socket = new WebSocket('ws://localhost:8080/websocket');
-
-        socket.onopen = () => {
-          app.ports.sendWebSocketMessage.subscribe(function(message) {
-              socket.send(message);
-          });
-
+        app.ports.listenWebSocket.subscribe(function(url) {
+          var socket = new WebSocket(url);
+          socket.onopen = () => {
+            app.ports.onOpenWebSocket.send({socket: socket});
+          };
           socket.addEventListener("message", function(event) {
-              app.ports.receiveWebSocketMessage.send(event.data);
+            app.ports.receiveWebSocketMessage.send(event.data);
           });
-        }
+        });
+
+        app.ports.sendWebSocketMessage.subscribe(function(array) {
+          const [{socket: socket}, message] = array;
+          socket.send(message);
+        });
     </script>
   </body>
 </html>
