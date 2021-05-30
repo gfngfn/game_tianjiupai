@@ -48,6 +48,9 @@ module Room = struct
   val send_chat(room_id, from, text) = act
     RoomServer.send_chat(room_id, from, text)
 
+  val submit(room_id, user_id, cards) = act
+    RoomServer.submit(room_id, user_id, cards)
+
   val ack(room_id, user_id, snapshot_id) = act
     RoomServer.ack(room_id, user_id, snapshot_id)
 
