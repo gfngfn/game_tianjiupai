@@ -399,14 +399,48 @@ end = struct
           GenServer.reply(SynAck(Some(next_step)), { state | room_state = InternalPlaying(game_state) })
       end
 
+    val update_sync(user_id : user_id, state : state) = act
+      case state.room_state of
+      | InternalWaiting(_) ->
+          return(state)
+
+      | InternalPlaying(game_state) ->
+          case find_user_seat(game_state, user_id) of
+          | None ->
+              return(state)
+
+          | Some(seat) ->
+              case game_state.sync of
+              | WaitingInput ->
+                  return(state)
+
+              | WaitingSync(sync_quad) ->
+                  let sync_quad = Quad.update(seat, true, sync_quad) in
+                  case sync_quad of
+                  | {true, true, true, true} ->
+                    /* If all the players are ready for the next step: */
+                      let user_ids = the_other_players(game_state, seat) in
+                      do dummy <- notify_for_each(user_ids, [NotifyNextStep]) in
+                      let game_state = { game_state | sync = WaitingInput } in
+                      return({ state | room_state = InternalPlaying(game_state) })
+
+                  | _ ->
+                      let game_state = { game_state | sync = WaitingSync(sync_quad) } in
+                      return({ state | room_state = InternalPlaying(game_state) })
+                  end
+              end
+          end
+      end
+
     val handle_call(req, from, state) = act
       case req of
       | GetWholeState ->
           let whole_state = make_whole_room_state(state) in
           GenServer.reply(WholeState(whole_state), state)
       | GetPersonalState(user_id) ->
-          let personal_state = make_personal_room_state(state, user_id) in
-          GenServer.reply(PersonalState(personal_state), state)
+          let personal_state_opt = make_personal_room_state(state, user_id) in
+          do state <- update_sync(user_id, state) in
+          GenServer.reply(PersonalState(personal_state_opt), state)
       | SendChat(user_id, text) ->
           handle_send_chat(user_id, text, state)
       | Attend(user_id) ->
