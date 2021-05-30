@@ -153,10 +153,17 @@ end = struct
           None
 
       | Some(seat) ->
+          let synchronizing =
+            case game_state.sync of
+            | WaitingInput   -> false
+            | WaitingSync(_) -> true
+            end
+          in
           let observable_inning = Inning.observe(seat, game_state.inning) in
           Some({
             meta              = game_state.meta,
             observable_inning = observable_inning,
+            synchronizing     = synchronizing,
             snapshot_id       = game_state.snapshot_id,
           })
       end

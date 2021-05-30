@@ -75,6 +75,7 @@
 -type observable_game_state() :: #{
     meta              := game_meta(),
     observable_inning := observable_inning_state(),
+    synchronizing     := boolean(),
     snapshot_id       := snapshot_id()
 }.
 

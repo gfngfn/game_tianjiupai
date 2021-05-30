@@ -167,9 +167,6 @@ update msg model =
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = "[warning] invalid notification" }, Cmd.none )
 
-        ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
-          ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, Cmd.none )
-
         ( _, ReceiveNotification (Ok (NotifyComment comment)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogComment comment ] } in
           ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
@@ -182,8 +179,32 @@ update msg model =
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
           ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
 
+        ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
+          let cmd = Debug.todo "TODO: send sync with snapshot ID" in
+          ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, cmd )
+
+        ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
+          if ostate0.synchronizing then
+            ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+          else
+            let cmd = Debug.todo "TODO: send sync with snapshot ID" in
+            let ostate1 = ostate0 |> updateObservableGameStateBySubmission submission in
+            ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
+
+        ( PlayingGame ostate0, ReceiveNotification (Ok NotifyNextStep) ) ->
+          if ostate0.synchronizing then
+            let ostate1 = { ostate0 | synchronizing = False } in
+            ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, Cmd.none )
+          else
+            ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+
         _ ->
           ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+
+
+updateObservableGameStateBySubmission : Submission -> ObservableGameState -> ObservableGameState
+updateObservableGameStateBySubmission submission ostate0 =
+  Debug.todo "TODO: updateObservableGameStateBySubimission; don't forget to set 'synchronizing' to 'true'!"
 
 
 view : Model -> Browser.Document Msg

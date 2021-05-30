@@ -265,6 +265,7 @@ make_observable_game_state_object(ObservableGameStateMap) ->
     #{
         meta              := GameMeta,
         observable_inning := ObservableInning,
+        synchronizing     := Synchronizing,
         snapshot_id       := SnapshotId
     } = ObservableGameStateMap,
     GameMetaObj = make_game_meta_object(GameMeta),
@@ -272,6 +273,7 @@ make_observable_game_state_object(ObservableGameStateMap) ->
     #{
         meta              => GameMetaObj,
         observable_inning => ObservableInningObj,
+        synchronizing     => Synchronizing,
         snapshot_id       => SnapshotId
     }.
 
