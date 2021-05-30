@@ -14,8 +14,8 @@
 -define(SEAT2, seat2).
 -define(SEAT3, seat3).
 
--define(OK(_X_), {some, _X_}).
--define(ERROR, none).
+-define(OK(_X_), {ok, _X_}).
+-define(ERROR, error).
 
 -define(MOCKED_HAND1, [{wen, 7}, {wu, 3}, {wen, 4}, {wen, 4}, {wu, 6}, {wen, 8}, {wen, 5}, {wen, 3}]).
 -define(MOCKED_HAND2, [{wen, 3}, {wen, 8}, {wen, 10}, {wu, 9}, {wen, 2}, {wu, 8}, {wu, 5}, {wen, 6}]).
