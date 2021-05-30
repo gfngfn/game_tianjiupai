@@ -34,6 +34,8 @@
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
+-define(USER_FRONT, 'Tianjiupai.User').
+
 %%====================================================================================================
 %% `cowboy_websocket' Callback Functions
 %%====================================================================================================
@@ -121,7 +123,10 @@ register_name(UserId) ->
             end)
     of
         yes ->
-            tianjiupai_user:set_websocket_connection(UserId, Self);
+            case ?USER_FRONT:set_websocket_connection(UserId, Self) of
+                {ok, ok} -> ok;
+                error    -> {error, set_websocket_connection_failed}
+            end;
         no ->
             {error, failed_to_regster}
     end.
@@ -158,12 +163,12 @@ handle_command(Data, State) ->
                 {comment, Text} ->
                     case get_user_id(State) of
                         {ok, UserId} ->
-                            case tianjiupai_user:send_chat(UserId, Text) of
-                                ok ->
+                            case ?USER_FRONT:send_chat(UserId, Text) of
+                                {ok, ok} ->
                                     ok;
-                                {error, Reason} ->
-                                    io:format("~p: failed to send a chat comment (user_id: ~p, text: ~p, reason: ~p)~n",
-                                        [?MODULE, UserId, Text, Reason]),
+                                error ->
+                                    io:format("~p: failed to send a chat comment (user_id: ~p, text: ~p)~n",
+                                        [?MODULE, UserId, Text]),
                                     ok
                             end,
                             {ok, State};

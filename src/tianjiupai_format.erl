@@ -38,6 +38,8 @@
 
 -define(LABELED_PATTERN(_Label_, _Pat_), #{<<"_label">> := _Label_, <<"_arg">> := _Pat_}).
 
+-define(USER_FRONT, 'Tianjiupai.User').
+
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
@@ -157,14 +159,14 @@ make_flags_object(MaybeInfo) ->
         undefined ->
             #{user => ?LABEL_ONLY(<<"None">>)};
         #{user_id := UserId} ->
-            case tianjiupai_user:get_info(UserId) of
+            case ?USER_FRONT:get_info(UserId) of
                 {ok, Info} ->
                     #{user_name := UserName, belongs_to := MaybeRoomId} = Info,
                     MaybeRoomObj =
                         case MaybeRoomId of
-                            none ->
+                            error ->
                                 ?LABEL_ONLY(<<"None">>);
-                            {value, RoomId} ->
+                            {ok, RoomId} ->
                                 ?LABELED(<<"Some">>, RoomId)
                         end,
                     #{
@@ -175,7 +177,7 @@ make_flags_object(MaybeInfo) ->
                                 belongs_to => MaybeRoomObj
                             })
                     };
-                {error, _} ->
+                error ->
                     #{user => ?LABEL_ONLY(<<"None">>)}
             end
     end.

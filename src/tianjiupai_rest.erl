@@ -49,6 +49,7 @@
 }).
 
 -define(ROOM_FRONT, 'Tianjiupai.Room').
+-define(USER_FRONT, 'Tianjiupai.User').
 
 %%====================================================================================================
 %% `cowboy_rest' Callback Functions
@@ -226,7 +227,7 @@ handle_user_creation(Req0, MaybeInfo) ->
             {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
             case tianjiupai_format:decode_create_user_request(ReqBody) of
                 {ok, UserName} ->
-                    case tianjiupai_user:create(UserName) of
+                    case ?USER_FRONT:create(UserName) of
                         {ok, UserId} ->
                             Req2 = tianjiupai_session:set(#{user_id => UserId}, Req1),
                             RespBody = tianjiupai_format:encode_create_user_response(UserId),
@@ -285,8 +286,8 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
         {ok, UserId} ->
             case validate_cookie(MaybeInfo, UserId) of
                 true ->
-                    case tianjiupai_user:set_room(UserId, RoomId) of
-                        ok ->
+                    case ?USER_FRONT:set_room(UserId, RoomId) of
+                        {ok, ok} ->
                             Result = ?ROOM_FRONT:attend(RoomId, UserId),
                             io:format("attend (result: ~p)~n", [Result]),
                             case Result of
@@ -298,8 +299,8 @@ handle_attending(Req0, MaybeInfo, RoomId) ->
                                     Req2 = cowboy_req:set_resp_body(RespBody, Req1),
                                     {true, Req2}
                             end;
-                        {error, Reason1} ->
-                            Req2 = set_failure_reason_to_resp_body(Reason1, Req1),
+                        error ->
+                            Req2 = set_failure_reason_to_resp_body(set_room_failed, Req1),
                             {false, Req2}
                     end;
                 false ->
@@ -327,7 +328,7 @@ validate_cookie(MaybeInfo, UserId) ->
         #{user_id := UserId} ->
         %% Note that here `UserId' has already been bound.
         %% That is, this pattern includes equality testing.
-            tianjiupai_user:exists(UserId);
+            ?USER_FRONT:exists(UserId);
         _ ->
             false
     end.
