@@ -82,6 +82,7 @@ module Types = struct
     | NotifyEntered(user_id)
     | NotifyExited(user_id)
     | NotifyGameStart(observable_game_state)
+    | NotifyNextStep
 
   type observable_room_state =
     | Waiting(list<user_id>)
