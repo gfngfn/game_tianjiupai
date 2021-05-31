@@ -91,7 +91,7 @@ update msg model =
 
               Just ( user, Just roomId ) ->
                 let cmd1 = WebSocketClient.setUserId ws user.userId in
-                let cmd2 = HttpClient.getRoom roomId user.userId in
+                let cmd2 = HttpClient.getRoom user.userId roomId in
                 ( { model | state = AtPlaza ws user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
 
               Nothing ->
