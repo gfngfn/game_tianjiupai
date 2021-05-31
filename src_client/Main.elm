@@ -45,12 +45,7 @@ init flagString =
             user =
               { userId = userId, userName = userName }
           in
-          case flagUser.belongsTo of
-            Nothing ->
-              ( cmd0, AtEntrance "" (Just user) )
-
-            Just roomId ->
-              ( cmd0, AtEntrance "" (Just user) )
+          ( cmd0, AtEntrance "" (Just ( user, flagUser.belongsTo )) )
 
     model : Model
     model =
@@ -64,10 +59,10 @@ init flagString =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case model.state of
-    AtEntrance userNameInput maybeUser ->
+    AtEntrance userNameInput maybeUserAndRoom ->
       case msg of
         UpdateInput (UserNameInput userNameInput1) ->
-          ( { model | state = AtEntrance userNameInput1 maybeUser }, Cmd.none )
+          ( { model | state = AtEntrance userNameInput1 maybeUserAndRoom }, Cmd.none )
 
         SendRequest CreateUser ->
           let cmd = HttpClient.createUser userNameInput in
@@ -82,16 +77,21 @@ update msg model =
                 user = { userId = userId, userName = userName }
               in
               let cmd = WebSocketClient.listen "ws://localhost:8080/websocket" in
-              ( { model | state = AtEntrance userNameInput (Just user) }, cmd )
+              ( { model | state = AtEntrance userNameInput (Just ( user, Nothing )) }, cmd )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
 
         OpenWebSocket ws ->
-            case maybeUser of
-              Just user ->
+            case maybeUserAndRoom of
+              Just ( user, Nothing ) ->
                 let cmd1 = WebSocketClient.setUserId ws user.userId in
                 let cmd2 = HttpClient.getAllRooms in
+                ( { model | state = AtPlaza ws user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
+
+              Just ( user, Just roomId ) ->
+                let cmd1 = WebSocketClient.setUserId ws user.userId in
+                let cmd2 = HttpClient.getRoom roomId user.userId in
                 ( { model | state = AtPlaza ws user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
 
               Nothing ->

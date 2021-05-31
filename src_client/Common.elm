@@ -11,7 +11,7 @@ import Port exposing (..)
 type alias Flags = String
 
 type State
-  = AtEntrance UserName (Maybe User)
+  = AtEntrance UserName (Maybe ( User, Maybe RoomId ))
     -- 1. The content of the input form for deciding usernames.
   | AtPlaza Port.WebSocket User RoomName (Maybe (List RoomSummary))
     -- 1. The user who is using the client
