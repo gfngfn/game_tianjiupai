@@ -24,7 +24,7 @@ start(_StartType, _StartArgs) ->
                     tianjiupai_rest, {page, Template}},
                 {<<"/assets/[...]">>,
                     cowboy_static, {dir, "public/assets"}},
-                {<<"/websocket">>,
+                {<<"/websocket/:user_id">>,
                     tianjiupai_websocket, undefined},
                 {<<"/users">>,
                     tianjiupai_rest, all_users},

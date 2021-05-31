@@ -25,7 +25,7 @@
 %% Macros & Types
 %%====================================================================================================
 -record(state, {
-    session_info :: undefined | tianjiupai_session:info()
+    session_info :: tianjiupai_session:info()
 }).
 
 -type message() ::
@@ -35,6 +35,7 @@
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
 -define(USER_FRONT, 'Tianjiupai.User').
+-define(IDLE_TIMEOUT_MILLISECONDS, 60000).
 
 %%====================================================================================================
 %% `cowboy_websocket' Callback Functions
@@ -42,24 +43,28 @@
 init(Req0, _) ->
     io:format("~p, init~n", [?MODULE]), % TODO
     {MaybeInfo, Req1} = tianjiupai_session:get(Req0),
-    State = #state{session_info = MaybeInfo},
-    {cowboy_websocket, Req1, State}.
+    MaybeUserId = cowboy_req:binding(user_id, Req1, undefined),
+    {cowboy_websocket, Req1, {MaybeUserId, MaybeInfo}, #{idle_timeout => ?IDLE_TIMEOUT_MILLISECONDS}}.
 
-websocket_init(State) ->
-    #state{session_info = MaybeInfo} = State,
-    io:format("~p, websocket_init (info: ~p)~n", [?MODULE, MaybeInfo]),
-    case MaybeInfo of
-        undefined ->
-            {ok, State};
-        #{user_id := UserId} ->
+websocket_init({MaybeUserId, MaybeInfo}) ->
+    io:format("~p, websocket_init (user_id: ~p, info: ~p)~n", [?MODULE, MaybeUserId, MaybeInfo]),
+    case {MaybeUserId, MaybeInfo} of
+        {undefined, _} ->
+            {stop, user_id_unavailable};
+        {_, undefined} ->
+            {stop, session_unavailable};
+        {UserId, #{user_id := UserId} = Info} ->
+            State = #state{session_info = Info},
             case register_name(UserId) of
                 ok ->
                     io:format("~p, succeeded in registration~n", [?MODULE]),
                     {ok, State};
                 {error, Reason} ->
                     io:format("~p, failed in registration (reason: ~p)~n", [?MODULE, Reason]),
-                    {ok, State} %% TODO: emit an error
-            end
+                    {stop, Reason}
+            end;
+        _ ->
+            {stop, user_id_mismatch}
     end.
 
 websocket_handle(MsgFromClient, State) ->
@@ -109,7 +114,8 @@ register_name(UserId) ->
         global:register_name(
             name(UserId),
             Self,
-            fun(_Name, Pid1, Pid2) ->
+            fun(Name, Pid1, Pid2) ->
+                    io:format("name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)", [Name, Pid1, Pid2, Self]),
                     case {Pid1, Pid2} of
                         {Self, _} ->
                             erlang:exit(Pid2),
@@ -134,48 +140,27 @@ register_name(UserId) ->
 name(UserId) ->
     {?MODULE, UserId}.
 
--spec get_user_id(#state{}) -> {ok, tianjiupai:user_id()} | error.
+-spec get_user_id(#state{}) -> tianjiupai:user_id().
 get_user_id(State) ->
-    #state{session_info = MaybeInfo} = State,
-    case MaybeInfo of
-        #{user_id := UserId} -> {ok, UserId};
-        undefined            -> error
-    end.
+    #state{session_info = #{user_id := UserId}} = State,
+    UserId.
 
 -spec handle_command(iodata(), #state{}) -> {ok, #state{}}.
 handle_command(Data, State) ->
     case tianjiupai_format:decode_command(Data) of
         {ok, Command} ->
             case Command of
-                {set_user_id, UserId} ->
-                    io:format("~p: receive (data: ~p)~n", [?MODULE, Data]),
-                    Info = #{user_id => UserId},
-                    case register_name(UserId) of
-                        ok ->
-                            io:format("~p: succeeded in registration (pid: ~p)~n", [?MODULE, self()]),
-                            ok;
-                        {error, Reason} ->
-                        %% If something bad happens
-                            io:format("~p: failed in registration (pid: ~p, reason: ~p)~n", [?MODULE, self(), Reason]),
-                            ok %% TODO: emit an error
-                    end,
-                    {ok, State#state{session_info = Info}};
                 {comment, Text} ->
-                    case get_user_id(State) of
-                        {ok, UserId} ->
-                            case ?USER_FRONT:send_chat(UserId, Text) of
-                                {ok, ok} ->
-                                    ok;
-                                error ->
-                                    io:format("~p: failed to send a chat comment (user_id: ~p, text: ~p)~n",
-                                        [?MODULE, UserId, Text]),
-                                    ok
-                            end,
-                            {ok, State};
+                    UserId = get_user_id(State),
+                    case ?USER_FRONT:send_chat(UserId, Text) of
+                        {ok, ok} ->
+                            ok;
                         error ->
-                            io:format("~p: user not found~n", [?MODULE]),
-                            {ok, State}
-                    end
+                            io:format("~p: failed to send a chat comment (user_id: ~p, text: ~p)~n",
+                                [?MODULE, UserId, Text]),
+                            ok
+                    end,
+                    {ok, State}
             end;
         {error, Reason} ->
             io:format("~p: unknown command (reason: ~p)~n", [?MODULE, Reason]),

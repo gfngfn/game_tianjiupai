@@ -2,7 +2,6 @@ module WebSocketClient exposing
   ( WebSocket
   , listen
   , onOpen
-  , setUserId
   , sendChat
   , subscribe
   )
@@ -18,9 +17,14 @@ import Port
 type alias WebSocket = Port.WebSocket
 
 
-listen : String -> Cmd Msg
-listen url =
-  Port.listenWebSocket url
+host : String
+host =
+  "ws://localhost:8080"
+
+
+listen : UserId -> Cmd Msg
+listen userId =
+  Port.listenWebSocket (host ++ "/websocket/" ++ userId)
 
 
 onOpen : Sub Msg
@@ -28,12 +32,6 @@ onOpen =
   Port.onOpenWebSocket (\ws ->
     OpenWebSocket ws
   )
-
-
-setUserId : WebSocket -> UserId -> Cmd Msg
-setUserId ws userId =
-  let s = JE.encode 0 (encodeCommand (CommandSetUserId userId)) in
-  Port.sendWebSocketMessage ( ws, s )
 
 
 sendChat : WebSocket -> String -> Cmd Msg

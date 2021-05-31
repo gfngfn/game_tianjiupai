@@ -39,7 +39,7 @@ init flagString =
         Just flagUser ->
           let userId = flagUser.id in
           let userName = flagUser.name in
-          let cmd0 = WebSocketClient.listen "ws://localhost:8080/websocket" in
+          let cmd0 = WebSocketClient.listen userId in
           let
             user : User
             user =
@@ -76,7 +76,7 @@ update msg model =
                 user : User
                 user = { userId = userId, userName = userName }
               in
-              let cmd = WebSocketClient.listen "ws://localhost:8080/websocket" in
+              let cmd = WebSocketClient.listen userId in
               ( { model | state = AtEntrance userNameInput (Just ( user, Nothing )) }, cmd )
 
             Err err ->
@@ -85,14 +85,12 @@ update msg model =
         OpenWebSocket ws ->
             case maybeUserAndRoom of
               Just ( user, Nothing ) ->
-                let cmd1 = WebSocketClient.setUserId ws user.userId in
-                let cmd2 = HttpClient.getAllRooms in
-                ( { model | state = AtPlaza ws user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
+                let cmd = HttpClient.getAllRooms in
+                ( { model | state = AtPlaza ws user "" Nothing }, cmd )
 
               Just ( user, Just roomId ) ->
-                let cmd1 = WebSocketClient.setUserId ws user.userId in
-                let cmd2 = HttpClient.getRoom user.userId roomId in
-                ( { model | state = AtPlaza ws user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
+                let cmd = HttpClient.getRoom user.userId roomId in
+                ( { model | state = AtPlaza ws user "" Nothing }, cmd )
 
               Nothing ->
                 ( { model | message = "[warning] unexpected message (AtEntrance): " ++ showMessage msg }, Cmd.none )

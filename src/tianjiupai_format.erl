@@ -27,9 +27,7 @@
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--type command() ::
-    {set_user_id, tianjiupai:user_id()}
-  | {comment, binary()}.
+-type command() :: {comment, binary()}.
 
 -type encodable() :: term().
 
@@ -138,8 +136,6 @@ decode_command(Data) ->
     try
         jsone:decode(Data)
     of
-        ?LABELED_PATTERN(<<"CommandSetUserId">>, UserId) when is_binary(UserId) ->
-            {ok, {set_user_id, UserId}};
         ?LABELED_PATTERN(<<"CommandComment">>, Text) when is_binary(Text) ->
             {ok, {comment, Text}};
         _ ->
