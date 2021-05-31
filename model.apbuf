@@ -96,8 +96,7 @@ submission := {
 }
 
 command :=
-  | CommandSetUserId : user_id
-  | CommandComment   : string
+  | CommandComment : string
 
 personal_state := {
   room : room,

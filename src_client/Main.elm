@@ -34,25 +34,18 @@ init flagString =
     ( cmd, state ) =
       case maybeFlagUser of
         Nothing ->
-          ( Cmd.none, AtEntrance "" )
+          ( Cmd.none, AtEntrance "" Nothing )
 
         Just flagUser ->
           let userId = flagUser.id in
           let userName = flagUser.name in
-          let cmd1 = WebSocketClient.setUserId userId in
+          let cmd0 = WebSocketClient.listen userId in
           let
             user : User
             user =
               { userId = userId, userName = userName }
           in
-          case flagUser.belongsTo of
-            Nothing ->
-              let cmd2 = HttpClient.getAllRooms in
-              ( Cmd.batch [ cmd1, cmd2 ], AtPlaza user "" Nothing )
-
-            Just roomId ->
-              let cmd2 = HttpClient.getRoom userId roomId in
-              ( Cmd.batch [ cmd1, cmd2 ], AtPlaza user "" Nothing )
+          ( cmd0, AtEntrance "" (Just ( user, flagUser.belongsTo )) )
 
     model : Model
     model =
@@ -66,10 +59,10 @@ init flagString =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case model.state of
-    AtEntrance userNameInput ->
+    AtEntrance userNameInput maybeUserAndRoom ->
       case msg of
         UpdateInput (UserNameInput userNameInput1) ->
-          ( { model | state = AtEntrance userNameInput1 }, Cmd.none )
+          ( { model | state = AtEntrance userNameInput1 maybeUserAndRoom }, Cmd.none )
 
         SendRequest CreateUser ->
           let cmd = HttpClient.createUser userNameInput in
@@ -83,33 +76,45 @@ update msg model =
                 user : User
                 user = { userId = userId, userName = userName }
               in
-              let cmd1 = WebSocketClient.setUserId userId in
-              let cmd2 = HttpClient.getAllRooms in
-              ( { model | state = AtPlaza user "" Nothing }, Cmd.batch [ cmd1, cmd2 ] )
+              let cmd = WebSocketClient.listen userId in
+              ( { model | state = AtEntrance userNameInput (Just ( user, Nothing )) }, cmd )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
 
+        OpenWebSocket ws ->
+            case maybeUserAndRoom of
+              Just ( user, Nothing ) ->
+                let cmd = HttpClient.getAllRooms in
+                ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+
+              Just ( user, Just roomId ) ->
+                let cmd = HttpClient.getRoom user.userId roomId in
+                ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+
+              Nothing ->
+                ( { model | message = "[warning] unexpected message (AtEntrance): " ++ showMessage msg }, Cmd.none )
+
         _ ->
           ( { model | message = "[warning] unexpected message (AtEntrance): " ++ showMessage msg }, Cmd.none )
 
-    AtPlaza user roomNameInput0 maybeRooms ->
+    AtPlaza ws user roomNameInput0 maybeRooms ->
       case msg of
         UpdateInput (RoomNameInput roomNameInput1) ->
-           ( { model | state = AtPlaza user roomNameInput1 maybeRooms }, Cmd.none )
+           ( { model | state = AtPlaza ws user roomNameInput1 maybeRooms }, Cmd.none )
 
         ReceiveResponse (AllRoomsGot result) ->
           case result of
             Ok responseBody ->
               let rooms = responseBody.rooms in
-              ( { model | state = AtPlaza user roomNameInput0 (Just rooms) }, Cmd.none )
+              ( { model | state = AtPlaza ws user roomNameInput0 (Just rooms) }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
 
         SendRequest CreateRoom ->
           let cmd = HttpClient.createRoom user.userId roomNameInput0 in
-          ( { model | state = AtPlaza user "" maybeRooms }, cmd )
+          ( { model | state = AtPlaza ws user "" maybeRooms }, cmd )
 
         ReceiveResponse (RoomCreated roomName result) ->
           case result of
@@ -132,7 +137,7 @@ update msg model =
                     roomSummaries1 =
                       roomSummaries0 ++ [roomSummary]
                   in
-                  ( { model | state = AtPlaza user roomNameInput0 (Just roomSummaries1) }, Cmd.none )
+                  ( { model | state = AtPlaza ws user roomNameInput0 (Just roomSummaries1) }, Cmd.none )
 
                 Nothing ->
                   ( model, Cmd.none )
@@ -147,7 +152,7 @@ update msg model =
         ReceiveResponse (RoomEntered roomId result) ->
           case result of
             Ok room ->
-              ( { model | state = InRoom user room "" }, Cmd.none )
+              ( { model | state = InRoom ws user room "" }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
@@ -155,33 +160,33 @@ update msg model =
         _ ->
           ( { model | message = "[warning] unexpected message (AtPlaza): " ++ showMessage msg }, Cmd.none )
 
-    InRoom user pstate0 chatTextInput0 ->
+    InRoom ws user pstate0 chatTextInput0 ->
       case ( pstate0.game, msg ) of
         ( _, UpdateInput (ChatInput chatTextInput1) ) ->
-           ( { model | state = InRoom user pstate0 chatTextInput1 }, Cmd.none )
+           ( { model | state = InRoom ws user pstate0 chatTextInput1 }, Cmd.none )
 
         ( _, SendRequest SendChat ) ->
-          let cmd = WebSocketClient.sendChat chatTextInput0 in
-          ( { model | state = InRoom user pstate0 ""  }, cmd )
+          let cmd = WebSocketClient.sendChat ws chatTextInput0 in
+          ( { model | state = InRoom ws user pstate0 ""  }, cmd )
 
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = "[warning] invalid notification" }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyComment comment)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogComment comment ] } in
-          ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
+          ( { model | state = InRoom ws user pstate1 chatTextInput0 }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyEntered userIdEntered)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogEntered userIdEntered ] } in
-          ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
+          ( { model | state = InRoom ws user pstate1 chatTextInput0 }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyExited userIdExited)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
-          ( { model | state = InRoom user pstate1 chatTextInput0 }, Cmd.none )
+          ( { model | state = InRoom ws user pstate1 chatTextInput0 }, Cmd.none )
 
         ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
           let cmd = Debug.todo "TODO: send sync with snapshot ID" in
-          ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, cmd )
+          ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
           if ostate0.synchronizing then
@@ -189,12 +194,12 @@ update msg model =
           else
             let cmd = Debug.todo "TODO: send sync with snapshot ID" in
             let ostate1 = ostate0 |> updateObservableGameStateBySubmission submission in
-            ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
+            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok NotifyNextStep) ) ->
           if ostate0.synchronizing then
             let ostate1 = { ostate0 | synchronizing = False } in
-            ( { model | state = InRoom user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, Cmd.none )
+            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, Cmd.none )
           else
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
 
@@ -233,6 +238,7 @@ showMessage msg =
     ReceiveResponse _           -> "ReceiveResponse"
     ReceiveNotification (Err _) -> "ReceiveNotification (error)"
     ReceiveNotification (Ok nt) -> "ReceiveNotification (" ++ showNotification nt ++ ")"
+    OpenWebSocket _             -> "OpenWebSocket"
 
 
 makeErrorMessage : Http.Error -> String
@@ -251,4 +257,7 @@ makeErrorMessage err =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    WebSocketClient.subscribe
+    Sub.batch
+      [ WebSocketClient.onOpen
+      , WebSocketClient.subscribe
+      ]

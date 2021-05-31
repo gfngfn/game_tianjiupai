@@ -1,4 +1,10 @@
-module WebSocketClient exposing (setUserId, sendChat, subscribe)
+module WebSocketClient exposing
+  ( WebSocket
+  , listen
+  , onOpen
+  , sendChat
+  , subscribe
+  )
 
 import Json.Encode as JE
 import Json.Decode as JD exposing (Decoder)
@@ -8,16 +14,30 @@ import Common exposing (..)
 import Port
 
 
-setUserId : UserId -> Cmd Msg
-setUserId userId =
-  let s = JE.encode 0 (encodeCommand (CommandSetUserId userId)) in
-  Port.sendWebSocketMessage s
+type alias WebSocket = Port.WebSocket
 
 
-sendChat : String -> Cmd Msg
-sendChat text =
+host : String
+host =
+  "ws://localhost:8080"
+
+
+listen : UserId -> Cmd Msg
+listen userId =
+  Port.listenWebSocket (host ++ "/websocket/" ++ userId)
+
+
+onOpen : Sub Msg
+onOpen =
+  Port.onOpenWebSocket (\ws ->
+    OpenWebSocket ws
+  )
+
+
+sendChat : WebSocket -> String -> Cmd Msg
+sendChat ws text =
   let s = JE.encode 0 (encodeCommand (CommandComment text)) in
-  Port.sendWebSocketMessage s
+  Port.sendWebSocketMessage ( ws, s )
 
 
 subscribe : Sub Msg
