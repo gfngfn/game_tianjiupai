@@ -105,8 +105,22 @@ viewRoom user pstate chatTextInput =
                 [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ", members: " ++ members ++ ")") ]
             ]
 
-        PlayingGame _ ->
-          div [] [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ")") ]
+        PlayingGame ostate ->
+          let gameMeta = ostate.meta in
+          div []
+            [ div []
+                [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ")") ]
+            , div []
+                [ text ("inning index: " ++ String.fromInt gameMeta.inningIndex) ]
+            , div []
+                [ text ("number of consecutives: " ++ String.fromInt gameMeta.numConsecutives) ]
+            , viewPlayers gameMeta.players
+            , div []
+                [ text ("snapshot ID: " ++ ostate.snapshotId) ]
+            , div []
+                [ text ("synchronizing: " ++ (if ostate.synchronizing then "Y" else "N")) ]
+            , viewObservableInning ostate.observableInning
+            ]
   in
   div []
     [ elemHead
@@ -139,3 +153,35 @@ viewRoom user pstate chatTextInput =
             ]
         ]
     ]
+
+
+viewPlayers : PerSeat GamePlayer -> Html Msg
+viewPlayers players =
+  div []
+    [ div []
+        [ text "players:" ]
+    , ol []
+        [ li [] [ text ("seat 0: " ++ players.east.userId  ++ ", score: " ++ String.fromInt players.east.score) ]
+        , li [] [ text ("seat 1: " ++ players.south.userId ++ ", score: " ++ String.fromInt players.south.score) ]
+        , li [] [ text ("seat 2: " ++ players.west.userId  ++ ", score: " ++ String.fromInt players.west.score) ]
+        , li [] [ text ("seat 3: " ++ players.north.userId ++ ", score: " ++ String.fromInt players.north.score) ]
+        ]
+    ]
+
+
+viewObservableInning : ObservableInning -> Html Msg
+viewObservableInning observableInning =
+  case observableInning of
+    ObservableDuringInning oistate ->
+      let
+        gainsQuad = oistate.gains
+        startsAt  = oistate.startsAt
+        table     = oistate.table
+        yourHand  = oistate.yourHand
+      in
+      div [] [ text "ObservableDuringInning" ]
+        -- TODO
+
+    ObservableInningEnd gainsQuad ->
+      div [] [ text "ObservableInningEnd" ]
+        -- TODO
