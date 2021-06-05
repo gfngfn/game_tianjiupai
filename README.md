@@ -33,7 +33,7 @@ POST /rooms
 
 ```
 PATCH /rooms/<room_id>
-  EnterRoom{
+  EnterRoom {
     user_id : user_id,
   }
 <--- 200 OK
@@ -45,7 +45,7 @@ PATCH /rooms/<room_id>
 
 ```
 PATCH /rooms/<room_id>
-  Comment{
+  Comment {
     user_id : user_id,
     text    : string,
   }
@@ -57,11 +57,12 @@ PATCH /rooms/<room_id>
 
 ```
 PATCH /rooms/<room_id>
-  Ack{
+  Ack {
     user_id     : user_id,
     snapshot_id : snapshot_id,
   }
 <--- 200 OK
+  ack_response := ( StillWaiting | Transition transition )
 ```
 
 
@@ -69,7 +70,7 @@ PATCH /rooms/<room_id>
 
 ```
 PATCH /rooms/<room_id>
-  Submit{
+  Submit {
     user_id : user_id,
     cards   : list(card),
   }
@@ -106,4 +107,22 @@ GET /rooms/<room_id>/users/<user_id>
 GET /
 <--- 200 OK
   (HTML)
+```
+
+
+## Notifications
+
+### Starting of a game
+
+```
+<---
+  NotifyStartGame observable_game_state
+```
+
+
+### Transition to the next step
+
+```
+<---
+  NotifyNextStep transition
 ```
