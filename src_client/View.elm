@@ -119,7 +119,7 @@ viewRoom user pstate chatTextInput =
                 [ text ("snapshot ID: " ++ ostate.snapshotId) ]
             , div []
                 [ text ("synchronizing: " ++ (if ostate.synchronizing then "Y" else "N")) ]
-            , viewObservableInning ostate.observableInning
+            , viewObservableInning user.userId ostate.observableInning
             ]
   in
   div []
@@ -169,8 +169,8 @@ viewPlayers players =
     ]
 
 
-viewObservableInning : ObservableInning -> Html Msg
-viewObservableInning observableInning =
+viewObservableInning : UserId -> ObservableInning -> Html Msg
+viewObservableInning userId observableInning =
   case observableInning of
     ObservableDuringInning oistate ->
       let
@@ -179,9 +179,40 @@ viewObservableInning observableInning =
         table     = oistate.table
         yourHand  = oistate.yourHand
       in
-      div [] [ text "ObservableDuringInning" ]
-        -- TODO
+      div []
+        [ div [] [ text "ObservableDuringInning" ]
+        , showGainsQuad gainsQuad
+        ]
 
     ObservableInningEnd gainsQuad ->
-      div [] [ text "ObservableInningEnd" ]
+      div []
+        [ div [] [ text "ObservableInningEnd" ]
+        , showGainsQuad gainsQuad
+        ]
         -- TODO
+
+
+showGainsQuad : PerSeat (List Card) -> Html Msg
+showGainsQuad gainsQuad =
+  div []
+    [ div []
+        [ text "gains:" ]
+    , ol []
+        [ li [] [ text ("seat 0: " ++ showCards gainsQuad.east) ]
+        , li [] [ text ("seat 1: " ++ showCards gainsQuad.south) ]
+        , li [] [ text ("seat 2: " ++ showCards gainsQuad.west) ]
+        , li [] [ text ("seat 3: " ++ showCards gainsQuad.north) ]
+        ]
+    ]
+
+
+showCards : List Card -> String
+showCards cards =
+  cards |> List.map showCard |> String.join ", "
+
+
+showCard : Card -> String
+showCard card =
+  case card of
+    Wen wen -> "wen" ++ String.fromInt wen
+    Wu wu   -> "wu" ++ String.fromInt wu
