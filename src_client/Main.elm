@@ -212,10 +212,15 @@ update msg model =
           ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices1 chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, SendRequest SubmitCards ) ->
-            let ostate1 = { ostate0 | synchronizing = True } in
-            let cards = Debug.todo "cards" in
-            let cmd = HttpClient.submitCards user.userId pstate0.room.roomId cards in
-            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, cmd )
+            case ostate0.observableInning of
+              ObservableDuringInning inning ->
+                let ostate1 = { ostate0 | synchronizing = True } in
+                let cards = inning.yourHand |> pickupSelectedCards indices0 in
+                let cmd = HttpClient.submitCards user.userId pstate0.room.roomId cards in
+                ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, cmd )
+
+              ObservableInningEnd _ ->
+                ( { model | message = "[warning] inning has already ended" }, Cmd.none )
 
         ( PlayingGame _, SelectCard index ) ->
             let indices1 = indices0 |> Set.insert index in
@@ -227,6 +232,18 @@ update msg model =
 
         _ ->
           ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+
+
+pickupSelectedCards : Set Int -> List Card -> List Card
+pickupSelectedCards indices cards =
+  cards
+    |> List.indexedMap (\index card -> ( index, card ))
+    |> List.foldl (\( index, card ) cardAcc ->
+      if indices |> Set.member index then
+        card :: cardAcc
+      else
+        cardAcc
+    ) []
 
 
 view : Model -> Browser.Document Msg
