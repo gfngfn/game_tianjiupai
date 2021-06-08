@@ -32,7 +32,7 @@ type Request
   | CreateRoom
   | EnterRoom RoomId
   | SendChat
-  | SubmitCards (List Card)
+  | SubmitCards
 
 type Response
   = UserCreated UserName (Result Http.Error CreateUserResponse)

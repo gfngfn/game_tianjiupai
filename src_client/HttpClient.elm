@@ -1,4 +1,11 @@
-module HttpClient exposing (createUser, createRoom, enterRoom, getRoom, getAllRooms)
+module HttpClient exposing
+  ( createUser
+  , createRoom
+  , enterRoom
+  , getRoom
+  , getAllRooms
+  , submitCards
+  )
 
 import Http
 
