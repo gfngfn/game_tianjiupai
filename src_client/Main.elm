@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Set exposing (Set)
 import Json.Encode as JE
 import Json.Decode as JD exposing (Decoder)
 import Url exposing (Url)
@@ -151,8 +152,8 @@ update msg model =
 
         ReceiveResponse (RoomEntered roomId result) ->
           case result of
-            Ok room ->
-              ( { model | state = InRoom ws user room "" }, Cmd.none )
+            Ok pstate ->
+              ( { model | state = InRoom ws user pstate Set.empty "" }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage err }, Cmd.none )
@@ -160,33 +161,33 @@ update msg model =
         _ ->
           ( { model | message = "[warning] unexpected message (AtPlaza): " ++ showMessage msg }, Cmd.none )
 
-    InRoom ws user pstate0 chatTextInput0 ->
+    InRoom ws user pstate0 indices0 chatTextInput0 ->
       case ( pstate0.game, msg ) of
         ( _, UpdateInput (ChatInput chatTextInput1) ) ->
-           ( { model | state = InRoom ws user pstate0 chatTextInput1 }, Cmd.none )
+           ( { model | state = InRoom ws user pstate0 indices0 chatTextInput1 }, Cmd.none )
 
         ( _, SendRequest SendChat ) ->
           let cmd = WebSocketClient.sendChat ws chatTextInput0 in
-          ( { model | state = InRoom ws user pstate0 ""  }, cmd )
+          ( { model | state = InRoom ws user pstate0 indices0 ""  }, cmd )
 
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = "[warning] invalid notification" }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyComment comment)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogComment comment ] } in
-          ( { model | state = InRoom ws user pstate1 chatTextInput0 }, Cmd.none )
+          ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyEntered userIdEntered)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogEntered userIdEntered ] } in
-          ( { model | state = InRoom ws user pstate1 chatTextInput0 }, Cmd.none )
+          ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyExited userIdExited)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
-          ( { model | state = InRoom ws user pstate1 chatTextInput0 }, Cmd.none )
+          ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
         ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
           let cmd = WebSocketClient.sendAck ws ostate.snapshotId in
-          ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, cmd )
+          ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate } indices0 chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
           if ostate0.synchronizing then
@@ -195,25 +196,34 @@ update msg model =
             let ostate1 = submission.newState in -- `synchronizing` is made `True`
               -- TODO: extract (possibly hidden) submitted cards and a submitter from `submission` for animation
             let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
+            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok NotifyNextStep) ) ->
           if ostate0.synchronizing then
             let ostate1 = { ostate0 | synchronizing = False } in
-            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, Cmd.none )
+            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, Cmd.none )
           else
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
 
         ( PlayingGame ostate0, ReceiveResponse (SubmissionDone (Ok submissionResponse)) ) ->
           let ostate1 = submissionResponse.newState in -- `synchronizing` is made `True`
           let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-          ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
+          let indices1 = Set.empty in
+          ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices1 chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, SendRequest SubmitCards ) ->
             let ostate1 = { ostate0 | synchronizing = True } in
             let cards = Debug.todo "cards" in
             let cmd = HttpClient.submitCards user.userId pstate0.room.roomId cards in
-            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
+            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, cmd )
+
+        ( PlayingGame _, SelectCard index ) ->
+            let indices1 = indices0 |> Set.insert index in
+            ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
+
+        ( PlayingGame _, UnselectCard index ) ->
+            let indices1 = indices0 |> Set.remove index in
+            ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
 
         _ ->
           ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
@@ -246,6 +256,8 @@ showMessage msg =
     ReceiveNotification (Err _) -> "ReceiveNotification (error)"
     ReceiveNotification (Ok nt) -> "ReceiveNotification (" ++ showNotification nt ++ ")"
     OpenWebSocket _             -> "OpenWebSocket"
+    SelectCard _                -> "SelectCard"
+    UnselectCard _              -> "UnselectCard"
 
 
 makeErrorMessage : Http.Error -> String

@@ -1,5 +1,6 @@
 module View exposing (viewBody)
 
+import Set exposing (Set)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -19,8 +20,8 @@ viewBody model =
         AtPlaza _ user roomNameInput maybeRoomSummaries ->
           viewPlaza user roomNameInput maybeRoomSummaries
 
-        InRoom _ user personalState chatTextInput ->
-          viewRoom user personalState chatTextInput
+        InRoom _ user personalState indices chatTextInput ->
+          viewRoom user personalState indices chatTextInput
   in
   [ div []
       [ div [] [ text model.message ]
@@ -89,8 +90,8 @@ viewRoomList maybeRoomSummaries =
       ul [] elems
 
 
-viewRoom : User -> PersonalState -> String -> Html Msg
-viewRoom user pstate chatTextInput =
+viewRoom : User -> PersonalState -> Set Int -> String -> Html Msg
+viewRoom user pstate indices chatTextInput =
   let
     room : Room
     room = pstate.room

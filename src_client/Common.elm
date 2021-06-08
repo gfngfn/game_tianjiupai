@@ -1,5 +1,6 @@
 module Common exposing (..)
 
+import Set exposing (Set)
 import Url exposing (Url)
 import Json.Decode as JD exposing (Decoder)
 import Http
@@ -17,10 +18,11 @@ type State
     -- 1. The user who is using the client
     -- 2. The content of the input form for creating new rooms
     -- 3. The list of existent rooms (which is temporarily `Nothing` if being fetched)
-  | InRoom Port.WebSocket User PersonalState String
+  | InRoom Port.WebSocket User PersonalState (Set Int) String
     -- 1. The user who is using the client
     -- 2. The state of the play where the user can observe
-    -- 3. The content of the input form for chatting
+    -- 3. The indices of cards the user is selecting
+    -- 4. The content of the input form for chatting
 
 type alias Model =
   { message       : String
@@ -49,6 +51,8 @@ type InputUpdate
 type Msg
   = UpdateInput InputUpdate
   | SendRequest Request
+  | SelectCard Int
+  | UnselectCard Int
   | ReceiveResponse Response
   | ReceiveNotification (Result JD.Error Notification)
   | OpenWebSocket Port.WebSocket
