@@ -212,10 +212,11 @@ make_notification_object(Notification) ->
         {notify_submission, Seat, CardOpts, ObservableGameState} ->
             SeatObj = make_seat_object(Seat),
             CardOptObjs = lists:map(fun make_card_opt_object/1, CardOpts),
+            ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
             ?LABELED(<<"NotifySubmission">>, #{
                 seat      => SeatObj,
                 cards     => CardOptObjs,
-                new_state => ObservableGameState
+                new_state => ObservableGameStateObj
             })
     end.
 
@@ -301,7 +302,7 @@ make_observable_inning_state_object(ObservableInningStateMap) ->
         table     := Table
     } = ObservableInningStateMap,
     #{
-        starts_at => StartsAt,
+        starts_at => make_seat_object(StartsAt),
         your_hand => lists:map(fun make_card_object/1, YourHand),
         gains     => make_quad_object(fun make_gained_object/1, GainsQuad),
         table     => make_table_object(Table)

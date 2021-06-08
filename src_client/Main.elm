@@ -171,7 +171,7 @@ update msg model =
           ( { model | state = InRoom ws user pstate0 indices0 ""  }, cmd )
 
         ( _, ReceiveNotification (Err err) ) ->
-          ( { model | message = "[warning] invalid notification" }, Cmd.none )
+          ( { model | message = "[warning] invalid notification: " ++ JD.errorToString err }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyComment comment)) ) ->
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogComment comment ] } in

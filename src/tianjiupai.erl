@@ -96,7 +96,8 @@
   | {notify_entered, user_id()}
   | {notify_exited, user_id()}
   | {notify_game_start, observable_game_state()}
-  | notify_next_step.
+  | notify_next_step
+  | {notify_submission, seat(), [({ok, card()} | error)], observable_game_state()}.
 
 -type observable_room_state() ::
     {waiting, [user_id()]}
