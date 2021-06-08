@@ -32,12 +32,14 @@ type Request
   | CreateRoom
   | EnterRoom RoomId
   | SendChat
+  | SubmitCards (List Card)
 
 type Response
   = UserCreated UserName (Result Http.Error CreateUserResponse)
   | RoomCreated RoomName (Result Http.Error CreateRoomResponse)
   | RoomEntered RoomId (Result Http.Error PersonalState)
   | AllRoomsGot (Result Http.Error GetAllRoomsResponse)
+  | SubmissionDone (Result Http.Error SubmitCardsResponse)
 
 type InputUpdate
   = UserNameInput UserName

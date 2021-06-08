@@ -56,3 +56,16 @@ getRoom userId roomId =
     { url    = host ++ "/rooms/" ++ roomId ++ "/users/" ++ userId
     , expect = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) decodeGetRoomResponse
     }
+
+
+submitCards : UserId -> RoomId -> List Card -> Cmd Msg
+submitCards userId roomId cards =
+  Http.request
+    { method  = "PUT"
+    , headers = []
+    , url     = host ++ "/rooms/" ++ roomId ++ "/users/" ++ userId
+    , body    = Http.jsonBody (encodeSubmitCardsRequest { cards = cards })
+    , expect  = Http.expectJson (ReceiveResponse << SubmissionDone) decodeSubmitCardsResponse
+    , timeout = Nothing
+    , tracker = Nothing
+    }

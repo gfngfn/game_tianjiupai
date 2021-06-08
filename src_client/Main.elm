@@ -192,7 +192,8 @@ update msg model =
           if ostate0.synchronizing then
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
           else
-            let ostate1 = submission.newState in -- `synchronizing` is made `true`
+            let ostate1 = submission.newState in -- `synchronizing` is made `True`
+              -- TODO: extract (possibly hidden) submitted cards and a submitter from `submission` for animation
             let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
             ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
 
@@ -202,6 +203,14 @@ update msg model =
             ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, Cmd.none )
           else
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+
+        ( PlayingGame ostate0, ReceiveResponse (SubmissionDone (Ok submissionResponse)) ) ->
+          if ostate0.synchronizing then
+            ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+          else
+            let ostate1 = submissionResponse.newState in -- `synchronizing` is made `True`
+            let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
+            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
 
         _ ->
           ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )

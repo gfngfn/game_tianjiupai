@@ -34,11 +34,11 @@ flag := {
 }
 
 create_user_request := {
-  user_name : user_name
+  user_name : user_name,
 }
 
 create_user_response := {
-  user_id : user_id
+  user_id : user_id,
 }
 
 create_room_request := {
@@ -58,11 +58,19 @@ get_room_response :=
   personal_state
 
 enter_room_request := {
-  user_id : user_id
+  user_id : user_id,
 }
 
 enter_room_response :=
   personal_state
+
+submit_cards_request := {
+  cards : list(card),
+}
+
+submit_cards_response := {
+  new_state : observable_game_state,
+}
 
 room_summary := {
   room       : room,
