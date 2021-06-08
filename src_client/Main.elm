@@ -185,14 +185,14 @@ update msg model =
           ( { model | state = InRoom ws user pstate1 chatTextInput0 }, Cmd.none )
 
         ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
-          let cmd = Debug.todo "TODO: send sync with snapshot ID" in
+          let cmd = WebSocketClient.sendAck ws ostate.snapshotId in
           ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate } chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
           if ostate0.synchronizing then
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
           else
-            let cmd = WebSocketClient.sendAck ws submission.snapshotId in
+            let cmd = WebSocketClient.sendAck ws submission.newState.snapshotId in
             let ostate1 = ostate0 |> updateObservableGameStateBySubmission submission in
             ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
 

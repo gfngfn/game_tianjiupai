@@ -90,10 +90,9 @@ notification :=
   | NotifySubmission : submission
 
 submission := {
-    snapshot_id : snapshot_id,
-    seat        : seat,
-    submitted   : list(option(card)),
-    new_state   : observable_game_state,
+    seat      : seat,
+    submitted : list(option(card)),
+    new_state : observable_game_state,
 }
 
 command :=

@@ -393,7 +393,7 @@ submit_success_test_() ->
     [
      {"submit (" ++ Subtitle ++ ")",
       fun() ->
-          ?OK(Got) = ?TARGET_MODULE:submit(SubmitterSeat, SubmittedCards, InningState),
+          ?OK({Got, _IsFront}) = ?TARGET_MODULE:submit(SubmitterSeat, SubmittedCards, InningState),
           ?assertEqual(sort_hands_of_result(Expected), sort_hands_of_result(Got))
       end}
     ||

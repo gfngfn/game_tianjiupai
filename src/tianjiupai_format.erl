@@ -209,10 +209,14 @@ make_notification_object(Notification) ->
             ?LABELED(<<"NotifyGameStart">>, ObservableGameStateObj);
         notify_next_step ->
             ?LABEL_ONLY(<<"NotifyNextStep">>);
-        {notify_submission, SnapshotId, Seat, Cards} ->
+        {notify_submission, Seat, CardOpts, ObservableGameState} ->
             SeatObj = make_seat_object(Seat),
-            CardObjs = lists:map(fun make_card_object/1, Cards),
-            ?LABELED(<<"NotifySubmission">>, #{snapshot_id => SnapshotId, seat => SeatObj, cards => CardObjs})
+            CardOptObjs = lists:map(fun make_card_opt_object/1, CardOpts),
+            ?LABELED(<<"NotifySubmission">>, #{
+                seat      => SeatObj,
+                cards     => CardOptObjs,
+                new_state => ObservableGameState
+            })
     end.
 
 -spec make_room_object(tianjiupai:room_id(), binary()) -> encodable().
@@ -372,6 +376,13 @@ make_closed_or_objects(F, XOrCloseds) ->
            (closed)    -> ?LABEL_ONLY(<<"Closed">>)
         end,
         XOrCloseds).
+
+-spec make_card_opt_object({ok, tianjiupai:card()} | error) -> encodable().
+make_card_opt_object(CardOpt) ->
+    case CardOpt of
+        {ok, Card} -> ?LABELED(<<"Some">>, make_card_object(Card));
+        error      -> ?LABEL_ONLY(<<"None">>)
+    end.
 
 -spec make_card_object(tianjiupai:card()) -> encodable().
 make_card_object(Card) ->

@@ -88,7 +88,7 @@ module Types = struct
     | NotifyExited(user_id)
     | NotifyGameStart(observable_game_state)
     | NotifyNextStep
-    | NotifySubmission(snapshot_id, Quad.seat, list<Card.t>)
+    | NotifySubmission(Quad.seat, list<option<Card.t>>, observable_game_state)
 
   type observable_room_state =
     | Waiting(list<user_id>)

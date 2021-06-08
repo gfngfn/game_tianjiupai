@@ -25,7 +25,7 @@ module Inning :> sig
 
   val observe : fun(Quad.seat, t) -> observable_inning_state
 
-  val submit : fun(Quad.seat, list<Card.t>, t) -> option<submit_result>
+  val submit : fun(Quad.seat, list<Card.t>, t) -> option<{submit_result, bool}>
 
 end = struct
   open Stdlib
@@ -455,6 +455,28 @@ end = struct
         {trick_index, [Card.Wen(wen), Card.Wen(wen), Card.Wu(wu), Card.Wu(wu)]}
     end
 
+  val check_last_submission_is_open(table : table_state) : bool =
+    let f(exposed) =
+      let {x, x_or_closeds} = exposed in
+      case List.reverse(x_or_closeds) of
+      | []           -> true
+      | Open(_) :: _ -> true
+      | Closed :: _  -> false
+      end
+    in
+    case table of
+    | Wuzun(exposed)      -> f(exposed)
+    | Wenzun(exposed)     -> f(exposed)
+    | SingleWen(exposed)  -> f(exposed)
+    | SingleWu(exposed)   -> f(exposed)
+    | DoubleWen(exposed)  -> f(exposed)
+    | DoubleWu(exposed)   -> f(exposed)
+    | DoubleBoth(exposed) -> f(exposed)
+    | TripleWen(exposed)  -> f(exposed)
+    | TripleWu(exposed)   -> f(exposed)
+    | Quadruple(exposed)  -> f(exposed)
+    end
+
   val submit(submitter_seat : Quad.seat, submitted_cards : list<Card.t>, inning : t) =
     let start_seat = inning.starts_at in
     let table0 = inning.table in
@@ -482,13 +504,13 @@ end = struct
                     append_closed_to_table(table0)
                 | _ :: _ ->
                     update_table(submitted_cards, table0)
-
                 end
               else
                 update_table(submitted_cards, table0)
             in
             case res of
             | Some(table1) ->
+                let is_front = check_last_submission_is_open(table1) in
                 let num_gained1 = num_gained0 + num_submitted_cards in
                 if n0 == 3 then
                 /* If this is the last submission within a trick: */
@@ -505,7 +527,7 @@ end = struct
                   if num_gained1 == 8 then
                   /* If this is the last trick within an inning: */
                     let gained_quad = Quad.map(fun(p) -> p.gained end, players2) in
-                    Some(WinsInning(winner_seat, gained_quad))
+                    Some({WinsInning(winner_seat, gained_quad), is_front})
                   else
                     let inning1 =
                       {
@@ -514,7 +536,7 @@ end = struct
                         players   = players2,
                       }
                     in
-                    Some(WinsTrick(winner_seat, inning1))
+                    Some({WinsTrick(winner_seat, inning1), is_front})
                 else
                   let inning =
                     {
@@ -523,7 +545,7 @@ end = struct
                       players   = players1,
                     }
                   in
-                  Some(Continues(inning))
+                  Some({Continues(inning), is_front})
             end
         | None ->
             None /* submitter_does_not_own_submitted_cards */

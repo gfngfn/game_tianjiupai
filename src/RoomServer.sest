@@ -414,7 +414,7 @@ end = struct
                     | None ->
                         return(None)
 
-                    | Some(submit_result) ->
+                    | Some({submit_result, is_front}) ->
                         do snapshot_id <- SnapshotId.generate() in
                         let game_meta = game_state.meta in
                         let game_state =
@@ -444,8 +444,19 @@ end = struct
                               }
                           end
                         in
-                        let user_ids = the_other_players(game_state, seat) in
-                        do dummy <- notify_for_each(user_ids, [NotifySubmission(snapshot_id, seat, cards)]) in
+                        let [u0, u1, u2] = the_other_players(game_state, seat) in
+                        let card_opts =
+                          if is_front then
+                            List.map(fun(card) -> Some(card) end, cards)
+                          else
+                            List.map(fun(card) -> None end, cards)
+                        in
+                        let Some(obs0) = make_observable_game_state(game_state, u0) in
+                        let Some(obs1) = make_observable_game_state(game_state, u1) in
+                        let Some(obs2) = make_observable_game_state(game_state, u2) in
+                        do dummy <- notify(u0, [NotifySubmission(seat, card_opts, obs0)]) in
+                        do dummy <- notify(u1, [NotifySubmission(seat, card_opts, obs1)]) in
+                        do dummy <- notify(u2, [NotifySubmission(seat, card_opts, obs2)]) in
                         return(Some({snapshot_id, game_state}))
                     end
                 end
@@ -485,7 +496,7 @@ end = struct
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
                           let user_ids = the_other_players(game_state, seat) in
-                          do dummy <- notify_for_each(user_ids, [NotifyNextStep]) in
+                          do dummy <- notify_for_each(user_id :: user_ids, [NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
                           return(Some(game_state))
 
