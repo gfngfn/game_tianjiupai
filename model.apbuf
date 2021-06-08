@@ -92,11 +92,13 @@ notification :=
 submission := {
     snapshot_id : snapshot_id,
     seat        : seat,
-    cards       : list(card),
+    submitted   : list(option(card)),
+    new_state   : observable_game_state,
 }
 
 command :=
   | CommandComment : string
+  | CommandAck     : snapshot_id
 
 personal_state := {
   room : room,

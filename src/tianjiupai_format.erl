@@ -27,7 +27,9 @@
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--type command() :: {comment, binary()}.
+-type command() ::
+    {comment, Text :: binary()}
+  | {ack, tianjiupai:snapshot_id()}.
 
 -type encodable() :: term().
 
@@ -136,8 +138,10 @@ decode_command(Data) ->
     try
         jsone:decode(Data)
     of
-        ?LABELED_PATTERN(<<"CommandComment">>, Text) when is_binary(Text) ->
+        ?LABELED_PATTERN(<<"CommandComment">>, Text) when erlang:is_binary(Text) ->
             {ok, {comment, Text}};
+        ?LABELED_PATTERN(<<"CommandAck">>, SnapshotId) when erlang:is_binary(SnapshotId) ->
+            {ok, {ack, SnapshotId}};
         _ ->
             {error, {invalid_command, Data}}
     catch

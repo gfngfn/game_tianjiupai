@@ -192,7 +192,7 @@ update msg model =
           if ostate0.synchronizing then
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
           else
-            let cmd = Debug.todo "TODO: send sync with snapshot ID" in
+            let cmd = WebSocketClient.sendAck ws submission.snapshotId in
             let ostate1 = ostate0 |> updateObservableGameStateBySubmission submission in
             ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
 

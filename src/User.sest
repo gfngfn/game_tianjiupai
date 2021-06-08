@@ -21,6 +21,8 @@ module User :> sig
 
   val send_chat<$a> : fun(user_id, binary) -> [$a]option<unit>
 
+  val ack<$a> : fun(user_id, snapshot_id) -> [$a]unit
+
   val set_websocket_connection<$a> : fun(user_id, RawValue.t) -> [$a]option<unit>
 
 end = struct
@@ -58,6 +60,13 @@ end = struct
     case opt of
     | None          -> return(None)
     | Some(room_id) -> Room.send_chat(room_id, user_id, text)
+    end
+
+  val ack(user_id, snapshot_id) = act
+    do opt <- get_room(user_id) in
+    case opt of
+    | None          -> return({})
+    | Some(room_id) -> Room.ack(room_id, user_id, snapshot_id)
     end
 
   val set_websocket_connection(user_id, ws_pid) = act

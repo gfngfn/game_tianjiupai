@@ -23,7 +23,7 @@ module RoomServer :> sig
   val attend<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<snapshot_id>
-  val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]option<next_step>
+  val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
 
 end = struct
   open Stdlib
@@ -68,7 +68,6 @@ end = struct
     | SendChat(user_id, binary)
     | Attend(user_id)
     | Exit(user_id)
-    | Ack(user_id, snapshot_id)
     | Submit(user_id, list<Card.t>)
 
   type response_impl =
@@ -77,7 +76,6 @@ end = struct
     | ChatSent
     | Attended(option<personal_room_state>)
     | Exited(bool)
-    | SynAck(option<next_step>)
     | SubmissionDone(option<snapshot_id>)
 
   module Callback = struct
@@ -88,7 +86,7 @@ end = struct
     type response = response_impl
 
     type cast_message =
-      | DummyCastMessage
+      | Ack(user_id, snapshot_id)
 
     type info =
       | DummyInfo
@@ -489,22 +487,19 @@ end = struct
                           let user_ids = the_other_players(game_state, seat) in
                           do dummy <- notify_for_each(user_ids, [NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
-                          return(Some({Transition, game_state}))
+                          return(Some(game_state))
 
                       | _ ->
                           let game_state = { game_state | sync = WaitingSync(sync_quad) } in
-                          return(Some({StillWaiting, game_state}))
+                          return(Some(game_state))
                       end
                   end
             end
         end
       in
       case opt of
-      | None ->
-          GenServer.reply(SynAck(None), state)
-
-      | Some({next_step, game_state}) ->
-          GenServer.reply(SynAck(Some(next_step)), { state | room_state = InternalPlaying(game_state) })
+      | None             -> GenServer.no_reply(state)
+      | Some(game_state) -> GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
       end
 
     val update_sync(user_id : user_id, state : state) = act
@@ -555,15 +550,15 @@ end = struct
           handle_attend(user_id, state)
       | Exit(user_id) ->
           handle_exit(user_id, state)
-      | Ack(user_id, snapshot_id) ->
-          handle_ack(user_id, snapshot_id, state)
       | Submit(user_id, cards) ->
           handle_submit(user_id, cards, state)
       end
 
     val handle_cast(msg, state) = act
-      let _ = print_debug({"unexpected cast message", msg}) in
-      GenServer.no_reply(state)
+      case msg of
+      | Ack(user_id, snapshot_id) ->
+          handle_ack(user_id, snapshot_id, state)
+      end
 
     val handle_info(info, state) = act
       let _ = print_debug({"unexpected info", info}) in
@@ -664,11 +659,14 @@ end = struct
       end
     end)
 
-  val ack<$a>(room_id, user_id, snapshot_id) : [$a]option<next_step> = act
-    call(room_id, Ack(user_id, snapshot_id), fun(resp) -> act
-      case resp of
-      | SynAck(None)            -> return(None)
-      | SynAck(Some(next_step)) -> return(Some(next_step))
-      end
-    end)
+  val ack<$a>(room_id, user_id, snapshot_id) : [$a]unit = act
+    do proc_opt <- Impl.where_is_global(room_id) in
+    case proc_opt of
+    | None ->
+        return({})
+
+    | Some(proc) ->
+        Impl.cast(proc, Callback.Ack(user_id, snapshot_id))
+    end
+
 end

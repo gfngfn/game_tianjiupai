@@ -147,11 +147,11 @@ get_user_id(State) ->
 
 -spec handle_command(iodata(), #state{}) -> {ok, #state{}}.
 handle_command(Data, State) ->
+    UserId = get_user_id(State),
     case tianjiupai_format:decode_command(Data) of
         {ok, Command} ->
             case Command of
                 {comment, Text} ->
-                    UserId = get_user_id(State),
                     case ?USER_FRONT:send_chat(UserId, Text) of
                         {ok, ok} ->
                             ok;
@@ -160,6 +160,9 @@ handle_command(Data, State) ->
                                 [?MODULE, UserId, Text]),
                             ok
                     end,
+                    {ok, State};
+                {ack, SnapshotId} ->
+                    ok = ?USER_FRONT:ack(UserId, SnapshotId),
                     {ok, State}
             end;
         {error, Reason} ->
