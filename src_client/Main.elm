@@ -192,8 +192,8 @@ update msg model =
           if ostate0.synchronizing then
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
           else
-            let cmd = WebSocketClient.sendAck ws submission.newState.snapshotId in
-            let ostate1 = ostate0 |> updateObservableGameStateBySubmission submission in
+            let ostate1 = submission.newState in -- `synchronizing` is made `true`
+            let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
             ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } chatTextInput0 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok NotifyNextStep) ) ->
@@ -205,11 +205,6 @@ update msg model =
 
         _ ->
           ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
-
-
-updateObservableGameStateBySubmission : Submission -> ObservableGameState -> ObservableGameState
-updateObservableGameStateBySubmission submission ostate0 =
-  Debug.todo "TODO: updateObservableGameStateBySubimission; don't forget to set 'synchronizing' to 'true'!"
 
 
 view : Model -> Browser.Document Msg
