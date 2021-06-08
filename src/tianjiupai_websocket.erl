@@ -115,7 +115,7 @@ register_name(UserId) ->
             name(UserId),
             Self,
             fun(Name, Pid1, Pid2) ->
-                    io:format("name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)", [Name, Pid1, Pid2, Self]),
+                    io:format("name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)~n", [Name, Pid1, Pid2, Self]),
                     case {Pid1, Pid2} of
                         {Self, _} ->
                             erlang:exit(Pid2),
@@ -162,6 +162,8 @@ handle_command(Data, State) ->
                     end,
                     {ok, State};
                 {ack, SnapshotId} ->
+                    io:format("~p: ack (user_id: ~p, snapshot_id: ~p)~n",
+                        [?MODULE, UserId, SnapshotId]),
                     ok = ?USER_FRONT:ack(UserId, SnapshotId),
                     {ok, State}
             end;

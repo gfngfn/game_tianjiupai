@@ -484,14 +484,10 @@ end = struct
 
             | Some(seat) ->
                 if SnapshotId.equal(snapshot_id, game_state.snapshot_id) then
-                  return(None)
-                else
                   case game_state.sync of
-                  | WaitingInput ->
-                      return(None)
-
                   | WaitingSync(sync_quad) ->
                       let sync_quad = Quad.update(seat, true, sync_quad) in
+                      let _ = print_debug({"update sync", snapshot_id, game_state.snapshot_id, sync_quad}) in /* temporary */
                       case sync_quad of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
@@ -504,7 +500,13 @@ end = struct
                           let game_state = { game_state | sync = WaitingSync(sync_quad) } in
                           return(Some(game_state))
                       end
+                  | WaitingInput ->
+                     let _ = print_debug({"waiting input", snapshot_id, game_state.snapshot_id}) in
+                      return(None)
                   end
+                else
+                  let _ = print_debug({"snapshot mismatch", snapshot_id, game_state.snapshot_id}) in
+                  return(None)
             end
         end
       in
