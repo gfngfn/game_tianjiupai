@@ -120,7 +120,7 @@ viewRoom user pstate indices chatTextInput =
                 [ text ("snapshot ID: " ++ ostate.snapshotId) ]
             , div []
                 [ text ("synchronizing: " ++ (if ostate.synchronizing then "Y" else "N")) ]
-            , viewObservableInning user.userId ostate.observableInning
+            , viewObservableInning user.userId indices ostate.observableInning
             ]
   in
   div []
@@ -170,19 +170,21 @@ viewPlayers players =
     ]
 
 
-viewObservableInning : UserId -> ObservableInning -> Html Msg
-viewObservableInning userId observableInning =
+viewObservableInning : UserId -> Set Int -> ObservableInning -> Html Msg
+viewObservableInning userId indices observableInning =
   case observableInning of
-    ObservableDuringInning oistate ->
+    ObservableDuringInning oinning ->
       let
-        gainsQuad = oistate.gains
-        startsAt  = oistate.startsAt
-        table     = oistate.table
-        yourHand  = oistate.yourHand
+        gainsQuad = oinning.gains
+        startsAt  = oinning.startsAt
+        table     = oinning.table
+        yourHand  = oinning.yourHand
       in
       div []
         [ div [] [ text "ObservableDuringInning" ]
         , showGainsQuad gainsQuad
+        , showTable table
+        , showHand indices yourHand
         ]
 
     ObservableInningEnd gainsQuad ->
@@ -190,7 +192,43 @@ viewObservableInning userId observableInning =
         [ div [] [ text "ObservableInningEnd" ]
         , showGainsQuad gainsQuad
         ]
-        -- TODO
+
+
+showTable : Table -> Html Msg
+showTable table =
+  let
+    msg =
+      case table of
+        Starting          -> "Starting"
+        TrickWuzun e      -> "TrickWuzun, " ++ showExposed (\_ -> "wuzun") e
+        TrickWenzun e     -> "TrickWenzun, " ++ showExposed (\b -> if b then "y" else "n") e
+        TrickSingleWen e  -> "TrickSingleWen, " ++ showExposed showWen e
+        TrickSingleWu e   -> "TrickSingleWu, " ++ showExposed showWu e
+        TrickDoubleWen e  -> "TrickDoubleWen, " ++ showExposed showWen e
+        TrickDoubleWu e   -> "TrickDoubleWu, " ++ showExposed showWu e
+        TrickDoubleBoth e -> "TrickDoubleBoth, " ++ showExposed showBig e
+        TrickTripleWen e  -> "TrickTripleWen, " ++ showExposed showBig e
+        TrickTripleWu e   -> "TrickTripleWu, " ++ showExposed showBig e
+        TrickQuadruple e  -> "TrickQuadruple, " ++ showExposed showBig e
+  in
+  div []
+    [ text msg ]
+
+
+showExposed : (a -> String) -> Exposed a -> String
+showExposed pf exposed =
+  let
+    s0 =
+      pf exposed.first
+
+    ss =
+      exposed.subsequent |> List.map (\xOrClosed ->
+        case xOrClosed of
+          Open x -> pf x
+          Closed -> "close"
+      )
+  in
+  (s0 :: ss) |> String.join "-"
 
 
 showGainsQuad : PerSeat (List Card) -> Html Msg
@@ -207,6 +245,25 @@ showGainsQuad gainsQuad =
     ]
 
 
+showHand : Set Int -> List Card -> Html Msg
+showHand indices cards =
+  let
+    elems =
+      cards |> List.indexedMap (\index card ->
+        if indices |> Set.member index then
+          li [] [ text ("@ " ++ showCard card) ]
+        else
+          li [] [ text ("- " ++ showCard card) ]
+      )
+  in
+  div []
+    [ div []
+        [ text "hands:" ]
+    , ol []
+        elems
+    ]
+
+
 showCards : List Card -> String
 showCards cards =
   cards |> List.map showCard |> String.join ", "
@@ -215,5 +272,20 @@ showCards cards =
 showCard : Card -> String
 showCard card =
   case card of
-    Wen wen -> "wen" ++ String.fromInt wen
-    Wu wu   -> "wu" ++ String.fromInt wu
+    Wen wen -> showWen wen
+    Wu wu   -> showWu wu
+
+
+showBig : CardBig -> String
+showBig big =
+  "big" ++ String.fromInt big
+
+
+showWen : CardWen -> String
+showWen wen =
+  "wen" ++ String.fromInt wen
+
+
+showWu : CardWu -> String
+showWu wu =
+  "wu" ++ String.fromInt wu

@@ -140,7 +140,7 @@ closed_or($a) :=
 
 exposed($a) := {
   first      : $a,
-  subsequent : closed_or($a),
+  subsequent : list(closed_or($a)),
 }
 
 unit :=
