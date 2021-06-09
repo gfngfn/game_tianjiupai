@@ -205,11 +205,22 @@ update msg model =
           else
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
 
-        ( PlayingGame ostate0, ReceiveResponse (SubmissionDone (Ok submissionResponse)) ) ->
-          let ostate1 = submissionResponse.newState in -- `synchronizing` is made `True`
-          let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-          let indices1 = Set.empty in
-          ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices1 chatTextInput0 }, cmd )
+        ( PlayingGame ostate0, ReceiveResponse (SubmissionDone res) ) ->
+          case res of
+            Ok submissionResponse ->
+              let ostate1 = submissionResponse.newState in -- `synchronizing` is made `True`
+              let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
+              let indices1 = Set.empty in
+              ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices1 chatTextInput0 }, cmd )
+
+            Err err ->
+              let ostate1 = { ostate0 | synchronizing = False } in
+              ( { model
+                | message = "[warning] submission error: " ++ makeErrorMessage err
+                , state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0
+                }
+              , Cmd.none
+              )
 
         ( PlayingGame ostate0, SendRequest SubmitCards ) ->
             case ostate0.observableInning of

@@ -12,6 +12,7 @@ import Game
 
 type alias HandInfo =
   { maybeIndices  : Maybe (Set Int)
+  , maybeTable    : Maybe Table
   , synchronizing : Bool
   }
 
@@ -118,9 +119,16 @@ viewRoom user pstate indices chatTextInput =
           let synchronizing = ostate.synchronizing in
           let turn = Game.isMyTurn user.userId ostate in
           let
+            maybeTable =
+              case ostate.observableInning of
+                ObservableDuringInning oinning -> Just oinning.table
+                ObservableInningEnd _          -> Nothing
+          in
+          let
             handInfo : HandInfo
             handInfo =
-              { maybeIndices = if turn then Just indices else Nothing
+              { maybeIndices  = if turn then Just indices else Nothing
+              , maybeTable    = maybeTable
               , synchronizing = synchronizing
               }
           in
@@ -291,13 +299,24 @@ showHand handInfo cards =
                      [ text ("- " ++ showCard card) ]
                  ]
             )
+
+    buttonElems =
+      case handInfo.maybeIndices of
+        Nothing ->
+          []
+
+        Just indices ->
+          let selectedCards = getSelectedCards indices cards in
+          let
+            submittable =
+              case handInfo.maybeTable of
+                Nothing    -> False
+                Just table -> Game.isSubmittable table selectedCards
+          in
+          [ button [ disabled (not submittable), onClick (SendRequest SubmitCards) ] [ text "submit" ] ]
   in
   div []
-    [ div []
-        [ text "hands:" ]
-    , ol []
-        elems
-    ]
+    ([ div [] [ text "hands:" ], ol [] elems ] ++ buttonElems)
 
 
 showCards : List Card -> String

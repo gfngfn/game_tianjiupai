@@ -56,3 +56,10 @@ type Msg
   | ReceiveResponse Response
   | ReceiveNotification (Result JD.Error Notification)
   | OpenWebSocket Port.WebSocket
+
+
+getSelectedCards : Set Int -> List Card -> List Card
+getSelectedCards indices cards =
+  cards
+    |> List.indexedMap (\index card -> ( index, card ))
+    |> List.filterMap (\( index, card ) -> if indices |> Set.member index then Just card else Nothing)
