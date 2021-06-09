@@ -7,6 +7,7 @@ import Html.Events exposing (onClick, onInput)
 
 import Models exposing (..)
 import Common exposing (..)
+import Game
 
 
 viewBody : Model -> List (Html Msg)
@@ -108,6 +109,7 @@ viewRoom user pstate indices chatTextInput =
 
         PlayingGame ostate ->
           let gameMeta = ostate.meta in
+          let turn = Game.isMyTurn user.userId ostate in
           div []
             [ div []
                 [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ")") ]
@@ -120,6 +122,8 @@ viewRoom user pstate indices chatTextInput =
                 [ text ("snapshot ID: " ++ ostate.snapshotId) ]
             , div []
                 [ text ("synchronizing: " ++ (if ostate.synchronizing then "Y" else "N")) ]
+            , div []
+                [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
             , viewObservableInning user.userId indices ostate.observableInning
             ]
   in
