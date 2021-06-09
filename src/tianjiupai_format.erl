@@ -343,7 +343,7 @@ make_table_object(Table) ->
         {wuzun, Exposed} ->
             ?LABELED(<<"TrickWuzun">>, make_exposed_object(fun make_ok_object/1, Exposed));
         {wenzun, Exposed} ->
-            ?LABELED(<<"TrickWenzun">>, make_exposed_object(fun make_bool_object/1, Exposed));
+            ?LABELED(<<"TrickWenzun">>, make_exposed_object(fun make_wenzun_object/1, Exposed));
         {single_wen, WenExposed} ->
             ?LABELED(<<"TrickSingleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
         {single_wu, WuExposed} ->
@@ -382,6 +382,10 @@ make_card_wu_object(Wu) ->
 -spec make_ok_object(ok) -> encodable().
 make_ok_object(ok) ->
     ?LABEL_ONLY(<<"Unit">>).
+
+-spec make_wenzun_object(major | minor) -> encodable().
+make_wenzun_object(major) -> true;
+make_wenzun_object(minor) -> false.
 
 -spec make_bool_object(boolean()) -> encodable().
 make_bool_object(true)  -> true;

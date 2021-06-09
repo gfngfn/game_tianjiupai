@@ -91,7 +91,7 @@ end = struct
     let you = Quad.access(seat, player_quad) in
     {
       starts_at = inning.starts_at,
-      your_hand = you.hand,
+      your_hand = Card.sort(you.hand),
       gains     = Quad.map(fun(p) -> p.gained end, player_quad),
       table     = inning.table,
     }
