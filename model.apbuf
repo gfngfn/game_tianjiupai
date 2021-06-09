@@ -57,6 +57,10 @@ get_all_rooms_response := {
 get_room_response :=
   personal_state
 
+room_request :=
+  | RoomRequestToEnterRoom   : enter_room_request
+  | RoomRequestToSubmitCards : submit_cards_request
+
 enter_room_request := {
   user_id : user_id,
 }
@@ -65,7 +69,8 @@ enter_room_response :=
   personal_state
 
 submit_cards_request := {
-  cards : list(card),
+  user_id : user_id,
+  cards   : list(card),
 }
 
 submit_cards_response := {

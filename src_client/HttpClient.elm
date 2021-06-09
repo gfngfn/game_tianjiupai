@@ -18,6 +18,22 @@ host =
   "http://localhost:8080"
 
 
+getAllRooms : Cmd Msg
+getAllRooms =
+  Http.get
+    { url    = host ++ "/rooms"
+    , expect = Http.expectJson (ReceiveResponse << AllRoomsGot) decodeGetAllRoomsResponse
+    }
+
+
+getRoom : UserId -> RoomId -> Cmd Msg
+getRoom userId roomId =
+  Http.get
+    { url    = host ++ "/rooms/" ++ roomId ++ "/users/" ++ userId
+    , expect = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) decodeGetRoomResponse
+    }
+
+
 createUser : UserName -> Cmd Msg
 createUser userName =
   Http.post
@@ -39,39 +55,23 @@ createRoom userId roomName =
 enterRoom : UserId -> RoomId -> Cmd Msg
 enterRoom userId roomId =
   Http.request
-    { method  = "PUT"
+    { method  = "PATCH"
     , headers = []
     , url     = host ++ "/rooms/" ++ roomId
-    , body    = Http.jsonBody (encodeEnterRoomRequest { userId = userId })
+    , body    = Http.jsonBody (encodeRoomRequest (RoomRequestToEnterRoom { userId = userId }))
     , expect  = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) decodeEnterRoomResponse
     , timeout = Nothing
     , tracker = Nothing
     }
 
 
-getAllRooms : Cmd Msg
-getAllRooms =
-  Http.get
-    { url    = host ++ "/rooms"
-    , expect = Http.expectJson (ReceiveResponse << AllRoomsGot) decodeGetAllRoomsResponse
-    }
-
-
-getRoom : UserId -> RoomId -> Cmd Msg
-getRoom userId roomId =
-  Http.get
-    { url    = host ++ "/rooms/" ++ roomId ++ "/users/" ++ userId
-    , expect = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) decodeGetRoomResponse
-    }
-
-
 submitCards : UserId -> RoomId -> List Card -> Cmd Msg
 submitCards userId roomId cards =
   Http.request
-    { method  = "PUT"
+    { method  = "PATCH"
     , headers = []
-    , url     = host ++ "/rooms/" ++ roomId ++ "/users/" ++ userId
-    , body    = Http.jsonBody (encodeSubmitCardsRequest { cards = cards })
+    , url     = host ++ "/rooms/" ++ roomId
+    , body    = Http.jsonBody (encodeRoomRequest (RoomRequestToSubmitCards { userId = userId, cards = cards }))
     , expect  = Http.expectJson (ReceiveResponse << SubmissionDone) decodeSubmitCardsResponse
     , timeout = Nothing
     , tracker = Nothing

@@ -22,7 +22,7 @@ module RoomServer :> sig
   val send_chat<$a> : fun(room_id, user_id, binary) -> [$a]option<unit>
   val attend<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
-  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<snapshot_id>
+  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<observable_game_state>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
 
 end = struct
@@ -76,7 +76,7 @@ end = struct
     | ChatSent
     | Attended(option<personal_room_state>)
     | Exited(bool)
-    | SubmissionDone(option<snapshot_id>)
+    | SubmissionDone(option<observable_game_state>)
 
   module Callback = struct
     type init_arg = {room_id, binary}
@@ -454,10 +454,11 @@ end = struct
                         let Some(obs0) = make_observable_game_state(game_state, u0) in
                         let Some(obs1) = make_observable_game_state(game_state, u1) in
                         let Some(obs2) = make_observable_game_state(game_state, u2) in
+                        let Some(obs) = make_observable_game_state(game_state, user_id) in
                         do dummy <- notify(u0, [NotifySubmission(seat, card_opts, obs0)]) in
                         do dummy <- notify(u1, [NotifySubmission(seat, card_opts, obs1)]) in
                         do dummy <- notify(u2, [NotifySubmission(seat, card_opts, obs2)]) in
-                        return(Some({snapshot_id, game_state}))
+                        return(Some({obs, game_state}))
                     end
                 end
             end
@@ -467,8 +468,8 @@ end = struct
       | None ->
           GenServer.reply(SubmissionDone(None), state)
 
-      | Some({snapshot_id, game_state}) ->
-          GenServer.reply(SubmissionDone(Some(snapshot_id)), { state | room_state = InternalPlaying(game_state) })
+      | Some({obs, game_state}) ->
+          GenServer.reply(SubmissionDone(Some(obs)), { state | room_state = InternalPlaying(game_state) })
       end
 
     val handle_ack(user_id : user_id, snapshot_id : snapshot_id, state : state) = act
@@ -665,10 +666,10 @@ end = struct
       end
     end)
 
-  val submit<$a>(room_id, user_id, cards) : [$a]option<snapshot_id> = act
+  val submit<$a>(room_id, user_id, cards) : [$a]option<observable_game_state> = act
     call(room_id, Submit(user_id, cards), fun(resp) -> act
       case resp of
-      | SubmissionDone(snapshot_id_opt) -> return(snapshot_id_opt)
+      | SubmissionDone(ostate_opt) -> return(ostate_opt)
       end
     end)
 

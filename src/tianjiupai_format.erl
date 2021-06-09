@@ -13,8 +13,9 @@
     encode_create_user_response/1,
     decode_create_room_request/1,
     encode_create_room_response/1,
-    decode_enter_room_request/1,
+    decode_room_request/1,
     encode_enter_room_response/1,
+    encode_submit_cards_response/1,
     encode_get_personal_room_response/1,
     encode_get_all_rooms_response/1,
     encode_failure_response/1,
@@ -30,6 +31,10 @@
 -type command() ::
     {comment, Text :: binary()}
   | {ack, tianjiupai:snapshot_id()}.
+
+-type room_request() ::
+    {enter_room, tianjiupai:user_id()}
+  | {submit, tianjiupai:user_id(), [tianjiupai:card()]}.
 
 -type encodable() :: term().
 
@@ -93,17 +98,26 @@ decode_create_room_request(ReqBody) ->
 encode_create_room_response(RoomId) ->
     jsone:encode(#{room_id => RoomId}).
 
--spec decode_enter_room_request(iodata()) ->
-    {ok, tianjiupai:user_id()}
-  | {error, Reason :: term()}.
-decode_enter_room_request(ReqBody) ->
+-spec decode_room_request(iodata()) -> {ok, room_request()} | {error, Reason :: term()}.
+decode_room_request(ReqBody) ->
     try
         jsone:decode(ReqBody)
     of
-        #{
+        ?LABELED_PATTERN(<<"RoomRequestToEnterRoom">>, #{
           <<"user_id">> := UserId
-        } when is_binary(UserId) ->
-            {ok, UserId};
+        }) when is_binary(UserId) ->
+            {ok, {enter_room, UserId}};
+        ?LABELED_PATTERN(<<"RoomRequestToSubmitCards">>, #{
+          <<"user_id">> := UserId,
+          <<"cards">>   := CardObjs
+        }) when is_binary(UserId) ->
+            try lists:map(fun decode_card/1, CardObjs) of
+                Cards ->
+                    {ok, {submit, UserId, Cards}}
+            catch
+                Class:Reason ->
+                    {error, {exception, Class, Reason}}
+            end;
         _ ->
             {error, {invalid_request_body, ReqBody}}
     catch
@@ -111,9 +125,22 @@ decode_enter_room_request(ReqBody) ->
             {error, {exception, Class, Reason}}
     end.
 
+%% May raise exceptions.
+-spec decode_card(term()) -> tianjiupai:card().
+decode_card(CardObj) ->
+    case CardObj of
+        ?LABELED_PATTERN(<<"Wen">>, Wen) when is_integer(Wen) -> {wen, Wen};
+        ?LABELED_PATTERN(<<"Wu">>, Wu) when is_integer(Wu)    -> {wu, Wu}
+    end.
+
 -spec encode_enter_room_response(tianjiupai:personal_room_state()) -> binary().
 encode_enter_room_response(PersonalStateMap) ->
     encode_personal_state(PersonalStateMap).
+
+-spec encode_submit_cards_response(tianjiupai:observable_game_state()) -> binary().
+encode_submit_cards_response(ObservableGameStateMap) ->
+    ObservableGameStateObj = make_observable_game_state_object(ObservableGameStateMap),
+    jsone:encode(#{new_state => ObservableGameStateObj}).
 
 -spec encode_get_personal_room_response(tianjiupai:personal_room_state()) -> binary().
 encode_get_personal_room_response(PersonalStateMap) ->
@@ -215,7 +242,7 @@ make_notification_object(Notification) ->
             ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
             ?LABELED(<<"NotifySubmission">>, #{
                 seat      => SeatObj,
-                cards     => CardOptObjs,
+                submitted => CardOptObjs,
                 new_state => ObservableGameStateObj
             })
     end.

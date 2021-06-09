@@ -95,7 +95,7 @@ allowed_methods(Req, State) ->
             {page, _}                      -> [<<"GET">>];
             all_users                      -> [<<"POST">>];
             all_rooms                      -> [<<"GET">>, <<"POST">>];
-            {specific_room, _}             -> [<<"PUT">>];
+            {specific_room, _}             -> [<<"PATCH">>];
             {specific_room_and_user, _, _} -> [<<"GET">>]
         end,
     {Methods, Req, State}.
@@ -148,11 +148,11 @@ accept_json(Req0, State) ->
             } ->
                 handle_room_creation(Req0, MaybeInfo);
             #state{
-                method       = <<"PUT">>,
+                method       = <<"PATCH">>,
                 endpoint     = {specific_room, RoomId},
                 session_info = MaybeInfo
             } ->
-                handle_attending(Req0, MaybeInfo, RoomId);
+                handle_room_update(Req0, MaybeInfo, RoomId);
             _ ->
                 {false, Req0}
         end,
@@ -273,42 +273,82 @@ handle_room_creation(Req0, MaybeInfo) ->
             {false, Req2}
     end.
 
-%% @doc `PUT /rooms/<RoomId>'
--spec handle_attending(
+%% @doc `PATCH /rooms/<RoomId>'
+-spec handle_room_update(
     Req       :: cowboy_req:req(),
     MaybeInfo :: undefined | tinajiupai_session:info(),
     RoomId    :: tianjiupai:room_id()
 ) ->
     {boolean(), cowboy_req:req()}.
-handle_attending(Req0, MaybeInfo, RoomId) ->
+handle_room_update(Req0, MaybeInfo, RoomId) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-    case tianjiupai_format:decode_enter_room_request(ReqBody) of
-        {ok, UserId} ->
-            case validate_cookie(MaybeInfo, UserId) of
-                true ->
-                    case ?USER_FRONT:set_room(UserId, RoomId) of
-                        {ok, ok} ->
-                            Result = ?ROOM_FRONT:attend(RoomId, UserId),
-                            io:format("attend (result: ~p)~n", [Result]),
-                            case Result of
-                                {error, Reason2} ->
-                                    Req2 = set_failure_reason_to_resp_body(Reason2, Req1),
-                                    {false, Req2};
-                                {ok, PersonalStateMap} ->
-                                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalStateMap),
-                                    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-                                    {true, Req2}
-                            end;
-                        error ->
-                            Req2 = set_failure_reason_to_resp_body(set_room_failed, Req1),
+    case tianjiupai_format:decode_room_request(ReqBody) of
+        {ok, RoomRequest} ->
+            case RoomRequest of
+                {enter_room, UserId} ->
+                    case validate_cookie(MaybeInfo, UserId) of
+                        true ->
+                            handle_enter_room(Req1, RoomId, UserId);
+                        false ->
+                            Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
                             {false, Req2}
                     end;
-                false ->
-                    Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
-                    {false, Req2}
+                {submit, UserId, Cards} ->
+                    case validate_cookie(MaybeInfo, UserId) of
+                        true ->
+                            handle_submission(Req1, RoomId, UserId, Cards);
+                        false ->
+                            Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
+                            {false, Req2}
+                    end
             end;
         {error, Reason} ->
             Req2 = set_failure_reason_to_resp_body(Reason, Req1),
+            {false, Req2}
+    end.
+
+-spec handle_enter_room(
+    Req1      :: cowboy_req:req(),
+    RoomId    :: tianjiupai:room_id(),
+    UserId    :: tianjiupai:user_id()
+) ->
+    {boolean(), cowboy_req:req()}.
+handle_enter_room(Req1, RoomId, UserId) ->
+    case ?USER_FRONT:set_room(UserId, RoomId) of
+        {ok, ok} ->
+            Result = ?ROOM_FRONT:attend(RoomId, UserId),
+            io:format("attend (result: ~p)~n", [Result]),
+            case Result of
+                {ok, PersonalStateMap} ->
+                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalStateMap),
+                    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+                    {true, Req2};
+                error ->
+                    Req2 = set_failure_reason_to_resp_body(attend_failed, Req1),
+                    {false, Req2}
+            end;
+        error ->
+            Req2 = set_failure_reason_to_resp_body(set_room_failed, Req1),
+            {false, Req2}
+    end.
+
+-spec handle_submission(
+    Req1      :: cowboy_req:req(),
+    RoomId    :: tianjiupai:room_id(),
+    UserId    :: tianjiupai:user_id(),
+    Cards     :: [tianjiupai:card()]
+) ->
+    {boolean(), cowboy_req:req()}.
+handle_submission(Req1, RoomId, UserId, Cards) ->
+    Result = ?ROOM_FRONT:submit(RoomId, UserId, Cards),
+    io:format("submit (result: ~p)~n", [Result]),
+    case Result of
+        {ok, ObservableGameState} ->
+            RespBody = tianjiupai_format:encode_submit_cards_response(ObservableGameState),
+            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+            {true, Req2};
+        error ->
+            Req2 = set_failure_reason_to_resp_body(submit_failed, Req1),
             {false, Req2}
     end.
 
