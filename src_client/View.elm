@@ -10,6 +10,12 @@ import Common exposing (..)
 import Game
 
 
+type alias HandInfo =
+  { maybeIndices  : Maybe (Set Int)
+  , synchronizing : Bool
+  }
+
+
 viewBody : Model -> List (Html Msg)
 viewBody model =
   let
@@ -109,7 +115,15 @@ viewRoom user pstate indices chatTextInput =
 
         PlayingGame ostate ->
           let gameMeta = ostate.meta in
+          let synchronizing = ostate.synchronizing in
           let turn = Game.isMyTurn user.userId ostate in
+          let
+            handInfo : HandInfo
+            handInfo =
+              { maybeIndices = if turn then Just indices else Nothing
+              , synchronizing = synchronizing
+              }
+          in
           div []
             [ div []
                 [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ")") ]
@@ -121,10 +135,10 @@ viewRoom user pstate indices chatTextInput =
             , div []
                 [ text ("snapshot ID: " ++ ostate.snapshotId) ]
             , div []
-                [ text ("synchronizing: " ++ (if ostate.synchronizing then "Y" else "N")) ]
+                [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
             , div []
                 [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
-            , viewObservableInning user.userId indices ostate.observableInning
+            , viewObservableInning user.userId handInfo ostate.observableInning
             ]
   in
   div []
@@ -174,8 +188,8 @@ viewPlayers players =
     ]
 
 
-viewObservableInning : UserId -> Set Int -> ObservableInning -> Html Msg
-viewObservableInning userId indices observableInning =
+viewObservableInning : UserId -> HandInfo -> ObservableInning -> Html Msg
+viewObservableInning userId handInfo observableInning =
   case observableInning of
     ObservableDuringInning oinning ->
       let
@@ -188,7 +202,7 @@ viewObservableInning userId indices observableInning =
         [ div [] [ text "ObservableDuringInning" ]
         , showGainsQuad gainsQuad
         , showTable table
-        , showHand indices yourHand
+        , showHand handInfo yourHand
         ]
 
     ObservableInningEnd gainsQuad ->
@@ -249,16 +263,34 @@ showGainsQuad gainsQuad =
     ]
 
 
-showHand : Set Int -> List Card -> Html Msg
-showHand indices cards =
+showHand : HandInfo -> List Card -> Html Msg
+showHand handInfo cards =
   let
     elems =
-      cards |> List.indexedMap (\index card ->
-        if indices |> Set.member index then
-          li [] [ text ("@ " ++ showCard card) ]
-        else
-          li [] [ text ("- " ++ showCard card) ]
-      )
+      if handInfo.synchronizing then
+        cards |> List.map (\card ->
+          li [] [ text (showCard card) ]
+        )
+      else
+        case handInfo.maybeIndices of
+          Nothing ->
+            cards |> List.map (\card ->
+              li [] [ text ("| " ++ showCard card) ]
+            )
+
+          Just indices ->
+            cards |> List.indexedMap (\index card ->
+              if indices |> Set.member index then
+                li []
+                 [ div [ onClick (UnselectCard index) ]
+                     [ text ("@ " ++ showCard card) ]
+                 ]
+              else
+                li []
+                 [ div [ onClick (SelectCard index) ]
+                     [ text ("- " ++ showCard card) ]
+                 ]
+            )
   in
   div []
     [ div []
