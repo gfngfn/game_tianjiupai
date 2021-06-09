@@ -1,4 +1,4 @@
-module Game exposing (isMyTurn)
+module Game exposing (isMyTurn, isSubmittable)
 
 import Models exposing (..)
 import PerSeat
@@ -50,3 +50,53 @@ getTableSize table =
 getExposedSize : Exposed a -> Int
 getExposedSize exposed =
   1 + List.length exposed.subsequent
+
+
+isSubmittable : Table -> List Card -> Bool
+isSubmittable table cards =
+  case table of
+    Starting          -> isStartable cards
+    TrickWuzun e      -> List.length cards == 2
+    TrickWenzun e     -> List.length cards == 2
+    TrickSingleWen e  -> List.length cards == 1
+    TrickSingleWu e   -> List.length cards == 1
+    TrickDoubleWen e  -> List.length cards == 2
+    TrickDoubleWu e   -> List.length cards == 2
+    TrickDoubleBoth e -> List.length cards == 2
+    TrickTripleWen e  -> List.length cards == 3
+    TrickTripleWu e   -> List.length cards == 3
+    TrickQuadruple e  -> List.length cards == 4
+
+
+isStartable : List Card -> Bool
+isStartable cards =
+  case sortCards cards of
+    [_]                                  -> True
+    [Wu 3, Wu 6]                         -> True
+    [Wen wen1, Wen wen2]                 -> wen1 == wen2
+    [Wu wu1, Wu wu2]                     -> wu1 == wu2
+    [Wen wen, Wu wu]                     -> areTheSameBig wen wu
+    [Wen wen1, Wen wen2, Wu wu]          -> wen1 == wen2 && areTheSameBig wen1 wu
+    [Wen wen, Wu wu1, Wu wu2]            -> wu1 == wu2 && areTheSameBig wen wu1
+    [Wen wen1, Wen wen2, Wu wu1, Wu wu2] -> wen1 == wen2 && wu1 == wu2 && areTheSameBig wen1 wu1
+    _                                    -> False
+
+
+areTheSameBig : CardWen -> CardWu -> Bool
+areTheSameBig wen wu =
+  case ( wen, wu ) of
+    ( 11, 9 ) -> True
+    ( 10, 8 ) -> True
+    ( 9, 7 )  -> True
+    ( 8, 5 )  -> True
+    _         -> False
+
+
+sortCards : List Card -> List Card
+sortCards =
+  List.sortBy
+    (\card ->
+      case card of
+        Wen wen -> wen
+        Wu wu   -> 100 + wu
+    )
