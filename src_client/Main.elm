@@ -9,6 +9,7 @@ import Browser
 
 import Common exposing (..)
 import Models exposing (..)
+import Constants
 import HttpClient
 import WebSocketClient
 import View
@@ -186,32 +187,59 @@ update msg model =
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
         ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
+          let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate } indices0 chatTextInput0 in
           let cmd = WebSocketClient.sendAck ws ostate.snapshotId in
-          ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate } indices0 chatTextInput0 }, cmd )
+          ( { model | state = state1 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
           if ostate0.synchronizing then
             ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
           else
-            let ostate1 = submission.newState in -- `synchronizing` is made `True`
-              -- TODO: extract (possibly hidden) submitted cards and a submitter from `submission` for animation
-            let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, cmd )
-
-        ( PlayingGame ostate0, ReceiveNotification (Ok NotifyNextStep) ) ->
-          if ostate0.synchronizing then
-            let ostate1 = { ostate0 | synchronizing = False } in
-            ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, Cmd.none )
-          else
-            ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+            -- TODO: extract (possibly hidden) submitted cards and a submitter from `submission` for animation
+            case ( submission.trickLast, ostate0.observableInning ) of
+              ( Just lastTable, ObservableDuringInning oinning0 ) ->
+                let
+                  ostate1 =
+                    { ostate0
+                    | synchronizing    = True
+                    , observableInning = ObservableDuringInning { oinning0 | table = lastTable }
+                    }
+                in
+                let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick submission.newState) in
+                ( { model | state = state1 }, cmd )
+              ( Just _, _ ) ->
+                ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+              ( Nothing, _ ) ->
+                let ostate1 = submission.newState in -- `synchronizing` is made `True`
+                let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
+                ( { model | state = state1 }, cmd )
 
         ( PlayingGame ostate0, ReceiveResponse (SubmissionDone res) ) ->
           case res of
             Ok submissionResponse ->
-              let ostate1 = submissionResponse.newState in -- `synchronizing` is made `True`
-              let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-              let indices1 = Set.empty in
-              ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices1 chatTextInput0 }, cmd )
+              let newState = submissionResponse.newState in
+              case ( submissionResponse.trickLast, ostate0.observableInning ) of
+                ( Just lastTable, ObservableDuringInning oinning0 ) ->
+                  let
+                    ostate1 =
+                      { ostate0
+                      | synchronizing    = True
+                      , observableInning = ObservableDuringInning { oinning0 | table = lastTable }
+                      }
+                  in
+                  let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                  let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
+                  ( { model | state = state1 }, cmd )
+                ( Just _, _ ) ->
+                  ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+                ( Nothing, _ ) ->
+                  let ostate1 = newState in -- `synchronizing` is made `True`
+                  let indices1 = Set.empty in
+                  let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices1 chatTextInput0 in
+                  let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
+                  ( { model | state = state1 }, cmd )
 
             Err err ->
               let ostate1 = { ostate0 | synchronizing = False } in
@@ -222,13 +250,31 @@ update msg model =
               , Cmd.none
               )
 
+        ( PlayingGame ostate0, TransitionToNextTrick ostate1 ) ->
+          if ostate0.synchronizing then
+            let ostate2 = { ostate1 | synchronizing = False } in
+            let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate2 } indices0 chatTextInput0 in
+            let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
+            ( { model | state = state1 }, cmd )
+          else
+            ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+
+        ( PlayingGame ostate0, ReceiveNotification (Ok NotifyNextStep) ) ->
+          if ostate0.synchronizing then
+            let ostate1 = { ostate0 | synchronizing = False } in
+            let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+            ( { model | state = state1 }, Cmd.none )
+          else
+            ( { model | message = "[warning] unexpected message (InRoom): " ++ showMessage msg }, Cmd.none )
+
         ( PlayingGame ostate0, SendRequest SubmitCards ) ->
             case ostate0.observableInning of
               ObservableDuringInning inning ->
                 let ostate1 = { ostate0 | synchronizing = True } in
+                let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
                 let cards = inning.yourHand |> pickupSelectedCards indices0 in
                 let cmd = HttpClient.submitCards user.userId pstate0.room.roomId cards in
-                ( { model | state = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 }, cmd )
+                ( { model | state = state1 }, cmd )
 
               ObservableInningEnd _ ->
                 ( { model | message = "[warning] inning has already ended" }, Cmd.none )
@@ -286,6 +332,7 @@ showMessage msg =
     OpenWebSocket _             -> "OpenWebSocket"
     SelectCard _                -> "SelectCard"
     UnselectCard _              -> "UnselectCard"
+    TransitionToNextTrick _     -> "TransitionToNextTrick"
 
 
 makeErrorMessage : Http.Error -> String

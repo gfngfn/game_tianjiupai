@@ -3,6 +3,8 @@ module Common exposing (..)
 import Set exposing (Set)
 import Url exposing (Url)
 import Json.Decode as JD exposing (Decoder)
+import Process
+import Task
 import Http
 
 import Models exposing (..)
@@ -56,6 +58,7 @@ type Msg
   | ReceiveResponse Response
   | ReceiveNotification (Result JD.Error Notification)
   | OpenWebSocket Port.WebSocket
+  | TransitionToNextTrick ObservableGameState
 
 
 getSelectedCards : Set Int -> List Card -> List Card
@@ -63,3 +66,10 @@ getSelectedCards indices cards =
   cards
     |> List.indexedMap (\index card -> ( index, card ))
     |> List.filterMap (\( index, card ) -> if indices |> Set.member index then Just card else Nothing)
+
+
+sendAfter : Float -> msg -> Cmd msg
+sendAfter time msg =
+  Process.sleep time
+    |> Task.andThen (\() -> Task.succeed msg)
+    |> Task.perform (\msg0 -> msg0)

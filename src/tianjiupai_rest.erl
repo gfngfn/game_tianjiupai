@@ -343,8 +343,8 @@ handle_submission(Req1, RoomId, UserId, Cards) ->
     Result = ?ROOM_FRONT:submit(RoomId, UserId, Cards),
     io:format("submit (result: ~p)~n", [Result]),
     case Result of
-        {ok, ObservableGameState} ->
-            RespBody = tianjiupai_format:encode_submit_cards_response(ObservableGameState),
+        {ok, {ObservableGameState, TrickLastOpt}} ->
+            RespBody = tianjiupai_format:encode_submit_cards_response(ObservableGameState, TrickLastOpt),
             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
             {true, Req2};
         error ->

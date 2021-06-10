@@ -1,4 +1,4 @@
-module Game exposing (isMyTurn, isSubmittable)
+module Game exposing (isMyTurn, isSubmittable, isWaitingLastSubmission)
 
 import Models exposing (..)
 import PerSeat
@@ -16,8 +16,9 @@ isMyTurn userId ostate =
           False
 
         ObservableDuringInning oinning ->
-          let nextSubmitterSeat = getNextSubmitterSeat oinning in
-          nextSubmitterSeat == mySeat
+          case getNextSubmitterSeat oinning of
+            Nothing                -> False
+            Just nextSubmitterSeat -> nextSubmitterSeat == mySeat
 
 
 getMySeat : UserId -> ObservableGameState -> Maybe Seat
@@ -25,10 +26,20 @@ getMySeat userId ostate =
   PerSeat.find (\player -> player.userId == userId) ostate.meta.players
 
 
-getNextSubmitterSeat : ObservableInningState -> Seat
+getNextSubmitterSeat : ObservableInningState -> Maybe Seat
 getNextSubmitterSeat oinning =
   let tableSize = getTableSize oinning.table in
-  PerSeat.advanceSeat oinning.startsAt tableSize
+  if tableSize == 4 then
+      Nothing
+  else
+      Just (PerSeat.advanceSeat oinning.startsAt tableSize)
+
+
+isWaitingLastSubmission : ObservableGameState -> Bool
+isWaitingLastSubmission ostate =
+  case ostate.observableInning of
+    ObservableInningEnd _          -> False
+    ObservableDuringInning oinning -> 3 == getTableSize oinning.table
 
 
 getTableSize : Table -> Int

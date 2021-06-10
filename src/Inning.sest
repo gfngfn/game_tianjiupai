@@ -9,8 +9,8 @@ module Inning :> sig
 
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, t)
-    | WinsInning(Quad.seat, Quad.t<list<Card.t>>)
+    | WinsTrick(Quad.seat, table_state, t)
+    | WinsInning(Quad.seat, table_state, Quad.t<list<Card.t>>)
 
   /* exported for tests */
   val all_cards : fun() -> list<Card.t>
@@ -44,8 +44,8 @@ end = struct
 
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, t)
-    | WinsInning(Quad.seat, Quad.t<list<Card.t>>)
+    | WinsTrick(Quad.seat, table_state, t)
+    | WinsInning(Quad.seat, table_state, Quad.t<list<Card.t>>)
 
   val all_cards : fun() -> list<Card.t> = external 0 ```
     all_cards() ->
@@ -527,7 +527,7 @@ end = struct
                   if num_gained1 == 8 then
                   /* If this is the last trick within an inning: */
                     let gained_quad = Quad.map(fun(p) -> p.gained end, players2) in
-                    Some({WinsInning(winner_seat, gained_quad), is_front})
+                    Some({WinsInning(winner_seat, table1, gained_quad), is_front})
                   else
                     let inning1 =
                       {
@@ -536,7 +536,7 @@ end = struct
                         players   = players2,
                       }
                     in
-                    Some({WinsTrick(winner_seat, inning1), is_front})
+                    Some({WinsTrick(winner_seat, table1, inning1), is_front})
                 else
                   let inning =
                     {

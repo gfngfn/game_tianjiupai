@@ -22,7 +22,7 @@ module RoomServer :> sig
   val send_chat<$a> : fun(room_id, user_id, binary) -> [$a]option<unit>
   val attend<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
-  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<observable_game_state>
+  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
 
 end = struct
@@ -76,7 +76,7 @@ end = struct
     | ChatSent
     | Attended(option<personal_room_state>)
     | Exited(bool)
-    | SubmissionDone(option<observable_game_state>)
+    | SubmissionDone(option<{observable_game_state, option<table_state>}>)
 
   module Callback = struct
     type init_arg = {room_id, binary}
@@ -417,30 +417,39 @@ end = struct
                     | Some({submit_result, is_front}) ->
                         do snapshot_id <- SnapshotId.generate() in
                         let game_meta = game_state.meta in
-                        let game_state =
+                        let {game_state, last_table_opt} =
                           case submit_result of
                           | Inning.Continues(inning) ->
                               {
-                                meta        = game_meta,
-                                inning      = DuringInning(inning),
-                                snapshot_id = snapshot_id,
-                                sync        = WaitingSync(make_initial_sync(seat)),
+                                {
+                                  meta        = game_meta,
+                                  inning      = DuringInning(inning),
+                                  snapshot_id = snapshot_id,
+                                  sync        = WaitingSync(make_initial_sync(seat)),
+                                },
+                                None
                               }
 
-                          | Inning.WinsTrick(winner_seat, inning) ->
+                          | Inning.WinsTrick(winner_seat, last_table, inning) ->
                               {
-                                meta        = game_meta,
-                                inning      = DuringInning(inning),
-                                snapshot_id = snapshot_id,
-                                sync        = WaitingSync(make_initial_sync(seat)),
+                                {
+                                  meta        = game_meta,
+                                  inning      = DuringInning(inning),
+                                  snapshot_id = snapshot_id,
+                                  sync        = WaitingSync(make_initial_sync(seat)),
+                                },
+                                Some(last_table)
                               }
 
-                          | Inning.WinsInning(winner_seat, gains_quad) ->
+                          | Inning.WinsInning(winner_seat, last_table, gains_quad) ->
                               {
-                                meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
-                                inning      = InningEnd(gains_quad),
-                                snapshot_id = snapshot_id,
-                                sync        = WaitingSync(make_initial_sync(seat)),
+                                {
+                                  meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
+                                  inning      = InningEnd(gains_quad),
+                                  snapshot_id = snapshot_id,
+                                  sync        = WaitingSync(make_initial_sync(seat)),
+                                },
+                                Some(last_table)
                               }
                           end
                         in
@@ -451,14 +460,25 @@ end = struct
                           else
                             List.map(fun(card) -> None end, cards)
                         in
-                        let Some(obs0) = make_observable_game_state(game_state, u0) in
-                        let Some(obs1) = make_observable_game_state(game_state, u1) in
-                        let Some(obs2) = make_observable_game_state(game_state, u2) in
+                        do dummy <-
+                          List.for_each(
+                            fun(u) -> act
+                              let Some(obs) = make_observable_game_state(game_state, u) in
+                              let submission =
+                                {
+                                  seat       = seat,
+                                  submitted  = card_opts,
+                                  new_state  = obs,
+                                  trick_last = last_table_opt,
+                                }
+                              in
+                              notify(u, [NotifySubmission(submission)])
+                            end,
+                            [u0, u1, u2]
+                          )
+                        in
                         let Some(obs) = make_observable_game_state(game_state, user_id) in
-                        do dummy <- notify(u0, [NotifySubmission(seat, card_opts, obs0)]) in
-                        do dummy <- notify(u1, [NotifySubmission(seat, card_opts, obs1)]) in
-                        do dummy <- notify(u2, [NotifySubmission(seat, card_opts, obs2)]) in
-                        return(Some({obs, game_state}))
+                        return(Some({obs, last_table_opt, game_state}))
                     end
                 end
             end
@@ -468,8 +488,11 @@ end = struct
       | None ->
           GenServer.reply(SubmissionDone(None), state)
 
-      | Some({obs, game_state}) ->
-          GenServer.reply(SubmissionDone(Some(obs)), { state | room_state = InternalPlaying(game_state) })
+      | Some({obs, last_table_opt, game_state}) ->
+          GenServer.reply(
+            SubmissionDone(Some({obs, last_table_opt})),
+            { state | room_state = InternalPlaying(game_state) },
+          )
       end
 
     val handle_ack(user_id : user_id, snapshot_id : snapshot_id, state : state) = act
@@ -666,10 +689,10 @@ end = struct
       end
     end)
 
-  val submit<$a>(room_id, user_id, cards) : [$a]option<observable_game_state> = act
+  val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<table_state>}> = act
     call(room_id, Submit(user_id, cards), fun(resp) -> act
       case resp of
-      | SubmissionDone(ostate_opt) -> return(ostate_opt)
+      | SubmissionDone(v) -> return(v)
       end
     end)
 

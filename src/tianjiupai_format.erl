@@ -15,7 +15,7 @@
     encode_create_room_response/1,
     decode_room_request/1,
     encode_enter_room_response/1,
-    encode_submit_cards_response/1,
+    encode_submit_cards_response/2,
     encode_get_personal_room_response/1,
     encode_get_all_rooms_response/1,
     encode_failure_response/1,
@@ -137,10 +137,22 @@ decode_card(CardObj) ->
 encode_enter_room_response(PersonalStateMap) ->
     encode_personal_state(PersonalStateMap).
 
--spec encode_submit_cards_response(tianjiupai:observable_game_state()) -> binary().
-encode_submit_cards_response(ObservableGameStateMap) ->
+-spec encode_submit_cards_response(tianjiupai:observable_game_state(), TrickLastOpt) -> binary() when
+    TrickLastOpt :: {ok, tianjiupai:table_state()} | error.
+encode_submit_cards_response(ObservableGameStateMap, TrickLastOpt) ->
     ObservableGameStateObj = make_observable_game_state_object(ObservableGameStateMap),
-    jsone:encode(#{new_state => ObservableGameStateObj}).
+    TrickLastObj = make_trick_last_opt_object(TrickLastOpt),
+    jsone:encode(#{
+        new_state  => ObservableGameStateObj,
+        trick_last => TrickLastObj
+    }).
+
+-spec make_trick_last_opt_object({ok, tianjiupai:table_state()} | error) -> encodable().
+make_trick_last_opt_object(TrickLastOpt) ->
+    case TrickLastOpt of
+        {ok, TrickLast} -> ?LABELED(<<"Some">>, make_table_object(TrickLast));
+        error           -> ?LABEL_ONLY(<<"None">>)
+    end.
 
 -spec encode_get_personal_room_response(tianjiupai:personal_room_state()) -> binary().
 encode_get_personal_room_response(PersonalStateMap) ->
@@ -236,14 +248,21 @@ make_notification_object(Notification) ->
             ?LABELED(<<"NotifyGameStart">>, ObservableGameStateObj);
         notify_next_step ->
             ?LABEL_ONLY(<<"NotifyNextStep">>);
-        {notify_submission, Seat, CardOpts, ObservableGameState} ->
+        {notify_submission, Submission} ->
+            #{
+                seat       := Seat,
+                submitted  := CardOpts,
+                new_state  := ObservableGameState,
+                trick_last := TrickLastOpt
+            } = Submission,
             SeatObj = make_seat_object(Seat),
             CardOptObjs = lists:map(fun make_card_opt_object/1, CardOpts),
             ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
             ?LABELED(<<"NotifySubmission">>, #{
-                seat      => SeatObj,
-                submitted => CardOptObjs,
-                new_state => ObservableGameStateObj
+                seat       => SeatObj,
+                submitted  => CardOptObjs,
+                new_state  => ObservableGameStateObj,
+                trick_last => make_trick_last_opt_object(TrickLastOpt)
             })
     end.
 

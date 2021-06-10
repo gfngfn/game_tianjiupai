@@ -82,13 +82,20 @@ module Types = struct
     | LogExited(user_id)
     | LogGameStart
 
+  type submission = {
+    seat       : Quad.seat,
+    submitted  : list<option<Card.t>>,
+    new_state  : observable_game_state,
+    trick_last : option<table_state>,
+  }
+
   type notification =
     | NotifyComment(user_id, binary)
     | NotifyEntered(user_id)
     | NotifyExited(user_id)
     | NotifyGameStart(observable_game_state)
     | NotifyNextStep
-    | NotifySubmission(Quad.seat, list<option<Card.t>>, observable_game_state)
+    | NotifySubmission(submission)
 
   type observable_room_state =
     | Waiting(list<user_id>)
