@@ -30,7 +30,7 @@ getRoom : UserId -> RoomId -> Cmd Msg
 getRoom userId roomId =
   Http.get
     { url    = host ++ "/rooms/" ++ roomId ++ "/users/" ++ userId
-    , expect = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) decodeGetRoomResponse
+    , expect = Http.expectJson (ReceiveResponse << (RoomGot roomId)) decodeGetRoomResponse
     }
 
 

@@ -45,6 +45,7 @@ type Request
 type Response
   = UserCreated UserName (Result Http.Error CreateUserResponse)
   | RoomCreated RoomName (Result Http.Error CreateRoomResponse)
+  | RoomGot RoomId (Result Http.Error PersonalState)
   | RoomEntered RoomId (Result Http.Error PersonalState)
   | AllRoomsGot (Result Http.Error GetAllRoomsResponse)
   | SubmissionDone (Result Http.Error SubmitCardsResponse)

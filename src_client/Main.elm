@@ -163,11 +163,27 @@ update msg model =
 
         ReceiveResponse (RoomEntered roomId result) ->
           case result of
+            Ok pstate0 ->
+              case pstate0.game of
+                WaitingStart _ ->
+                  ( { model | state = InRoom ws user pstate0 Set.empty "" }, Cmd.none )
+
+                PlayingGame ostate0 ->
+                  let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
+                  let ostate1 = { ostate0 | synchronizing = True } in
+                  let pstate1 = { pstate0 | game = PlayingGame ostate1 } in
+                  Debug.log "RoomEntered (+)" ( { model | state = InRoom ws user pstate1 Set.empty "" }, cmd )
+
+            Err err ->
+              ( { model | message = makeErrorMessage "enter room" err }, Cmd.none )
+
+        ReceiveResponse (RoomGot roomId result) ->
+          case result of
             Ok pstate ->
               ( { model | state = InRoom ws user pstate Set.empty "" }, Cmd.none )
 
             Err err ->
-              ( { model | message = makeErrorMessage "enter room" err }, Cmd.none )
+              ( { model | message = makeErrorMessage "got room" err }, Cmd.none )
 
         _ ->
           ( { model | message = ( Warning, "unexpected message (AtPlaza): " ++ showMessage msg ) }, Cmd.none )
@@ -200,10 +216,11 @@ update msg model =
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
-        ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate)) ) ->
-          let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate } indices0 chatTextInput0 in
-          let cmd = WebSocketClient.sendAck ws ostate.snapshotId in
-          Debug.log "NotifyGameStart" ( { model | state = state1 }, cmd )
+        ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate0)) ) ->
+          let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
+          let ostate1 = { ostate0 | synchronizing = True } in
+          let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+          Debug.log "NotifyGameStart (+)" ( { model | state = state1 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
         -- When receiving a submission of another player:
@@ -316,7 +333,7 @@ update msg model =
             let ostate2 = { ostate1 | synchronizing = True } in
             let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate2 } indices0 chatTextInput0 in
             let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-            Debug.log "TransitionToNextTrick (+)" ( { model | state = state1 }, cmd )
+            Debug.log "TransitionToNextTrick" ( { model | state = state1 }, cmd )
           else
             ( { model | message = ( Warning, "unexpected message (InRoom): " ++ showMessage msg ) }, Cmd.none )
 

@@ -207,8 +207,8 @@ end = struct
           })
       end
 
-    val make_initial_sync(seat) =
-      Quad.update(seat, true, {false, false, false, false})
+    val make_initial_sync() =
+      {false, false, false, false}
 
     val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
       notify(UserId, Notifications) ->
@@ -273,9 +273,8 @@ end = struct
                     meta        = game_meta,
                     inning      = DuringInning(inning),
                     snapshot_id = snapshot_id,
-                    sync        = WaitingSync(make_initial_sync(Quad.Seat3)),
+                    sync        = WaitingSync(make_initial_sync()),
                   }
-                  /* The player who lastly attended the room is ready for the next step from the beginning. */
                 in
                 let user_id0 = u0.user_id in
                 let user_id1 = u1.user_id in
@@ -433,7 +432,7 @@ end = struct
                                   meta        = game_meta,
                                   inning      = DuringInning(inning),
                                   snapshot_id = snapshot_id,
-                                  sync        = WaitingSync(make_initial_sync(seat)),
+                                  sync        = WaitingSync(make_initial_sync()),
                                 },
                                 None
                               }
@@ -444,7 +443,7 @@ end = struct
                                   meta        = game_meta,
                                   inning      = DuringInning(inning),
                                   snapshot_id = snapshot_id,
-                                  sync        = WaitingSync(make_initial_sync(seat)),
+                                  sync        = WaitingSync(make_initial_sync()),
                                 },
                                 Some(last_table)
                               }
@@ -455,7 +454,7 @@ end = struct
                                   meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
                                   inning      = InningEnd(gains_quad),
                                   snapshot_id = snapshot_id,
-                                  sync        = WaitingSync(make_initial_sync(seat)),
+                                  sync        = WaitingSync(make_initial_sync()),
                                 },
                                 Some(last_table)
                               }
@@ -585,8 +584,8 @@ end = struct
           let whole_state = make_whole_room_state(state) in
           GenServer.reply(WholeState(whole_state), state)
       | GetPersonalState(user_id) ->
-          let personal_state_opt = make_personal_room_state(state, user_id) in
           do state <- update_sync(user_id, state) in
+          let personal_state_opt = make_personal_room_state(state, user_id) in
           GenServer.reply(PersonalState(personal_state_opt), state)
       | SendChat(user, text) ->
           handle_send_chat(user, text, state)
