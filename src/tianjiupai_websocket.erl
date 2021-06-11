@@ -165,6 +165,9 @@ handle_command(Data, State) ->
                     io:format("~p: ack (user_id: ~p, snapshot_id: ~p)~n",
                         [?MODULE, UserId, SnapshotId]),
                     ok = ?USER_FRONT:ack(UserId, SnapshotId),
+                    {ok, State};
+                heartbeat ->
+                    io:format("~p: heartbeat (user_id: ~p)~n", [?MODULE, UserId]),
                     {ok, State}
             end;
         {error, Reason} ->

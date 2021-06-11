@@ -59,6 +59,7 @@ type Msg
   | ReceiveNotification (Result JD.Error Notification)
   | OpenWebSocket Port.WebSocket
   | TransitionToNextTrick ObservableGameState
+  | Heartbeat
 
 
 getSelectedCards : Set Int -> List Card -> List Card

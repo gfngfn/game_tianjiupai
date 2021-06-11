@@ -4,6 +4,7 @@ import Set exposing (Set)
 import Json.Encode as JE
 import Json.Decode as JD exposing (Decoder)
 import Url exposing (Url)
+import Time
 import Http
 import Browser
 
@@ -102,6 +103,10 @@ update msg model =
 
     AtPlaza ws user roomNameInput0 maybeRooms ->
       case msg of
+        Heartbeat ->
+          let cmd = WebSocketClient.sendHeartbeat ws in
+          ( model, cmd )
+
         UpdateInput (RoomNameInput roomNameInput1) ->
            ( { model | state = AtPlaza ws user roomNameInput1 maybeRooms }, Cmd.none )
 
@@ -164,6 +169,10 @@ update msg model =
 
     InRoom ws user pstate0 indices0 chatTextInput0 ->
       case ( pstate0.game, msg ) of
+        ( _, Heartbeat ) ->
+          let cmd = WebSocketClient.sendHeartbeat ws in
+          ( model, cmd )
+
         ( _, UpdateInput (ChatInput chatTextInput1) ) ->
            ( { model | state = InRoom ws user pstate0 indices0 chatTextInput1 }, Cmd.none )
 
@@ -333,6 +342,7 @@ showMessage msg =
     SelectCard _                -> "SelectCard"
     UnselectCard _              -> "UnselectCard"
     TransitionToNextTrick _     -> "TransitionToNextTrick"
+    Heartbeat                   -> "Heartbeat"
 
 
 makeErrorMessage : Http.Error -> String
@@ -354,4 +364,5 @@ subscriptions model =
     Sub.batch
       [ WebSocketClient.onOpen
       , WebSocketClient.subscribe
+      , Time.every Constants.heartbeatIntervalMs (\_ -> Heartbeat)
       ]

@@ -113,6 +113,7 @@ submission := {
 command :=
   | CommandComment : string
   | CommandAck     : snapshot_id
+  | CommandHeartbeat
 
 personal_state := {
   room : room,

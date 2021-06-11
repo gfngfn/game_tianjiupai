@@ -30,7 +30,8 @@
 %%====================================================================================================
 -type command() ::
     {comment, Text :: binary()}
-  | {ack, tianjiupai:snapshot_id()}.
+  | {ack, tianjiupai:snapshot_id()}
+  | heartbeat.
 
 -type room_request() ::
     {enter_room, tianjiupai:user_id()}
@@ -42,6 +43,7 @@
 -define(LABELED(_Label_, _Arg_), #{'_label' => _Label_, '_arg' => _Arg_}).
 
 -define(LABELED_PATTERN(_Label_, _Pat_), #{<<"_label">> := _Label_, <<"_arg">> := _Pat_}).
+-define(LABEL_ONLY_PATTERN(_Label_), #{<<"_label">> := _Label_}).
 
 -define(USER_FRONT, 'Tianjiupai.User').
 
@@ -181,6 +183,8 @@ decode_command(Data) ->
             {ok, {comment, Text}};
         ?LABELED_PATTERN(<<"CommandAck">>, SnapshotId) when erlang:is_binary(SnapshotId) ->
             {ok, {ack, SnapshotId}};
+        ?LABEL_ONLY_PATTERN(<<"CommandHeartbeat">>) ->
+            {ok, heartbeat};
         _ ->
             {error, {invalid_command, Data}}
     catch

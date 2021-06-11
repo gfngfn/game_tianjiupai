@@ -4,6 +4,7 @@ module WebSocketClient exposing
   , onOpen
   , sendChat
   , sendAck
+  , sendHeartbeat
   , subscribe
   )
 
@@ -44,6 +45,12 @@ sendChat ws text =
 sendAck : WebSocket -> SnapshotId -> Cmd Msg
 sendAck ws snapshotId =
   let s = JE.encode 0 (encodeCommand (CommandAck snapshotId)) in
+  Port.sendWebSocketMessage ( ws, s )
+
+
+sendHeartbeat : WebSocket -> Cmd Msg
+sendHeartbeat ws =
+  let s = JE.encode 0 (encodeCommand CommandHeartbeat) in
   Port.sendWebSocketMessage ( ws, s )
 
 
