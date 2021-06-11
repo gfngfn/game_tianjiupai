@@ -166,6 +166,11 @@ handle_command(Data, State) ->
                         [?MODULE, UserId, SnapshotId]),
                     ok = ?USER_FRONT:ack(UserId, SnapshotId),
                     {ok, State};
+                {next_inning, SnapshotId} ->
+                    io:format("~p: next inning (user_id: ~p, snapshot_id: ~p)~n",
+                        [?MODULE, UserId, SnapshotId]),
+                    ok = ?USER_FRONT:require_next_inning(UserId, SnapshotId),
+                    {ok, State};
                 heartbeat ->
                     io:format("~p: heartbeat (user_id: ~p)~n", [?MODULE, UserId]),
                     {ok, State}

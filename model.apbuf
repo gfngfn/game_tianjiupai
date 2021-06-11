@@ -111,9 +111,10 @@ submission := {
 }
 
 command :=
-  | CommandComment : string
-  | CommandAck     : snapshot_id
+  | CommandComment    : string
+  | CommandAck        : snapshot_id
   | CommandHeartbeat
+  | CommandNextInning : snapshot_id
 
 personal_state := {
   room : room,

@@ -23,6 +23,8 @@ module User :> sig
 
   val ack<$a> : fun(user_id, snapshot_id) -> [$a]unit
 
+  val require_next_inning<$a> : fun(user_id, snapshot_id) -> [$a]unit
+
   val set_websocket_connection<$a> : fun(user_id, RawValue.t) -> [$a]option<unit>
 
 end = struct
@@ -77,6 +79,13 @@ end = struct
     case opt of
     | None          -> return({})
     | Some(room_id) -> Room.ack(room_id, user_id, snapshot_id)
+    end
+
+  val require_next_inning(user_id, snapshot_id) = act
+    do opt <- get_room(user_id) in
+    case opt of
+    | None          -> return({})
+    | Some(room_id) -> Room.require_next_inning(room_id, user_id, snapshot_id)
     end
 
   val set_websocket_connection(user_id, ws_pid) = act

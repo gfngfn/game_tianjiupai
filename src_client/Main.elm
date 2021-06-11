@@ -216,7 +216,7 @@ update msg model =
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
-        ( WaitingStart _, ReceiveNotification (Ok (NotifyGameStart ostate0)) ) ->
+        ( _, ReceiveNotification (Ok (NotifyGameStart ostate0)) ) ->
           let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
           let ostate1 = { ostate0 | synchronizing = True } in
           let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
@@ -360,13 +360,19 @@ update msg model =
             ObservableInningEnd _ ->
               ( { model | message = ( Warning, "inning has already ended" ) }, Cmd.none )
 
+        ( PlayingGame ostate0, SendRequest RequireNextInning ) ->
+          let cmd = WebSocketClient.requireNextInning ws ostate0.snapshotId in
+          let ostate1 = { ostate0 | synchronizing = True } in
+          let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+          Debug.log "RequireNextInning (+)" ( { model | state = state1 }, cmd )
+
         ( PlayingGame _, SelectCard index ) ->
-            let indices1 = indices0 |> Set.insert index in
-            ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
+          let indices1 = indices0 |> Set.insert index in
+          ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
 
         ( PlayingGame _, UnselectCard index ) ->
-            let indices1 = indices0 |> Set.remove index in
-            ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
+          let indices1 = indices0 |> Set.remove index in
+          ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
 
         _ ->
           ( { model | message = ( Warning, "unexpected message (InRoom): " ++ showMessage msg ) }, Cmd.none )

@@ -5,6 +5,7 @@ module WebSocketClient exposing
   , sendChat
   , sendAck
   , sendHeartbeat
+  , requireNextInning
   , subscribe
   )
 
@@ -45,6 +46,12 @@ sendChat ws text =
 sendAck : WebSocket -> SnapshotId -> Cmd Msg
 sendAck ws snapshotId =
   let s = JE.encode 0 (encodeCommand (CommandAck snapshotId)) in
+  Port.sendWebSocketMessage ( ws, s )
+
+
+requireNextInning : WebSocket -> SnapshotId -> Cmd Msg
+requireNextInning ws snapshotId =
+  let s = JE.encode 0 (encodeCommand (CommandNextInning snapshotId)) in
   Port.sendWebSocketMessage ( ws, s )
 
 

@@ -224,6 +224,7 @@ viewObservableInning userId handInfo observableInning =
       div []
         [ div [] [ text "ObservableInningEnd" ]
         , showGainsQuad gainsQuad
+        , button [ onClick (SendRequest RequireNextInning) ] [ text "next" ]
         ]
 
 

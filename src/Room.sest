@@ -54,6 +54,9 @@ module Room = struct
   val ack(room_id, user_id, snapshot_id) = act
     RoomServer.ack(room_id, user_id, snapshot_id)
 
+  val require_next_inning(room_id, user_id, snapshot_id) = act
+    RoomServer.require_next_inning(room_id, user_id, snapshot_id)
+
   val monitor(room_id) = act
     RoomServer.monitor(room_id)
 

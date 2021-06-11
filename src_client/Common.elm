@@ -41,6 +41,7 @@ type Request
   | EnterRoom RoomId
   | SendChat
   | SubmitCards
+  | RequireNextInning
 
 type Response
   = UserCreated UserName (Result Http.Error CreateUserResponse)

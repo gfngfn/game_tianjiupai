@@ -24,6 +24,7 @@ module RoomServer :> sig
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+  val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
 
 end = struct
   open Stdlib
@@ -49,7 +50,7 @@ end = struct
 
   type whole_inning =
     | DuringInning(Inning.t)
-    | InningEnd(Quad.t<list<Card.t>>)
+    | InningEnd(Quad.t<list<Card.t>>, Quad.t<bool>)
 
   type whole_game_state = {
     meta        : game_meta,
@@ -87,6 +88,7 @@ end = struct
 
     type cast_message =
       | Ack(user_id, snapshot_id)
+      | RequireNextInning(user_id, snapshot_id)
 
     type info =
       | DummyInfo
@@ -171,8 +173,8 @@ end = struct
           in
           let observable_inning =
             case game_state.inning of
-            | DuringInning(inning)  -> ObservableDuringInning(Inning.observe(seat, inning))
-            | InningEnd(gains_quad) -> ObservableInningEnd(gains_quad)
+            | DuringInning(inning)     -> ObservableDuringInning(Inning.observe(seat, inning))
+            | InningEnd(gains_quad, _) -> ObservableInningEnd(gains_quad)
             end
           in
           Some({
@@ -413,7 +415,7 @@ end = struct
 
             | Some(seat) ->
                 case game_state.inning of
-                | InningEnd(_) ->
+                | InningEnd(_, _) ->
                     return(None)
 
                 | DuringInning(inning) ->
@@ -452,7 +454,7 @@ end = struct
                               {
                                 {
                                   meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
-                                  inning      = InningEnd(gains_quad),
+                                  inning      = InningEnd(gains_quad, make_initial_sync()),
                                   snapshot_id = snapshot_id,
                                   sync        = WaitingSync(make_initial_sync()),
                                 },
@@ -545,6 +547,66 @@ end = struct
       | Some(game_state) -> GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
       end
 
+    val start_new_inning<$a>(game_meta : game_meta) : [$a]whole_game_state = act
+      let next_parent_seat = game_meta.parent_seat in
+      let inning = Inning.start(next_parent_seat) in
+      do snapshot_id <- SnapshotId.generate() in
+      return({
+        meta        = game_meta,
+        inning      = DuringInning(inning),
+        snapshot_id = snapshot_id,
+        sync        = WaitingSync(make_initial_sync()),
+      })
+
+    val handle_require_next_inning(user_id : user_id, snapshot_id : snapshot_id, state : state) = act
+      do opt <-
+        case state.room_state of
+        | InternalWaiting(_) ->
+            return(None)
+
+        | InternalPlaying(game_state) ->
+            case find_user_seat(game_state, user_id) of
+            | None ->
+                return(None)
+
+            | Some(seat) ->
+                if SnapshotId.equal(snapshot_id, game_state.snapshot_id) then
+                  case game_state.inning of
+                  | DuringInning(_) ->
+                      return(None)
+
+                  | InningEnd(gains_quad, inning_sync_quad) ->
+                      let inning_sync_quad = Quad.update(seat, true, inning_sync_quad) in
+                      let _ = print_debug({"update inning sync", snapshot_id, game_state.snapshot_id, inning_sync_quad}) in /* temporary */
+                      case inning_sync_quad of
+                      | {true, true, true, true} ->
+                        /* If all the players are ready for the next step: */
+                          do game_state <- start_new_inning(game_state.meta) in
+                          let user_ids = the_other_players(game_state, seat) in
+                          do dummy <-
+                            List.for_each(
+                              fun(u) -> act
+                                let Some(obs) = make_observable_game_state(game_state, u) in
+                                notify(u, [NotifyGameStart(obs)])
+                              end,
+                              user_id :: user_ids)
+                          in
+                          return(Some(game_state))
+
+                      | _ ->
+                          return(Some({ game_state | inning = InningEnd(gains_quad, inning_sync_quad) }))
+                      end
+                  end
+                else
+                  return(None)
+            end
+        end
+      in
+      case opt of
+      | None             -> GenServer.no_reply(state)
+      | Some(game_state) -> GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
+      end
+
     val update_sync(user_id : user_id, state : state) = act
       case state.room_state of
       | InternalWaiting(_) ->
@@ -601,6 +663,9 @@ end = struct
       case msg of
       | Ack(user_id, snapshot_id) ->
           handle_ack(user_id, snapshot_id, state)
+
+      | RequireNextInning(user_id, snapshot_id) ->
+          handle_require_next_inning(user_id, snapshot_id, state)
       end
 
     val handle_info(info, state) = act
@@ -710,6 +775,16 @@ end = struct
 
     | Some(proc) ->
         Impl.cast(proc, Callback.Ack(user_id, snapshot_id))
+    end
+
+  val require_next_inning<$a>(room_id, user_id, snapshot_id) : [$a]unit = act
+    do proc_opt <- Impl.where_is_global(room_id) in
+    case proc_opt of
+    | None ->
+        return({})
+
+    | Some(proc) ->
+        Impl.cast(proc, Callback.RequireNextInning(user_id, snapshot_id))
     end
 
 end

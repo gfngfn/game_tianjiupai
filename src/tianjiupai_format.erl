@@ -31,6 +31,7 @@
 -type command() ::
     {comment, Text :: binary()}
   | {ack, tianjiupai:snapshot_id()}
+  | {next_inning, tianjiupai:snapshot_id()}
   | heartbeat.
 
 -type room_request() ::
@@ -183,6 +184,8 @@ decode_command(Data) ->
             {ok, {comment, Text}};
         ?LABELED_PATTERN(<<"CommandAck">>, SnapshotId) when erlang:is_binary(SnapshotId) ->
             {ok, {ack, SnapshotId}};
+        ?LABELED_PATTERN(<<"CommandNextInning">>, SnapshotId) when erlang:is_binary(SnapshotId) ->
+            {ok, {next_inning, SnapshotId}};
         ?LABEL_ONLY_PATTERN(<<"CommandHeartbeat">>) ->
             {ok, heartbeat};
         _ ->
