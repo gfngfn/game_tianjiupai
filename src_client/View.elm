@@ -31,8 +31,15 @@ viewBody model =
         InRoom _ user personalState indices chatTextInput ->
           viewRoom user personalState indices chatTextInput
   in
+  let ( level, message ) = model.message in
+  let
+    sty =
+      case level of
+        Information -> style "color" "black"
+        Warning     -> style "color" "red"
+  in
   [ div []
-      [ div [] [ text model.message ]
+      [ div [ sty ] [ text message ]
       , elemMain
       ]
   ]

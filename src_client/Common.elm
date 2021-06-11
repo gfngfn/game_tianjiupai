@@ -26,8 +26,12 @@ type State
     -- 3. The indices of cards the user is selecting
     -- 4. The content of the input form for chatting
 
+type MessageLevel
+  = Warning
+  | Information
+
 type alias Model =
-  { message       : String
+  { message       : ( MessageLevel, String )
   , state         : State
   }
 
