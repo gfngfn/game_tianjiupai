@@ -453,7 +453,6 @@ end = struct
                               }
                           end
                         in
-                        let [u0, u1, u2] = the_other_players(game_state, seat) in
                         let card_opts =
                           if is_front then
                             List.map(fun(card) -> Some(card) end, cards)
@@ -474,7 +473,7 @@ end = struct
                               in
                               notify(u, [NotifySubmission(submission)])
                             end,
-                            [u0, u1, u2]
+                            the_other_players(game_state, seat)
                           )
                         in
                         let Some(obs) = make_observable_game_state(game_state, user_id) in
