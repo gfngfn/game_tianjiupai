@@ -85,7 +85,7 @@ viewRoomList maybeRoomSummaries =
           roomSummaries |> List.map (\roomSummary ->
             let
               room = roomSummary.room
-              members = String.join ", " roomSummary.members
+              members = String.join ", " (roomSummary.members |> List.map (\u -> u.userName))
             in
             li []
             [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ", members: " ++ members ++ ")")
@@ -107,8 +107,8 @@ viewRoom user pstate indices chatTextInput =
     elemHead : Html Msg
     elemHead =
       case pstate.game of
-        WaitingStart userIds ->
-          let members = String.join ", " userIds in
+        WaitingStart users ->
+          let members = String.join ", " (users |> List.map (\u -> u.userName)) in
           div []
             [ div []
                 [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ", members: " ++ members ++ ")") ]
@@ -188,10 +188,10 @@ viewPlayers players =
     [ div []
         [ text "players:" ]
     , ol []
-        [ li [] [ text ("seat 0: " ++ players.east.userId  ++ ", score: " ++ String.fromInt players.east.score) ]
-        , li [] [ text ("seat 1: " ++ players.south.userId ++ ", score: " ++ String.fromInt players.south.score) ]
-        , li [] [ text ("seat 2: " ++ players.west.userId  ++ ", score: " ++ String.fromInt players.west.score) ]
-        , li [] [ text ("seat 3: " ++ players.north.userId ++ ", score: " ++ String.fromInt players.north.score) ]
+        [ li [] [ text ("seat 0: " ++ players.east.user.userName  ++ ", score: " ++ String.fromInt players.east.score) ]
+        , li [] [ text ("seat 1: " ++ players.south.user.userName ++ ", score: " ++ String.fromInt players.south.score) ]
+        , li [] [ text ("seat 2: " ++ players.west.user.userName  ++ ", score: " ++ String.fromInt players.west.score) ]
+        , li [] [ text ("seat 3: " ++ players.north.user.userName ++ ", score: " ++ String.fromInt players.north.score) ]
         ]
     ]
 

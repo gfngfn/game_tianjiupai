@@ -20,7 +20,7 @@ module RoomServer :> sig
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
 
   val send_chat<$a> : fun(room_id, user_id, binary) -> [$a]option<unit>
-  val attend<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
+  val attend<$a> : fun(room_id, user_id, binary) -> [$a]option<personal_room_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
@@ -40,7 +40,7 @@ end = struct
   }
 
   type waiting_state = {
-    members : list<user_id>,
+    members : list<user>,
   }
 
   type sync =
@@ -66,7 +66,7 @@ end = struct
     | GetWholeState
     | GetPersonalState(user_id)
     | SendChat(user_id, binary)
-    | Attend(user_id)
+    | Attend(user_id, binary)
     | Exit(user_id)
     | Submit(user_id, list<Card.t>)
 
@@ -110,14 +110,14 @@ end = struct
         room_state    = InternalWaiting({members = []})
       })
 
-    val get_members_from_state(room_state : internal_room_state) : {bool, list<user_id>} =
+    val get_members_from_state(room_state : internal_room_state) : {bool, list<user>} =
       case room_state of
       | InternalWaiting(waiting_state) ->
           {false, waiting_state.members}
 
       | InternalPlaying(whole_game_state) ->
           let game_players = Quad.to_list(whole_game_state.meta.players) in
-          let members = List.map(fun(g) -> g.user_id end, game_players) in
+          let members = List.map(fun(p) -> p.user end, game_players) in
           {true, members}
       end
 
@@ -132,7 +132,7 @@ end = struct
       }
 
     val find_user_seat(game_state : whole_game_state, user_id : user_id) =
-      let opt = Quad.find(fun(p) -> Binary.equal(p.user_id, user_id) end, game_state.meta.players) in
+      let opt = Quad.find(fun(p) -> Binary.equal(p.user.user_id, user_id) end, game_state.meta.players) in
       Option.map(
         fun(pair) ->
           let {seat, _} = pair in
@@ -149,7 +149,7 @@ end = struct
       end
 
     val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<user_id> =
-      let {u0, u1, u2, u3} = Quad.map(fun(p) -> p.user_id end, game_state.meta.players) in
+      let {u0, u1, u2, u3} = Quad.map(fun(p) -> p.user.user_id end, game_state.meta.players) in
       case seat of
       | Quad.Seat0 -> [u1, u2, u3]
       | Quad.Seat1 -> [u2, u3, u0]
@@ -227,29 +227,33 @@ end = struct
 
     val handle_send_chat(user_id : user_id, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
-      do dummy <- notify_for_each(members, [NotifyComment(user_id, text)]) in
+      do dummy <-
+        let user_ids = List.map(fun (u) -> u.user_id end, members) in
+        notify_for_each(user_ids, [NotifyComment(user_id, text)])
+      in
       GenServer.reply(ChatSent, { state | reversed_logs = LogComment(user_id, text) :: state.reversed_logs })
 
-    val handle_attend(user_id : user_id, state : state) = act
+    val handle_attend(user_id : user_id, user_name : binary, state : state) = act
       case state.room_state of
       | InternalPlaying(_) ->
           GenServer.reply(Attended(None), state)
 
       | InternalWaiting(waiting_state) ->
           let members = waiting_state.members in
-          if List.any(fun(u) -> Binary.equal(u, user_id) end, members) then
+          if List.any(fun(u) -> Binary.equal(u.user_id, user_id) end, members) then
             let Some(personal_state) = make_personal_room_state(state, user_id) in
             GenServer.reply(Attended(Some(personal_state)), state)
           else
             let log_enter = LogEntered(user_id) in
             let notif_enter = NotifyEntered(user_id) in
+            let user = { user_id = user_id, user_name = user_name } in
             case members of
             | u0 :: u1 :: u2 :: _ ->
                 let player_quad =
-                  let player0 = { user_id = u0, score = 0 } in
-                  let player1 = { user_id = u1, score = 0 } in
-                  let player2 = { user_id = u2, score = 0 } in
-                  let player3 = { user_id = user_id, score = 0 } in
+                  let player0 = { user = u0, score = 0 } in
+                  let player1 = { user = u1, score = 0 } in
+                  let player2 = { user = u2, score = 0 } in
+                  let player3 = { user = user, score = 0 } in
                   {player0, player1, player2, player3}
                 in
                 let parent_seat = Quad.Seat0 in
@@ -272,12 +276,15 @@ end = struct
                   }
                   /* The player who lastly attended the room is ready for the next step from the beginning. */
                 in
-                let Some(obs0) = make_observable_game_state(game_state, u0) in
-                let Some(obs1) = make_observable_game_state(game_state, u1) in
-                let Some(obs2) = make_observable_game_state(game_state, u2) in
-                do dummy <- notify(u0, [notif_enter, NotifyGameStart(obs0)]) in
-                do dummy <- notify(u1, [notif_enter, NotifyGameStart(obs1)]) in
-                do dummy <- notify(u2, [notif_enter, NotifyGameStart(obs2)]) in
+                let user_id0 = u0.user_id in
+                let user_id1 = u1.user_id in
+                let user_id2 = u2.user_id in
+                let Some(obs0) = make_observable_game_state(game_state, user_id0) in
+                let Some(obs1) = make_observable_game_state(game_state, user_id1) in
+                let Some(obs2) = make_observable_game_state(game_state, user_id2) in
+                do dummy <- notify(user_id0, [notif_enter, NotifyGameStart(obs0)]) in
+                do dummy <- notify(user_id1, [notif_enter, NotifyGameStart(obs1)]) in
+                do dummy <- notify(user_id2, [notif_enter, NotifyGameStart(obs2)]) in
                 let state =
                   { state |
                     room_state    = InternalPlaying(game_state),
@@ -288,8 +295,8 @@ end = struct
                 GenServer.reply(Attended(Some(personal_state)), state)
 
             | _ ->
-                let waiting_state = { waiting_state | members = List.append(members, [user_id]) } in
-                do dummy <- notify_for_each(members, [notif_enter]) in
+                let waiting_state = { waiting_state | members = List.append(members, [user]) } in
+                do dummy <- notify_for_each(List.map(fun(u) -> u.user_id end, members), [notif_enter]) in
                 let state =
                   { state |
                     room_state    = InternalWaiting(waiting_state),
@@ -309,7 +316,7 @@ end = struct
       | InternalWaiting(waiting_state) ->
           let members =
             List.filter(
-              fun(u) -> Bool.not(Binary.equal(u, user_id)) end,
+              fun(u) -> Bool.not(Binary.equal(u.user_id, user_id)) end,
               waiting_state.members)
           in
           let room_state = InternalWaiting({ waiting_state | members = members }) in
@@ -582,8 +589,8 @@ end = struct
           GenServer.reply(PersonalState(personal_state_opt), state)
       | SendChat(user_id, text) ->
           handle_send_chat(user_id, text, state)
-      | Attend(user_id) ->
-          handle_attend(user_id, state)
+      | Attend(user_id, user_name) ->
+          handle_attend(user_id, user_name, state)
       | Exit(user_id) ->
           handle_exit(user_id, state)
       | Submit(user_id, cards) ->
@@ -673,8 +680,8 @@ end = struct
       end
     end)
 
-  val attend<$a>(room_id, user_id) : [$a]option<personal_room_state> = act
-    call(room_id, Attend(user_id), fun(resp) -> act
+  val attend<$a>(room_id, user_id, user_name) : [$a]option<personal_room_state> = act
+    call(room_id, Attend(user_id, user_name), fun(resp) -> act
       case resp of
       | Attended(game_state_opt) -> return(game_state_opt)
       end

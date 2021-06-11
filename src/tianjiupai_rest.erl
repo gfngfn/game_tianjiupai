@@ -316,7 +316,8 @@ handle_room_update(Req0, MaybeInfo, RoomId) ->
 handle_enter_room(Req1, RoomId, UserId) ->
     case ?USER_FRONT:set_room(UserId, RoomId) of
         {ok, ok} ->
-            Result = ?ROOM_FRONT:attend(RoomId, UserId),
+            {ok, UserName} = ?USER_FRONT:get_name(UserId),
+            Result = ?ROOM_FRONT:attend(RoomId, UserId, UserName),
             io:format("attend (result: ~p)~n", [Result]),
             case Result of
                 {ok, PersonalStateMap} ->

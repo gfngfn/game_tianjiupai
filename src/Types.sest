@@ -13,18 +13,23 @@ module Types = struct
     belongs_to : option<room_id>,
   }
 
+  type user = {
+    user_id   : user_id,
+    user_name : binary,
+  }
+
   type snapshot_id = SnapshotId.t
 
   type whole_room_state = {
     room_id    : room_id,
     room_name  : binary,
-    members    : list<user_id>,
+    members    : list<user>,
     is_playing : bool,
   }
 
   type game_player = {
-    user_id : user_id,
-    score   : int
+    user  : user,
+    score : int
   }
 
   type wenzun =
@@ -98,7 +103,7 @@ module Types = struct
     | NotifySubmission(submission)
 
   type observable_room_state =
-    | Waiting(list<user_id>)
+    | Waiting(list<user>)
     | Playing(observable_game_state)
 
   type personal_room_state = {

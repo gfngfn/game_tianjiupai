@@ -10,6 +10,7 @@
     snapshot_id/0,
     user_id/0,
     room_id/0,
+    user/0,
     log/0,
     whole_room_state/0,
     game_player/0,
@@ -42,6 +43,12 @@
 %% See `Types.room_id'
 -type room_id() :: binary().
 
+%% See `Types.user'
+-type user() :: #{
+    user_id   := user_id(),
+    user_name := binary()
+}.
+
 %% See `Types.whole_room_state'
 -type whole_room_state() :: #{
     room_id    := room_id(),
@@ -50,9 +57,10 @@
     is_playing := boolean()
 }.
 
+%% See `Types.game_player'
 -type game_player() :: #{
-    user_id := user_id(),
-    score   := non_neg_integer()
+    user  := user(),
+    score := non_neg_integer()
 }.
 
 %% See `Types.table_state'

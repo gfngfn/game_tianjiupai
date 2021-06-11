@@ -284,7 +284,7 @@ make_room_summary_object(WholeStateMap) ->
     #{
         room       => make_room_object(RoomId, RoomName),
         is_playing => IsPlaying,
-        members    => Members
+        members    => lists:map(fun make_user_object/1, Members)
     }.
 
 -spec make_personal_state_object(tianjiupai:personal_room_state()) -> encodable().
@@ -300,7 +300,7 @@ make_personal_state_object(PersonalStateMap) ->
             #{
                 room => make_room_object(RoomId, RoomName),
                 logs => lists:map(fun make_log_object/1, Logs),
-                game => ?LABELED(<<"WaitingStart">>, Members)
+                game => ?LABELED(<<"WaitingStart">>, lists:map(fun make_user_object/1, Members))
             };
         {playing, ObservableGameState} ->
             ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
@@ -449,13 +449,18 @@ make_gained_object(Gained) ->
 -spec make_game_player_object(tianjiupai:game_player()) -> encodable().
 make_game_player_object(GamePlayer) ->
     #{
-        user_id := UserId,
-        score   := Score
+        user  := User,
+        score := Score
     } = GamePlayer,
     #{
-        user_id => UserId,
-        score   => Score
+        user  => make_user_object(User),
+        score => Score
     }.
+
+-spec make_user_object(tianjiupai:user()) -> encodable().
+make_user_object(User) ->
+    User.
+
 
 -spec make_game_meta_object(tianjiupai:game_meta()) -> encodable().
 make_game_meta_object(GameMeta) ->

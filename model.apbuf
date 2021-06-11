@@ -80,7 +80,7 @@ submit_cards_response := {
 
 room_summary := {
   room       : room,
-  members    : list(user_id),
+  members    : list(user),
   is_playing : bool,
 }
 
@@ -121,7 +121,7 @@ personal_state := {
 }
 
 personal_room_state :=
-  | WaitingStart : list(user_id)
+  | WaitingStart : list(user)
   | PlayingGame  : observable_game_state
 
 per_seat($a) := {
@@ -171,8 +171,8 @@ seat := int
 snapshot_id := string
 
 game_player := {
-  user_id : user_id,
-  score   : int,
+  user  : user,
+  score : int,
 }
 
 game_meta := {
