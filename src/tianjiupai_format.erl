@@ -225,11 +225,11 @@ make_flags_object(MaybeInfo) ->
 make_log_object(Log) ->
     case Log of
         {log_comment, From, Text} ->
-            ?LABELED(<<"LogComment">>, #{from => From, text => Text});
-        {log_entered, UserId} ->
-            ?LABELED(<<"LogEntered">>, UserId);
-        {log_exited, UserId} ->
-            ?LABELED(<<"LogExited">>, UserId);
+            ?LABELED(<<"LogComment">>, #{from => make_user_object(From), text => Text});
+        {log_entered, User} ->
+            ?LABELED(<<"LogEntered">>, make_user_object(User));
+        {log_exited, User} ->
+            ?LABELED(<<"LogExited">>, make_user_object(User));
         log_game_start ->
             ?LABEL_ONLY(<<"LogGameStart">>)
     end.
@@ -238,11 +238,11 @@ make_log_object(Log) ->
 make_notification_object(Notification) ->
     case Notification of
         {notify_comment, From, Text} ->
-            ?LABELED(<<"NotifyComment">>, #{from => From, text => Text});
-        {notify_entered, UserId} ->
-            ?LABELED(<<"NotifyEntered">>, UserId);
-        {notify_exited, UserId} ->
-            ?LABELED(<<"NotifyExited">>, UserId);
+            ?LABELED(<<"NotifyComment">>, #{from => make_user_object(From), text => Text});
+        {notify_entered, User} ->
+            ?LABELED(<<"NotifyEntered">>, make_user_object(User));
+        {notify_exited, User} ->
+            ?LABELED(<<"NotifyExited">>, make_user_object(User));
         {notify_game_start, ObservableGameState} ->
             ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
             ?LABELED(<<"NotifyGameStart">>, ObservableGameStateObj);

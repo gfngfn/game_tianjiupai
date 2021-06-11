@@ -82,9 +82,9 @@ module Types = struct
   }
 
   type log =
-    | LogComment(user_id, binary)
-    | LogEntered(user_id)
-    | LogExited(user_id)
+    | LogComment(user, binary)
+    | LogEntered(user)
+    | LogExited(user)
     | LogGameStart
 
   type submission = {
@@ -95,9 +95,9 @@ module Types = struct
   }
 
   type notification =
-    | NotifyComment(user_id, binary)
-    | NotifyEntered(user_id)
-    | NotifyExited(user_id)
+    | NotifyComment(user, binary)
+    | NotifyEntered(user)
+    | NotifyExited(user)
     | NotifyGameStart(observable_game_state)
     | NotifyNextStep
     | NotifySubmission(submission)

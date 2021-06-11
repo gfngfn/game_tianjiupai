@@ -13,7 +13,7 @@ module User :> sig
 
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
-  val get_info<$a> : fun(user_id) -> [$a]option<{user_name : binary, belongs_to : option<room_id>}>
+  val get_info<$a> : fun(user_id) -> [$a]option<user_state>
 
   val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
 
@@ -56,10 +56,20 @@ end = struct
     UserServer.get_room(user_id)
 
   val send_chat(user_id, text) = act
-    do opt <- get_room(user_id) in
-    case opt of
-    | None          -> return(None)
-    | Some(room_id) -> Room.send_chat(room_id, user_id, text)
+    do user_state_opt <- get_info(user_id) in
+    case user_state_opt of
+    | None ->
+        return(None)
+
+    | Some(user_state) ->
+        case user_state.belongs_to of
+        | None ->
+            return(None)
+
+        | Some(room_id) ->
+            let user = { user_id = user_id, user_name = user_state.user_name } in
+            Room.send_chat(room_id, user, text)
+        end
     end
 
   val ack(user_id, snapshot_id) = act

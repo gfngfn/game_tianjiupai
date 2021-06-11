@@ -85,20 +85,20 @@ room_summary := {
 }
 
 comment := {
-  from : user_id,
+  from : user,
   text : string,
 }
 
 log :=
   | LogComment : comment
-  | LogEntered : user_id
-  | LogExited  : user_id
+  | LogEntered : user
+  | LogExited  : user
   | LogGameStart
 
 notification :=
   | NotifyComment    : comment
-  | NotifyEntered    : user_id
-  | NotifyExited     : user_id
+  | NotifyEntered    : user
+  | NotifyExited     : user
   | NotifyGameStart  : observable_game_state
   | NotifyNextStep
   | NotifySubmission : submission

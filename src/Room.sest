@@ -39,8 +39,8 @@ module Room = struct
   val get_personal_state(room_id, user_id) = act
     RoomServer.get_personal_state(room_id, user_id)
 
-  val attend(room_id, user_id, user_name) = act
-    RoomServer.attend(room_id, user_id, user_name)
+  val attend(room_id, user) = act
+    RoomServer.attend(room_id, user)
 
   val exit(room_id, user_id) = act
     RoomServer.exit(room_id, user_id)

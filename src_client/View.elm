@@ -155,13 +155,13 @@ viewRoom user pstate indices chatTextInput =
         (pstate.logs |> List.map (\log ->
           case log of
             LogComment comment ->
-              li [] [ b [] [ text comment.from ], text (": " ++ comment.text) ]
+              li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
 
-            LogEntered userId ->
-              li [] [ b [] [ text userId ], text " entered." ]
+            LogEntered u ->
+              li [] [ b [] [ text u.userName ], text " entered." ]
 
-            LogExited userId ->
-              li [] [ b [] [ text userId ], text " exited." ]
+            LogExited u ->
+              li [] [ b [] [ text u.userName ], text " exited." ]
 
             LogGameStart ->
               li [] [ b [] [ text "Game start!" ] ]

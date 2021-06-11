@@ -53,7 +53,7 @@
 -type whole_room_state() :: #{
     room_id    := room_id(),
     room_name  := binary(),
-    members    := [user_id()],
+    members    := [user()],
     is_playing := boolean()
 }.
 
@@ -93,16 +93,16 @@
 
 %% See `Types.log'
 -type log() ::
-    {log_comment, user_id(), binary()}
-  | {log_entered, user_id()}
-  | {log_exited, user_id()}
+    {log_comment, user(), binary()}
+  | {log_entered, user()}
+  | {log_exited, user()}
   | log_game_start.
 
 %% See `Types.notification'
 -type notification() ::
-    {notify_comment, user_id(), binary()}
-  | {notify_entered, user_id()}
-  | {notify_exited, user_id()}
+    {notify_comment, user(), binary()}
+  | {notify_entered, user()}
+  | {notify_exited, user()}
   | {notify_game_start, observable_game_state()}
   | notify_next_step
   | {notify_submission, seat(), [({ok, card()} | error)], observable_game_state()}.
