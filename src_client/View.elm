@@ -35,7 +35,7 @@ viewBody model =
   let
     sty =
       case level of
-        Information -> style "color" "black"
+        Information -> style "color" "gray"
         Warning     -> style "color" "red"
   in
   [ div []
@@ -50,13 +50,13 @@ viewEntrance userNameInput =
   div []
     [ input
         [ type_ "text"
-        , placeholder "username"
+        , placeholder "ユーザ名"
         , value userNameInput
         , onInput (UpdateInput << UserNameInput)
         ] []
     , button
         [ onClick (SendRequest CreateUser) ]
-        [ text "start" ]
+        [ text "開始" ]
     ]
 
 
@@ -69,13 +69,13 @@ viewPlaza user roomNameInput maybeRoomSummaries =
     , div []
         [ input
             [ type_ "text"
-            , placeholder "new room name"
+            , placeholder "部屋名"
             , value roomNameInput
             , onInput (UpdateInput << RoomNameInput)
             ] []
         , button
             [ onClick (SendRequest CreateRoom) ]
-            [ text "create" ]
+            [ text "作成" ]
         ]
     ]
 
@@ -95,10 +95,10 @@ viewRoomList maybeRoomSummaries =
               members = String.join ", " (roomSummary.members |> List.map (\u -> u.userName))
             in
             li []
-            [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ", members: " ++ members ++ ")")
+            [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")")
             , button
                 [ onClick (SendRequest (EnterRoom room.roomId)) ]
-                [ text "enter" ]
+                [ text "参加" ]
             ]
           )
       in
@@ -118,7 +118,7 @@ viewRoom user pstate indices chatTextInput =
           let members = String.join ", " (users |> List.map (\u -> u.userName)) in
           div []
             [ div []
-                [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ", members: " ++ members ++ ")") ]
+                [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
             ]
 
         PlayingGame ostate ->
@@ -141,11 +141,11 @@ viewRoom user pstate indices chatTextInput =
           in
           div []
             [ div []
-                [ text (room.roomName ++ " (room ID: " ++ room.roomId ++ ")") ]
+                [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
             , div []
-                [ text ("inning index: " ++ String.fromInt gameMeta.inningIndex) ]
+                [ text (String.fromInt gameMeta.inningIndex ++ "局目") ]
             , div []
-                [ text ("number of consecutives: " ++ String.fromInt gameMeta.numConsecutives) ]
+                [ text (String.fromInt (gameMeta.numConsecutives - 1) ++ "本場") ]
             , viewPlayers gameMeta.players
             , div []
                 [ text ("snapshot ID: " ++ ostate.snapshotId) ]
@@ -165,25 +165,25 @@ viewRoom user pstate indices chatTextInput =
               li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
 
             LogEntered u ->
-              li [] [ b [] [ text u.userName ], text " entered." ]
+              li [] [ b [] [ text u.userName ], text " さんが参加しました" ]
 
             LogExited u ->
-              li [] [ b [] [ text u.userName ], text " exited." ]
+              li [] [ b [] [ text u.userName ], text " さんが退出しました" ]
 
             LogGameStart ->
-              li [] [ b [] [ text "Game start!" ] ]
+              li [] [ b [] [ text "対局開始！" ] ]
         ))
     , div []
         [ div []
             [ input
                 [ type_ "text"
-                , placeholder "comment"
+                , placeholder "コメント"
                 , value chatTextInput
                 , onInput (UpdateInput << ChatInput)
                 ] []
             , button
                 [ onClick (SendRequest SendChat) ]
-                [ text "send" ]
+                [ text "送信" ]
             ]
         ]
     ]
@@ -195,10 +195,10 @@ viewPlayers players =
     [ div []
         [ text "players:" ]
     , ol []
-        [ li [] [ text ("seat 0: " ++ players.east.user.userName  ++ ", score: " ++ String.fromInt players.east.score) ]
-        , li [] [ text ("seat 1: " ++ players.south.user.userName ++ ", score: " ++ String.fromInt players.south.score) ]
-        , li [] [ text ("seat 2: " ++ players.west.user.userName  ++ ", score: " ++ String.fromInt players.west.score) ]
-        , li [] [ text ("seat 3: " ++ players.north.user.userName ++ ", score: " ++ String.fromInt players.north.score) ]
+        [ li [] [ text ("東 " ++ players.east.user.userName  ++ ", 得点: " ++ String.fromInt players.east.score) ]
+        , li [] [ text ("南 " ++ players.south.user.userName ++ ", 得点: " ++ String.fromInt players.south.score) ]
+        , li [] [ text ("西 " ++ players.west.user.userName  ++ ", 得点: " ++ String.fromInt players.west.score) ]
+        , li [] [ text ("北 " ++ players.north.user.userName ++ ", 得点: " ++ String.fromInt players.north.score) ]
         ]
     ]
 
@@ -224,7 +224,7 @@ viewObservableInning userId handInfo observableInning =
       div []
         [ div [] [ text "ObservableInningEnd" ]
         , showGainsQuad gainsQuad
-        , button [ onClick (SendRequest RequireNextInning) ] [ text "next" ]
+        , button [ disabled handInfo.synchronizing, onClick (SendRequest RequireNextInning) ] [ text "次へ" ]
         ]
 
 
@@ -269,12 +269,12 @@ showGainsQuad : PerSeat (List Card) -> Html Msg
 showGainsQuad gainsQuad =
   div []
     [ div []
-        [ text "gains:" ]
+        [ text "山:" ]
     , ol []
-        [ li [] [ text ("seat 0: " ++ showCards gainsQuad.east) ]
-        , li [] [ text ("seat 1: " ++ showCards gainsQuad.south) ]
-        , li [] [ text ("seat 2: " ++ showCards gainsQuad.west) ]
-        , li [] [ text ("seat 3: " ++ showCards gainsQuad.north) ]
+        [ li [] [ text ("東 " ++ showCards gainsQuad.east) ]
+        , li [] [ text ("南 " ++ showCards gainsQuad.south) ]
+        , li [] [ text ("西 " ++ showCards gainsQuad.west) ]
+        , li [] [ text ("北 " ++ showCards gainsQuad.north) ]
         ]
     ]
 
@@ -324,7 +324,7 @@ showHand handInfo cards =
           [ button [ disabled (not submittable), onClick (SendRequest SubmitCards) ] [ text "submit" ] ]
   in
   div []
-    ([ div [] [ text "hands:" ], ol [] elems ] ++ buttonElems)
+    ([ div [] [ text "手牌:" ], ol [] elems ] ++ buttonElems)
 
 
 showCards : List Card -> String
