@@ -34,7 +34,8 @@ view userId selfSeat handInfo observableInning =
   case observableInning of
     ObservableDuringInning oinning ->
       let
-        relQuad = makeRelativeQuad selfSeat oinning.gains oinning.startsAt oinning.table
+        submittedQuad = makeSubmittedQuad oinning.startsAt oinning.table
+        relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
         yourHand = oinning.yourHand
       in
       div []
@@ -45,16 +46,19 @@ view userId selfSeat handInfo observableInning =
         ]
 
     ObservableInningEnd gainsQuad ->
+      let
+        submittedQuad = { east = [], south = [], west = [], north = [] }
+        relQuad = makeRelativeQuad selfSeat gainsQuad submittedQuad
+      in
       div []
         [ div [] [ text "ObservableInningEnd" ]
---      , showGainsQuad gainsQuad -- TODO
+        , showGainsOfRelativeQuad relQuad
         , button [ disabled handInfo.synchronizing, onClick (SendRequest RequireNextInning) ] [ text "次へ" ]
         ]
 
 
-makeRelativeQuad : Seat -> PerSeat (List Card) -> Seat -> Table -> RelativeQuad
-makeRelativeQuad selfSeat gainsQuad startSeat table =
-  let submittedQuad = makeSubmittedQuad startSeat table in
+makeRelativeQuad : Seat -> PerSeat (List Card) -> PerSeat (List (ClosedOr Card)) -> RelativeQuad
+makeRelativeQuad selfSeat gainsQuad submittedQuad =
   let elem0 = { gains = gainsQuad.east,  submitted = submittedQuad.east } in
   let elem1 = { gains = gainsQuad.south, submitted = submittedQuad.south } in
   let elem2 = { gains = gainsQuad.west,  submitted = submittedQuad.west } in
