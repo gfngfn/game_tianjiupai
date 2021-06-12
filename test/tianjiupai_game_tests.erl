@@ -256,7 +256,7 @@ update_table_success_test_() ->
                 {triple_wen, Exposed(bigT(big1), [closed])}},
             {[wuF(5), wuT(5), wuF(7)],
                 {triple_wen, Exposed(bigT(big1), [])},
-                {triple_wen, Exposed(bigF(big1), [closed])}},
+                {triple_wen, Exposed(bigT(big1), [closed])}},
 
             %% Submits an effective triple to `triple_wu'.
             {[{wen, 11}, wuT(9), wuF(9)],
@@ -335,10 +335,10 @@ get_winner_test_() ->
               {3, [{wen, 10}]}},
 
           %% Results of `single_wu'.
-          {{single_wu, Exposed(8, [closed, closed, closed])},
-              {0, [wu(8)]}},
-          {{single_wu, Exposed(3, [{open, 7}, {open, 9}, closed])},
-              {2, [wu(9)]}},
+          {{single_wu, Exposed(wunumT(8), [closed, closed, closed])},
+              {0, [wuT(8)]}},
+          {{single_wu, Exposed(wunumT(3), [{open, wunumF(7)}, {open, wunumF(9)}, closed])},
+              {2, [wuF(9)]}},
 
           %% Results of `double_wen'.
           {{double_wen, Exposed(4, [closed, closed, closed])},
@@ -352,39 +352,39 @@ get_winner_test_() ->
 
           %% Results of `double_wu'.
           {{double_wu, Exposed(8, [closed, closed, closed])},
-              {0, [wu(8), wu(8)]}},
+              {0, [wuF(8), wuT(8)]}},
           {{double_wu, Exposed(3, [{open, 7}, {open, 9}, closed])},
-              {2, [wu(9), wu(9)]}},
+              {2, [wuF(9), wuT(9)]}},
 
           %% Results of `triple_wen'.
-          {{triple_wen, Exposed(big2, [closed, closed, closed])},
-              {0, [{wen, 9}, {wen, 9}, wu(7)]}},
-          {{triple_wen, Exposed(big1, [{open, big2}, {open, big4}, closed])},
-              {2, [{wen, 11}, {wen, 11}, wu(9)]}},
-          {{triple_wen, Exposed(big1, [{open, big2}, closed, {open, big4}])},
-              {3, [{wen, 11}, {wen, 11}, wu(9)]}},
-          {{triple_wen, Exposed(big2, [closed, closed, {open, big3}])},
-              {3, [{wen, 10}, {wen, 10}, wu(8)]}},
+          {{triple_wen, Exposed(bigT(big2), [closed, closed, closed])},
+              {0, [{wen, 9}, {wen, 9}, wuT(7)]}},
+          {{triple_wen, Exposed(bigF(big1), [{open, bigF(big2)}, {open, bigT(big4)}, closed])},
+              {2, [{wen, 11}, {wen, 11}, wuT(9)]}},
+          {{triple_wen, Exposed(bigF(big1), [{open, bigF(big2)}, closed, {open, bigT(big4)}])},
+              {3, [{wen, 11}, {wen, 11}, wuT(9)]}},
+          {{triple_wen, Exposed(bigT(big2), [closed, closed, {open, bigF(big3)}])},
+              {3, [{wen, 10}, {wen, 10}, wuF(8)]}},
 
           %% Results of `triple_wu'.
           {{triple_wu, Exposed(big2, [closed, closed, closed])},
-              {0, [{wen, 9}, wu(7), wu(7)]}},
+              {0, [{wen, 9}, wuF(7), wuT(7)]}},
           {{triple_wu, Exposed(big1, [{open, big2}, {open, big4}, closed])},
-              {2, [{wen, 11}, wu(9), wu(9)]}},
+              {2, [{wen, 11}, wuF(9), wuT(9)]}},
           {{triple_wu, Exposed(big1, [{open, big2}, closed, {open, big4}])},
-              {3, [{wen, 11}, wu(9), wu(9)]}},
+              {3, [{wen, 11}, wuF(9), wuT(9)]}},
           {{triple_wu, Exposed(big2, [closed, closed, {open, big3}])},
-              {3, [{wen, 10}, wu(8), wu(8)]}},
+              {3, [{wen, 10}, wuF(8), wuT(8)]}},
 
           %% Results of `quadruple'.
           {{quadruple, Exposed(big1, [closed, closed, closed])},
-              {0, [{wen, 8}, {wen, 8}, wu(5), wu(5)]}},
+              {0, [{wen, 8}, {wen, 8}, wuF(5), wuT(5)]}},
           {{quadruple, Exposed(big1, [{open, big2}, {open, big4}, closed])},
-              {2, [{wen, 11}, {wen, 11}, wu(9), wu(9)]}},
+              {2, [{wen, 11}, {wen, 11}, wuF(9), wuT(9)]}},
           {{quadruple, Exposed(big1, [{open, big2}, closed, {open, big4}])},
-              {3, [{wen, 11}, {wen, 11}, wu(9), wu(9)]}},
+              {3, [{wen, 11}, {wen, 11}, wuF(9), wuT(9)]}},
           {{quadruple, Exposed(big2, [closed, closed, {open, big3}])},
-              {3, [{wen, 10}, {wen, 10}, wu(8), wu(8)]}}
+              {3, [{wen, 10}, {wen, 10}, wuF(8), wuT(8)]}}
       ]
     ].
 
