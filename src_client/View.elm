@@ -160,11 +160,12 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
           ]
       in
       viewGridScheme
-        [ text "header" ]
-        elemsDebug
-        []
-        elemsChat
-        [ div stys [ text message ] ]
+        { header = [ text "header" ]
+        , left   = elemsDebug
+        , center = []
+        , right  = elemsChat
+        , footer = [ div stys [ text message ] ]
+        }
 
     PlayingGame ostate ->
       let gameMeta = ostate.meta in
@@ -203,26 +204,31 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
           ]
       in
       viewGridScheme
-        [ text "header" ]
-        elemsDebug
-        [ viewObservableInning user.userId handInfo ostate.observableInning ]
-        elemsChat
-        [ div stys [ text message ] ]
+        { header = [ text "header" ]
+        , left   = elemsDebug
+        , center = [ viewObservableInning user.userId handInfo ostate.observableInning ]
+        , right  = elemsChat
+        , footer = [ div stys [ text message ] ]
+        }
 
 
-viewGridScheme : List (Html Msg) -> List (Html Msg) -> List (Html Msg) -> List (Html Msg) -> List (Html Msg) -> List (Html Msg)
-viewGridScheme elemsHeader elemsLeft elemsCenter elemsRight elemsFooter =
+type alias GridScheme =
+  { header : List (Html Msg)
+  , left   : List (Html Msg)
+  , center : List (Html Msg)
+  , right  : List (Html Msg)
+  , footer : List (Html Msg)
+  }
+
+
+viewGridScheme : GridScheme -> List (Html Msg)
+viewGridScheme gridScheme =
   [ div [ class "grid-container" ]
-      [ div [ class "grid-element-header" ]
-          [ text "header" ]
-      , div [ class "grid-element-left" ]
-          elemsLeft
-      , div [ class "grid-element-center" ]
-          elemsCenter
-      , div [ class "grid-element-right" ]
-          elemsRight
-      , div [ class "grid-element-footer" ]
-          elemsFooter
+      [ div [ class "grid-element-header" ] gridScheme.header
+      , div [ class "grid-element-left" ]   gridScheme.left
+      , div [ class "grid-element-center" ] gridScheme.center
+      , div [ class "grid-element-right" ]  gridScheme.right
+      , div [ class "grid-element-footer" ] gridScheme.footer
       ]
   ]
 
