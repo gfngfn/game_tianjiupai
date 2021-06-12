@@ -388,7 +388,7 @@ get_winner_test_() ->
       ]
     ].
 
-submit_success_test_escaped() ->
+submit_success_test_() ->
     Exposed = fun(X, XOrCloseds) -> {X, XOrCloseds} end,
     [
      {"submit (" ++ Subtitle ++ ")",
@@ -510,7 +510,7 @@ submit_success_test_escaped() ->
                       table => {single_wen, Exposed(7, [{open, 8}, closed])}
                   }),
               submitter_seat = ?SEAT3,
-              submitter_cards = [wu(5)],
+              submitter_cards = [wuF(5)],
               expected =
                   {wins_trick, ?SEAT1,
                       {single_wen, Exposed(7, [{open, 8}, closed, closed])},
@@ -598,21 +598,21 @@ submit_success_test_escaped() ->
                   inning_state(#{
                       starts_at => ?SEAT3,
                       player0 => {[{wen, 11}], [wuT(3), wuT(6)]},
-                      player1 => {[wu(8)], []},
-                      player2 => {[wu(9)], [{wen, 10}, wu(8)]},
-                      player3 => {[wu(7)], [{wen, 11}, {wen, 7}, {wen, 7}]},
+                      player1 => {[wuT(8)], []},
+                      player2 => {[wuT(9)], [{wen, 10}, wuF(8)]},
+                      player3 => {[wuF(7)], [{wen, 11}, {wen, 7}, {wen, 7}]},
                       table => starting
                   }),
               submitter_seat = ?SEAT3,
-              submitter_cards = [wu(7)],
+              submitter_cards = [wuF(7)],
               expected =
                   {continues, inning_state(#{
                       starts_at => ?SEAT3,
                       player0 => {[{wen, 11}], [wuT(3), wuT(6)]},
-                      player1 => {[wu(8)], []},
-                      player2 => {[wu(9)], [{wen, 10}, wu(8)]},
+                      player1 => {[wuT(8)], []},
+                      player2 => {[wuT(9)], [{wen, 10}, wuF(8)]},
                       player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
-                      table => {single_wu, Exposed(7, [])}
+                      table => {single_wu, Exposed(wunumF(7), [])}
                   })}
           },
           #submit_test_case{
@@ -621,10 +621,10 @@ submit_success_test_escaped() ->
                   inning_state(#{
                       starts_at => ?SEAT3,
                       player0 => {[{wen, 11}], [wuT(3), wuT(6)]},
-                      player1 => {[wu(8)], []},
-                      player2 => {[wu(9)], [{wen, 10}, wu(8)]},
+                      player1 => {[wuT(8)], []},
+                      player2 => {[wuT(9)], [{wen, 10}, wuF(8)]},
                       player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
-                      table => {single_wu, Exposed(7, [])}
+                      table => {single_wu, Exposed(wunumT(7), [])}
                   }),
               submitter_seat = ?SEAT0,
               submitter_cards = [{wen, 11}],
@@ -632,10 +632,10 @@ submit_success_test_escaped() ->
                   {continues, inning_state(#{
                       starts_at => ?SEAT3,
                       player0 => {[], [wuT(3), wuT(6)]},
-                      player1 => {[wu(8)], []},
-                      player2 => {[wu(9)], [{wen, 10}, wu(8)]},
+                      player1 => {[wuT(8)], []},
+                      player2 => {[wuT(9)], [{wen, 10}, wuF(8)]},
                       player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
-                      table => {single_wu, Exposed(7, [closed])}
+                      table => {single_wu, Exposed(wunumT(7), [closed])}
                   })}
           },
           #submit_test_case{
@@ -644,21 +644,21 @@ submit_success_test_escaped() ->
                   inning_state(#{
                       starts_at => ?SEAT3,
                       player0 => {[], [wuT(3), wuT(6)]},
-                      player1 => {[wu(8)], []},
-                      player2 => {[wu(9)], [{wen, 10}, wu(8)]},
+                      player1 => {[wuT(8)], []},
+                      player2 => {[wuT(9)], [{wen, 10}, wuF(8)]},
                       player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
-                      table => {single_wu, Exposed(7, [closed])}
+                      table => {single_wu, Exposed(wunumT(7), [closed])}
                   }),
               submitter_seat = ?SEAT1,
-              submitter_cards = [wu(8)],
+              submitter_cards = [wuT(8)],
               expected =
                   {continues, inning_state(#{
                       starts_at => ?SEAT3,
                       player0 => {[], [wuT(3), wuT(6)]},
                       player1 => {[], []},
-                      player2 => {[wu(9)], [{wen, 10}, wu(8)]},
+                      player2 => {[wuT(9)], [{wen, 10}, wuF(8)]},
                       player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
-                      table => {single_wu, Exposed(7, [closed, closed])}
+                      table => {single_wu, Exposed(wunumT(7), [closed, closed])}
                   })}
           },
           #submit_test_case{
@@ -668,19 +668,19 @@ submit_success_test_escaped() ->
                       starts_at => ?SEAT3,
                       player0 => {[], [wuT(3), wuT(6)]},
                       player1 => {[], []},
-                      player2 => {[wu(9)], [{wen, 10}, wu(8)]},
+                      player2 => {[wuT(9)], [{wen, 10}, wuF(8)]},
                       player3 => {[], [{wen, 11}, {wen, 7}, {wen, 7}]},
-                      table => {single_wu, Exposed(7, [closed, closed])}
+                      table => {single_wu, Exposed(wunumT(7), [closed, closed])}
                   }),
               submitter_seat = ?SEAT2,
-              submitter_cards = [wu(9)],
+              submitter_cards = [wuT(9)],
               expected =
                   {wins_inning, ?SEAT2,
-                      {single_wu, Exposed(7, [closed, closed, {open, 9}])},
+                      {single_wu, Exposed(wunumT(7), [closed, closed, {open, wunumT(9)}])},
                       {
                          [wuT(3), wuT(6)],
                          [],
-                         [{wen, 10}, wu(8), wu(9)],
+                         [{wen, 10}, wuF(8), wuT(9)],
                          [{wen, 11}, {wen, 7}, {wen, 7}]
                       }}
           }
@@ -690,8 +690,6 @@ submit_success_test_escaped() ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
-wu(W) -> wuT(W). % temporary
-
 wuT(Wunum) -> {wu, wunumT(Wunum)}.
 wuF(Wunum) -> {wu, wunumF(Wunum)}.
 wunumT(Wunum) -> #{design => true, number => Wunum}.
