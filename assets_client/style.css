@@ -13,9 +13,14 @@ body {
 }
 
 .grid-container {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+
   display: grid;
-  grid-template-columns: 200px auto 200px;
-  grid-template-rows: 30px auto 100px;
+  grid-template-columns: min(250px, 20%) auto min(250px, 20%);
+  grid-template-rows: 30px calc(100vh - 30px - 30px) 30px;
 }
 
 .grid-element-header {
@@ -23,6 +28,7 @@ body {
   grid-column-end: 4;
   grid-row-start: 1;
   grid-row-end: 2;
+  height: 30px;
 
   background-color: #444444;
   color: #eeeeee;
@@ -65,6 +71,7 @@ body {
   grid-column-end: 4;
   grid-row-start: 3;
   grid-row-end: 4;
+  height: 30px;
 }
 
 .footer-style-normal {

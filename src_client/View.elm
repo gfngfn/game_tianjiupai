@@ -111,12 +111,60 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
     room : Room
     room = pstate.room
   in
+  let
+    elemsChat : List (Html Msg)
+    elemsChat =
+      [ ul []
+          (pstate.logs |> List.map (\log ->
+            case log of
+              LogComment comment ->
+                li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
+
+              LogEntered u ->
+                li [] [ b [] [ text u.userName ], text " さんが参加しました" ]
+
+              LogExited u ->
+                li [] [ b [] [ text u.userName ], text " さんが退出しました" ]
+
+              LogGameStart ->
+                li [] [ b [] [ text "対局開始！" ] ]
+          ))
+      , div []
+          [ div []
+              [ input
+                  [ type_ "text"
+                  , placeholder "コメント"
+                  , value chatTextInput
+                  , onInput (UpdateInput << ChatInput)
+                  ] []
+              , button
+                  [ onClick (SendRequest SendChat) ]
+                  [ text "送信" ]
+              ]
+          ]
+      ]
+  in
+  let
+    stys =
+      case level of
+        Information -> [ class "grid-element-footer", class "footer-style-normal" ]
+        Warning     -> [ class "grid-element-footer", class "footer-style-warning" ]
+  in
   case pstate.game of
     WaitingStart users ->
       let members = String.join ", " (users |> List.map (\u -> u.userName)) in
-      [ div []
-          [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
-      ]
+      let
+        elemsDebug =
+          [ div []
+              [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
+          ]
+      in
+      viewGridScheme
+        [ text "header" ]
+        elemsDebug
+        []
+        elemsChat
+        [ div stys [ text message ] ]
 
     PlayingGame ostate ->
       let gameMeta = ostate.meta in
@@ -154,59 +202,29 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
               [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
           ]
       in
-      let
-        elemsChat : List (Html Msg)
-        elemsChat =
-          [ ul []
-              (pstate.logs |> List.map (\log ->
-                case log of
-                  LogComment comment ->
-                    li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
+      viewGridScheme
+        [ text "header" ]
+        elemsDebug
+        [ viewObservableInning user.userId handInfo ostate.observableInning ]
+        elemsChat
+        [ div stys [ text message ] ]
 
-                  LogEntered u ->
-                    li [] [ b [] [ text u.userName ], text " さんが参加しました" ]
 
-                  LogExited u ->
-                    li [] [ b [] [ text u.userName ], text " さんが退出しました" ]
-
-                  LogGameStart ->
-                    li [] [ b [] [ text "対局開始！" ] ]
-              ))
-          , div []
-              [ div []
-                  [ input
-                      [ type_ "text"
-                      , placeholder "コメント"
-                      , value chatTextInput
-                      , onInput (UpdateInput << ChatInput)
-                      ] []
-                  , button
-                      [ onClick (SendRequest SendChat) ]
-                      [ text "送信" ]
-                  ]
-              ]
-          ]
-      in
-      let
-        stys =
-          case level of
-            Information -> [ class "grid-element-footer", class "footer-style-normal" ]
-            Warning     -> [ class "grid-element-footer", class "footer-style-warning" ]
-      in
-      [ div [ class "grid-container" ]
-          [ div [ class "grid-element-header" ]
-              [ text "header" ]
-          , div [ class "grid-element-left" ]
-              elemsDebug
-          , div [ class "grid-element-center" ]
-              [ viewObservableInning user.userId handInfo ostate.observableInning
-              ]
-          , div [ class "grid-element-right" ]
-              elemsChat
-          , div [ class "grid-element-footer" ]
-              [ div stys [ text message ] ]
-          ]
+viewGridScheme : List (Html Msg) -> List (Html Msg) -> List (Html Msg) -> List (Html Msg) -> List (Html Msg) -> List (Html Msg)
+viewGridScheme elemsHeader elemsLeft elemsCenter elemsRight elemsFooter =
+  [ div [ class "grid-container" ]
+      [ div [ class "grid-element-header" ]
+          [ text "header" ]
+      , div [ class "grid-element-left" ]
+          elemsLeft
+      , div [ class "grid-element-center" ]
+          elemsCenter
+      , div [ class "grid-element-right" ]
+          elemsRight
+      , div [ class "grid-element-footer" ]
+          elemsFooter
       ]
+  ]
 
 
 viewPlayers : PerSeat GamePlayer -> Html Msg
