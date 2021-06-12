@@ -212,6 +212,17 @@ end = struct
     val make_initial_sync() =
       {false, false, false, false}
 
+    val start_new_inning<$a>(game_meta : game_meta) : [$a]whole_game_state = act
+      let next_parent_seat = game_meta.parent_seat in
+      let inning = Inning.start(next_parent_seat) in
+      do snapshot_id <- SnapshotId.generate() in
+      return({
+        meta        = game_meta,
+        inning      = DuringInning(inning),
+        snapshot_id = snapshot_id,
+        sync        = WaitingSync(make_initial_sync()),
+      })
+
     val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
       notify(UserId, Notifications) ->
           case tianjiupai_websocket:notify(UserId, Notifications) of
@@ -268,16 +279,7 @@ end = struct
                     players          = player_quad,
                   }
                 in
-                do snapshot_id <- SnapshotId.generate() in
-                let inning = Inning.start(parent_seat) in
-                let game_state =
-                  {
-                    meta        = game_meta,
-                    inning      = DuringInning(inning),
-                    snapshot_id = snapshot_id,
-                    sync        = WaitingSync(make_initial_sync()),
-                  }
-                in
+                do game_state <- start_new_inning(game_meta) in
                 let user_id0 = u0.user_id in
                 let user_id1 = u1.user_id in
                 let user_id2 = u2.user_id in
@@ -546,17 +548,6 @@ end = struct
       | None             -> GenServer.no_reply(state)
       | Some(game_state) -> GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
       end
-
-    val start_new_inning<$a>(game_meta : game_meta) : [$a]whole_game_state = act
-      let next_parent_seat = game_meta.parent_seat in
-      let inning = Inning.start(next_parent_seat) in
-      do snapshot_id <- SnapshotId.generate() in
-      return({
-        meta        = game_meta,
-        inning      = DuringInning(inning),
-        snapshot_id = snapshot_id,
-        sync        = WaitingSync(make_initial_sync()),
-      })
 
     val handle_require_next_inning(user_id : user_id, snapshot_id : snapshot_id, state : state) = act
       do opt <-
