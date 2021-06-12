@@ -110,83 +110,97 @@ viewRoom user pstate indices chatTextInput =
   let
     room : Room
     room = pstate.room
-
-    elemHead : Html Msg
-    elemHead =
-      case pstate.game of
-        WaitingStart users ->
-          let members = String.join ", " (users |> List.map (\u -> u.userName)) in
-          div []
-            [ div []
-                [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
-            ]
-
-        PlayingGame ostate ->
-          let gameMeta = ostate.meta in
-          let synchronizing = ostate.synchronizing in
-          let turn = Game.isMyTurn user.userId ostate in
-          let
-            maybeTable =
-              case ostate.observableInning of
-                ObservableDuringInning oinning -> Just oinning.table
-                ObservableInningEnd _          -> Nothing
-          in
-          let
-            handInfo : HandInfo
-            handInfo =
-              { maybeIndices  = if turn then Just indices else Nothing
-              , maybeTable    = maybeTable
-              , synchronizing = synchronizing
-              }
-          in
-          div []
-            [ div []
-                [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
-            , div []
-                [ text (String.fromInt gameMeta.inningIndex ++ "局目") ]
-            , div []
-                [ text (String.fromInt (gameMeta.numConsecutives - 1) ++ "本場") ]
-            , viewPlayers gameMeta.players
-            , div []
-                [ text ("snapshot ID: " ++ ostate.snapshotId) ]
-            , div []
-                [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
-            , div []
-                [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
-            , viewObservableInning user.userId handInfo ostate.observableInning
-            ]
   in
-  div []
-    [ elemHead
-    , ul []
-        (pstate.logs |> List.map (\log ->
-          case log of
-            LogComment comment ->
-              li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
-
-            LogEntered u ->
-              li [] [ b [] [ text u.userName ], text " さんが参加しました" ]
-
-            LogExited u ->
-              li [] [ b [] [ text u.userName ], text " さんが退出しました" ]
-
-            LogGameStart ->
-              li [] [ b [] [ text "対局開始！" ] ]
-        ))
-    , div []
+  case pstate.game of
+    WaitingStart users ->
+      let members = String.join ", " (users |> List.map (\u -> u.userName)) in
+      div []
         [ div []
-            [ input
-                [ type_ "text"
-                , placeholder "コメント"
-                , value chatTextInput
-                , onInput (UpdateInput << ChatInput)
-                ] []
-            , button
-                [ onClick (SendRequest SendChat) ]
-                [ text "送信" ]
-            ]
+            [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
         ]
-    ]
+
+    PlayingGame ostate ->
+      let gameMeta = ostate.meta in
+      let synchronizing = ostate.synchronizing in
+      let turn = Game.isMyTurn user.userId ostate in
+      let
+        maybeTable =
+          case ostate.observableInning of
+            ObservableDuringInning oinning -> Just oinning.table
+            ObservableInningEnd _          -> Nothing
+      in
+      let
+        handInfo : HandInfo
+        handInfo =
+          { maybeIndices  = if turn then Just indices else Nothing
+          , maybeTable    = maybeTable
+          , synchronizing = synchronizing
+          }
+      in
+      let
+        elemsDebug : List (Html Msg)
+        elemsDebug =
+          [ div []
+              [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
+          , div []
+              [ text (String.fromInt gameMeta.inningIndex ++ "局目") ]
+          , div []
+              [ text (String.fromInt (gameMeta.numConsecutives - 1) ++ "本場") ]
+          , viewPlayers gameMeta.players
+          , div []
+              [ text ("snapshot ID: " ++ ostate.snapshotId) ]
+          , div []
+              [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
+          , div []
+              [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
+          ]
+      in
+      let
+        elemsChat : List (Html Msg)
+        elemsChat =
+          [ ul []
+              (pstate.logs |> List.map (\log ->
+                case log of
+                  LogComment comment ->
+                    li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
+
+                  LogEntered u ->
+                    li [] [ b [] [ text u.userName ], text " さんが参加しました" ]
+
+                  LogExited u ->
+                    li [] [ b [] [ text u.userName ], text " さんが退出しました" ]
+
+                  LogGameStart ->
+                    li [] [ b [] [ text "対局開始！" ] ]
+              ))
+          , div []
+              [ div []
+                  [ input
+                      [ type_ "text"
+                      , placeholder "コメント"
+                      , value chatTextInput
+                      , onInput (UpdateInput << ChatInput)
+                      ] []
+                  , button
+                      [ onClick (SendRequest SendChat) ]
+                      [ text "送信" ]
+                  ]
+              ]
+          ]
+      in
+      div [ class "grid-container" ]
+        [ div [ class "grid-element-header" ]
+            [ text "header" ]
+        , div [ class "grid-element-left" ]
+            elemsDebug
+        , div [ class "grid-element-center" ]
+            [ viewObservableInning user.userId handInfo ostate.observableInning
+            ]
+        , div [ class "grid-element-right" ]
+            elemsChat
+        , div [ class "grid-element-footer" ]
+            []
+        ]
 
 
 viewPlayers : PerSeat GamePlayer -> Html Msg
