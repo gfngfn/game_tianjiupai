@@ -19,7 +19,7 @@ body {
   right: 0px;
 
   display: grid;
-  grid-template-columns: min(250px, 20%) auto min(250px, 20%);
+  grid-template-columns: min(250px, 20vw) auto min(250px, 20vw);
   grid-template-rows: 30px calc(100vh - 30px - 30px) 30px;
 }
 

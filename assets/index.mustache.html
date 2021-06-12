@@ -12,7 +12,11 @@
     <script type="text/javascript">
         var app = Elm.Main.init({
           node: document.getElementById("app"),
-          flags: {{flags}}
+          flags: {
+            user: {{flags}},
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight
+          }
         })
 
         app.ports.listenWebSocket.subscribe(function(url) {

@@ -25,14 +25,21 @@ main =
     }
 
 
-init : String -> ( Model, Cmd Msg )
-init flagString =
+type alias Flag =
+  { user         : String
+  , windowWidth  : Int
+  , windowHeight : Int
+  }
+
+
+init : Flag -> ( Model, Cmd Msg )
+init flag =
   let
     maybeFlagUser : Maybe FlagUser
     maybeFlagUser =
-      case JD.decodeString decodeFlag flagString of
-          Ok(flag) -> flag.user
-          Err(_)   -> Nothing
+      case JD.decodeString decodeFlagUser flag.user of
+          Ok(flagUser) -> Just flagUser
+          Err(_)       -> Nothing
 
     ( cmd, state ) =
       case maybeFlagUser of
@@ -52,7 +59,7 @@ init flagString =
 
     model : Model
     model =
-      { message = ( Information, "flags: " ++ flagString )
+      { message = ( Information, "flag user: " ++ flag.user ++ ", window width: " ++ String.fromInt flag.windowWidth )
       , state   = state
       }
   in
