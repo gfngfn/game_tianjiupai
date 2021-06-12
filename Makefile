@@ -14,6 +14,7 @@ model:
 .PHONY: client
 client:
 	mkdir -p public/assets
+	cp assets_client/* public/assets
 	./compile_client.sh
 
 .PHONY: test

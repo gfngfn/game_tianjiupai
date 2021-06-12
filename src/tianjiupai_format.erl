@@ -53,8 +53,8 @@
 %%====================================================================================================
 -spec encode_flags_object(undefined | tianjiupai_session:info()) -> binary().
 encode_flags_object(MaybeInfo) ->
-    FlagsObj = make_flags_object(MaybeInfo),
-    jsone:encode(FlagsObj).
+    FlagUserObj = make_flag_user_object(MaybeInfo),
+    jsone:encode(FlagUserObj).
 
 -spec decode_create_user_request(iodata()) ->
     {ok, UserName :: binary()}
@@ -200,10 +200,10 @@ encode_notification(Notification) ->
     NotificationObj = make_notification_object(Notification),
     jsone:encode(NotificationObj).
 
-make_flags_object(MaybeInfo) ->
+make_flag_user_object(MaybeInfo) ->
     case MaybeInfo of
         undefined ->
-            #{user => ?LABEL_ONLY(<<"None">>)};
+            ?LABEL_ONLY(<<"None">>);
         #{user_id := UserId} ->
             case ?USER_FRONT:get_info(UserId) of
                 {ok, Info} ->
@@ -215,16 +215,13 @@ make_flags_object(MaybeInfo) ->
                             {ok, RoomId} ->
                                 ?LABELED(<<"Some">>, RoomId)
                         end,
-                    #{
-                        user =>
-                            ?LABELED(<<"Some">>, #{
-                                id         => UserId,
-                                name       => UserName,
-                                belongs_to => MaybeRoomObj
-                            })
-                    };
+                    ?LABELED(<<"Some">>, #{
+                        id         => UserId,
+                        name       => UserName,
+                        belongs_to => MaybeRoomObj
+                    });
                 error ->
-                    #{user => ?LABEL_ONLY(<<"None">>)}
+                    ?LABEL_ONLY(<<"None">>)
             end
     end.
 

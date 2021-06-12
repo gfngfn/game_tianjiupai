@@ -7,6 +7,7 @@ import Url exposing (Url)
 import Time
 import Http
 import Browser
+import Browser.Events
 
 import Common exposing (..)
 import Models exposing (..)
@@ -25,14 +26,21 @@ main =
     }
 
 
-init : String -> ( Model, Cmd Msg )
-init flagString =
+type alias Flag =
+  { user         : String
+  , windowWidth  : Int
+  , windowHeight : Int
+  }
+
+
+init : Flag -> ( Model, Cmd Msg )
+init flag =
   let
     maybeFlagUser : Maybe FlagUser
     maybeFlagUser =
-      case JD.decodeString decodeFlag flagString of
-          Ok(flag) -> flag.user
-          Err(_)   -> Nothing
+      case JD.decodeString decodeFlagUser flag.user of
+          Ok(flagUser) -> Just flagUser
+          Err(_)       -> Nothing
 
     ( cmd, state ) =
       case maybeFlagUser of
@@ -52,8 +60,9 @@ init flagString =
 
     model : Model
     model =
-      { message = ( Information, "flags: " ++ flagString )
+      { message = ( Information, "flag user: " ++ flag.user ++ ", window width: " ++ String.fromInt flag.windowWidth )
       , state   = state
+      , window  = { width = flag.windowWidth, height = flag.windowHeight }
       }
   in
   ( model, cmd )
@@ -64,6 +73,12 @@ update msg model =
   case model.state of
     AtEntrance userNameInput maybeUserAndRoom ->
       case msg of
+        WindowResized width height ->
+          ( { model | window = { width = width, height = height } }, Cmd.none )
+
+        Heartbeat ->
+          ( model, Cmd.none )
+
         UpdateInput (UserNameInput userNameInput1) ->
           ( { model | state = AtEntrance userNameInput1 maybeUserAndRoom }, Cmd.none )
 
@@ -99,15 +114,15 @@ update msg model =
                 let message = ( Warning, "unexpected message (AtEntrance): " ++ showMessage msg ) in
                 ( { model | message = message }, Cmd.none )
 
-        Heartbeat ->
-          ( model, Cmd.none )
-
         _ ->
           let message = ( Warning, "unexpected message (AtEntrance): " ++ showMessage msg ) in
           ( { model | message = message }, Cmd.none )
 
     AtPlaza ws user roomNameInput0 maybeRooms ->
       case msg of
+        WindowResized width height ->
+          ( { model | window = { width = width, height = height } }, Cmd.none )
+
         Heartbeat ->
           let cmd = WebSocketClient.sendHeartbeat ws in
           ( model, cmd )
@@ -190,6 +205,14 @@ update msg model =
 
     InRoom ws user pstate0 indices0 chatTextInput0 ->
       case ( pstate0.game, msg ) of
+        ( _, WindowResized width height ) ->
+          ( { model
+            | window  = { width = width, height = height }
+            , message = ( Information, "window resized. width: " ++ String.fromInt width )
+            }
+          , Cmd.none
+          )
+
         ( _, Heartbeat ) ->
           let cmd = WebSocketClient.sendHeartbeat ws in
           ( model, cmd )
@@ -421,6 +444,7 @@ showMessage msg =
     UnselectCard _              -> "UnselectCard"
     TransitionToNextTrick _     -> "TransitionToNextTrick"
     Heartbeat                   -> "Heartbeat"
+    WindowResized _ _           -> "WindowResized"
 
 
 showResponse : Response -> String
@@ -453,4 +477,5 @@ subscriptions model =
       [ WebSocketClient.onOpen
       , WebSocketClient.subscribe
       , Time.every Constants.heartbeatIntervalMs (\_ -> Heartbeat)
+      , Browser.Events.onResize WindowResized
       ]

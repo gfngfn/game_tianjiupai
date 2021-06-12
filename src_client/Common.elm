@@ -31,8 +31,9 @@ type MessageLevel
   | Information
 
 type alias Model =
-  { message       : ( MessageLevel, String )
-  , state         : State
+  { message : ( MessageLevel, String )
+  , state   : State
+  , window  : { width : Int, height : Int }
   }
 
 type Request
@@ -66,6 +67,7 @@ type Msg
   | OpenWebSocket Port.WebSocket
   | TransitionToNextTrick ObservableGameState
   | Heartbeat
+  | WindowResized Int Int
 
 
 getSelectedCards : Set Int -> List Card -> List Card
