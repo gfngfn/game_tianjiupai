@@ -487,14 +487,16 @@ submit_success_test_() ->
               submitter_seat = ?SEAT3,
               submitter_cards = [{wen, 9}],
               expected =
-                  {wins_trick, ?SEAT3, inning_state(#{
-                      starts_at => ?SEAT3,
-                      player0 => {?MOCKED_HAND11, []},
-                      player1 => {?MOCKED_HAND21, []},
-                      player2 => {?MOCKED_HAND31, []},
-                      player3 => {?MOCKED_HAND41, [{wen, 9}]}, % MOCKED_HAND41 == MOCKED_HAND4 - {wen, 9}
-                      table => starting
-                  })}
+                  {wins_trick, ?SEAT3,
+                      {single_wen, Exposed(7, [{open, 8}, closed, {open, 9}])},
+                      inning_state(#{
+                          starts_at => ?SEAT3,
+                          player0 => {?MOCKED_HAND11, []},
+                          player1 => {?MOCKED_HAND21, []},
+                          player2 => {?MOCKED_HAND31, []},
+                          player3 => {?MOCKED_HAND41, [{wen, 9}]}, % MOCKED_HAND41 == MOCKED_HAND4 - {wen, 9}
+                          table => starting
+                      })}
           },
           #submit_test_case{
               subtitle = "fourth submission by Seat 3 (and Seat 1 wins the trick)",
@@ -510,14 +512,16 @@ submit_success_test_() ->
               submitter_seat = ?SEAT3,
               submitter_cards = [{wu, 5}],
               expected =
-                  {wins_trick, ?SEAT1, inning_state(#{
-                      starts_at => ?SEAT1,
-                      player0 => {?MOCKED_HAND11, []},
-                      player1 => {?MOCKED_HAND21, [{wen, 8}]},
-                      player2 => {?MOCKED_HAND31, []},
-                      player3 => {?MOCKED_HAND42, []}, % MOCKED_HAND42 == MOCKED_HAND4 - {wu, 5}
-                      table => starting
-                  })}
+                  {wins_trick, ?SEAT1,
+                      {single_wen, Exposed(7, [{open, 8}, closed, closed])},
+                      inning_state(#{
+                          starts_at => ?SEAT1,
+                          player0 => {?MOCKED_HAND11, []},
+                          player1 => {?MOCKED_HAND21, [{wen, 8}]},
+                          player2 => {?MOCKED_HAND31, []},
+                          player3 => {?MOCKED_HAND42, []}, % MOCKED_HAND42 == MOCKED_HAND4 - {wu, 5}
+                          table => starting
+                      })}
           },
           #submit_test_case{
               subtitle = "first submission by Seat 3",
@@ -671,12 +675,14 @@ submit_success_test_() ->
               submitter_seat = ?SEAT2,
               submitter_cards = [{wu, 9}],
               expected =
-                  {wins_inning, ?SEAT2, {
-                      [{wu, 3}, {wu, 6}],
-                      [],
-                      [{wen, 10}, {wu, 8}, {wu, 9}],
-                      [{wen, 11}, {wen, 7}, {wen, 7}]
-                  }}
+                  {wins_inning, ?SEAT2,
+                      {single_wu, Exposed(7, [closed, closed, {open, 9}])},
+                      {
+                         [{wu, 3}, {wu, 6}],
+                         [],
+                         [{wen, 10}, {wu, 8}, {wu, 9}],
+                         [{wen, 11}, {wen, 7}, {wen, 7}]
+                      }}
           }
       ]
     ].
@@ -704,15 +710,15 @@ inning_state(#{
         table     => TableState
     }.
 
--spec sort_hands_of_result(tianjiupai_game:submit_result()) -> tianjiupai_game:submit_result().
+%% `fun(Inning.submit_result) -> Inning.submit_result'
 sort_hands_of_result(Result) ->
     case Result of
-        {continues, Next}              -> {continues, sort_hands(Next)};
-        {wins_trick, WinnerSeat, Next} -> {wins_trick, WinnerSeat, sort_hands(Next)};
-        {wins_inning, _, _}            -> Result
+        {continues, Next}                         -> {continues, sort_hands(Next)};
+        {wins_trick, WinnerSeat, LastTable, Next} -> {wins_trick, WinnerSeat, LastTable, sort_hands(Next)};
+        {wins_inning, _, _, _}                    -> Result
     end.
 
--spec sort_hands(tianjiupai_game:inning_state()) -> tianjiupai_game:inning_state().
+%% `fun(Inning.t) -> Inning.t'
 sort_hands(InningState) ->
     #{
         starts_at := StartSeat,
