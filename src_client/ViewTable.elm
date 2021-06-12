@@ -151,13 +151,15 @@ exposedToList n f e =
 
 showTable : RelativeQuad -> Html Msg
 showTable relQuad =
-  ol []
-    [ li [] [ text ("自 " ++ showSubmitted relQuad.self.submitted) ]
-    , li [] [ text ("右 " ++ showSubmitted relQuad.right.submitted) ]
-    , li [] [ text ("奥 " ++ showSubmitted relQuad.front.submitted) ]
-    , li [] [ text ("左 " ++ showSubmitted relQuad.left.submitted) ]
+  div []
+    [ div [] [ text "場:" ]
+    , ul []
+        [ li [] [ text ("自 " ++ showSubmitted relQuad.self.submitted) ]
+        , li [] [ text ("右 " ++ showSubmitted relQuad.right.submitted) ]
+        , li [] [ text ("奥 " ++ showSubmitted relQuad.front.submitted) ]
+        , li [] [ text ("左 " ++ showSubmitted relQuad.left.submitted) ]
+        ]
     ]
-
 
 showSubmitted : List (ClosedOr Card) -> String
 showSubmitted submitted =
@@ -189,7 +191,7 @@ showGainsOfRelativeQuad relQuad =
   div []
     [ div []
         [ text "山:" ]
-    , ol []
+    , ul []
         [ li [] [ text ("自 " ++ showCards relQuad.self.gains) ]
         , li [] [ text ("右 " ++ showCards relQuad.right.gains) ]
         , li [] [ text ("奥 " ++ showCards relQuad.front.gains) ]
@@ -243,7 +245,7 @@ showHand handInfo cards =
           [ button [ disabled (not submittable), onClick (SendRequest SubmitCards) ] [ text "submit" ] ]
   in
   div []
-    ([ div [] [ text "手牌:" ], ol [] elems ] ++ buttonElems)
+    ([ div [] [ text "手牌:" ], ul [] elems ] ++ buttonElems)
 
 
 showCards : List Card -> String
