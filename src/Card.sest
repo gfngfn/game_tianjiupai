@@ -2,7 +2,14 @@ module Card = struct
 
   type wen = int
 
-  type wu = int
+  type design = bool
+
+  type wu_number = int
+
+  type wu = {
+    design : design,
+    number : wu_number,
+  }
 
   type t =
     | Wen(wen)
@@ -20,11 +27,14 @@ module Card = struct
   val wen_equal(wen1, wen2) =
     wen1 == wen2
 
+  val wu_number_greater(wunum1, wunum2) =
+    wunum1 > wunum2
+
   val wu_greater(wu1, wu2) =
-    wu1 > wu2
+    wu1.number > wu2.number
 
   val wu_equal(wu1, wu2) =
-    wu1 == wu2
+    wu1.number == wu2.number
 
   val big_greater : fun(big, big) -> bool = external 2 ```
     big_greater(Big1, Big2) ->
@@ -33,10 +43,27 @@ module Card = struct
 
   val sort : fun(list<t>) -> list<t> = external 1 ```
     sort(Cards) ->
-        lists:sort(Cards).
+        lists:sort(
+            fun(Card1, Card2) ->
+                case {Card1, Card2} of
+                    {{wu, #{number := Wunum1, design := B1}},
+                     {wu, #{number := Wunum2, design := B2}}} ->
+                        case Wunum1 =:= Wunum2 of
+                            true  -> B1 =< B2;
+                            false -> Wunum1 < Wunum2
+                        end;
+                    {{wen, Wen1}, {wen, Wen2}} ->
+                        Wen1 =< Wen2;
+                    {{wen, _}, {wu, _}} ->
+                        true;
+                    {{wu, _}, {wen, _}} ->
+                        false
+                end
+            end,
+            Cards).
   ```
 
-  val big_to_wen_and_wu(big) : {wen, wu} =
+  val big_to_wen_and_wu(big : big) : {wen, wu_number} =
     case big of
     | Big1 -> {8, 5}
     | Big2 -> {9, 7}
@@ -44,8 +71,8 @@ module Card = struct
     | Big4 -> {11, 9}
     end
 
-  val wen_and_wu_to_big(wen, wu) : option<big> =
-    case {wen, wu} of
+  val wen_and_wu_to_big(wen : wen, wunum : wu_number) : option<big> =
+    case {wen, wunum} of
     | {8, 5}  -> Some(Big1)
     | {9, 7}  -> Some(Big2)
     | {10, 8} -> Some(Big3)

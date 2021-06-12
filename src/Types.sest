@@ -43,6 +43,11 @@ module Types = struct
   type exposed<$a> =
     {$a, list<closed_or<$a>>}
 
+  type big_with_design = {
+    design : Card.design,
+    main   : Card.big,
+  }
+
   type table_state =
     | Starting
     | Wuzun(exposed<unit>)
@@ -50,9 +55,9 @@ module Types = struct
     | SingleWen(exposed<Card.wen>)
     | SingleWu(exposed<Card.wu>)
     | DoubleWen(exposed<Card.wen>)
-    | DoubleWu(exposed<Card.wu>)
-    | DoubleBoth(exposed<Card.big>)
-    | TripleWen(exposed<Card.big>)
+    | DoubleWu(exposed<Card.wu_number>)
+    | DoubleBoth(exposed<big_with_design>)
+    | TripleWen(exposed<big_with_design>)
     | TripleWu(exposed<Card.big>)
     | Quadruple(exposed<Card.big>)
 

@@ -2,7 +2,7 @@ module Game exposing
   ( isMyTurn
   , isSubmittable
   , isWaitingLastSubmission
-  , bigToWenAndWu
+  , tableToCards
   )
 
 import Models exposing (..)
@@ -88,17 +88,83 @@ isStartable : List Card -> Bool
 isStartable cards =
   case sortCards cards of
     [_]                                  -> True
-    [Wu 3, Wu 6]                         -> True
     [Wen wen1, Wen wen2]                 -> wen1 == wen2
-    [Wu wu1, Wu wu2]                     -> wu1 == wu2
-    [Wen wen, Wu wu]                     -> areTheSameBig wen wu
-    [Wen wen1, Wen wen2, Wu wu]          -> wen1 == wen2 && areTheSameBig wen1 wu
-    [Wen wen, Wu wu1, Wu wu2]            -> wu1 == wu2 && areTheSameBig wen wu1
-    [Wen wen1, Wen wen2, Wu wu1, Wu wu2] -> wen1 == wen2 && wu1 == wu2 && areTheSameBig wen1 wu1
+    [Wu wu1, Wu wu2]                     -> wu1.number == wu2.number || (wu1.number == 3 && wu2.number == 6)
+    [Wen wen, Wu wu]                     -> areTheSameBig wen wu.number
+    [Wen wen1, Wen wen2, Wu wu]          -> wen1 == wen2 && areTheSameBig wen1 wu.number
+    [Wen wen, Wu wu1, Wu wu2]            -> wu1.number == wu2.number && areTheSameBig wen wu1.number
+    [Wen wen1, Wen wen2, Wu wu1, Wu wu2] -> wen1 == wen2 && wu1.number == wu2.number && areTheSameBig wen1 wu1.number
     _                                    -> False
 
 
-areTheSameBig : CardWen -> CardWu -> Bool
+tableToCards : Table -> List (List (ClosedOr Card))
+tableToCards table =
+  case table of
+    Starting ->
+      []
+
+    TrickWuzun e ->
+      e |> exposedToList 2 (\u ->
+        let Unit = u in
+        [Wu { design = True, number = 3 }, Wu { design = True, number = 6 }]
+      )
+
+    TrickWenzun e ->
+      e |> exposedToList 2 (\b ->
+        case b of
+          False -> [Wen 1, Wen 1]
+          True  -> [Wen 2, Wen 2]
+      )
+
+    TrickSingleWen e ->
+      e |> exposedToList 1 (\wen -> [Wen wen])
+
+    TrickSingleWu e ->
+      e |> exposedToList 1 (\wu -> [Wu wu])
+
+    TrickDoubleWen e ->
+      e |> exposedToList 2 (\wen -> [Wen wen, Wen wen])
+
+    TrickDoubleWu e ->
+      e |> exposedToList 2 (\wunum ->
+        [Wu { design = True, number = wunum }, Wu { design = False, number = wunum }]
+      )
+
+    TrickDoubleBoth e ->
+      e |> exposedToList 2 (\bigd ->
+        let ( wen, wunum ) = bigToWenAndWu bigd.main in
+        [Wen wen, Wu { design = bigd.design, number = wunum }]
+      )
+
+    TrickTripleWen e ->
+      e |> exposedToList 3 (\bigd ->
+        let ( wen, wunum ) = bigToWenAndWu bigd.main in
+        [Wen wen, Wen wen, Wu { design = bigd.design, number = wunum }]
+      )
+
+    TrickTripleWu e ->
+      e |> exposedToList 3 (\big ->
+        let ( wen, wunum ) = bigToWenAndWu big in
+        [Wen wen, Wu { design = True, number = wunum }, Wu { design = False, number = wunum }]
+      )
+
+    TrickQuadruple e ->
+      e |> exposedToList 4 (\big ->
+        let ( wen, wunum ) = bigToWenAndWu big in
+        [Wen wen, Wen wen, Wu { design = True, number = wunum }, Wu { design = False, number = wunum }]
+      )
+
+
+exposedToList : Int -> (a -> List Card) -> Exposed a -> List (List (ClosedOr Card))
+exposedToList n f e =
+  (Open e.first :: e.subsequent) |> List.map (\xOrClosed ->
+    case xOrClosed of
+      Open x -> f x |> List.map (\y -> Open y)
+      Closed -> List.repeat n Closed
+  )
+
+
+areTheSameBig : CardWen -> CardWuNumber -> Bool
 areTheSameBig wen wu =
   case ( wen, wu ) of
     ( 11, 9 ) -> True
@@ -108,7 +174,7 @@ areTheSameBig wen wu =
     _         -> False
 
 
-bigToWenAndWu : CardBig -> ( CardWen, CardWu )
+bigToWenAndWu : CardBig -> ( CardWen, CardWuNumber )
 bigToWenAndWu big =
   case big of
     1 -> ( 8, 5 )
@@ -124,5 +190,5 @@ sortCards =
     (\card ->
       case card of
         Wen wen -> wen
-        Wu wu   -> 100 + wu
+        Wu wu   -> 100 + wu.number * 2 + (if wu.design then 1 else 0)
     )

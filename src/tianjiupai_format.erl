@@ -132,8 +132,12 @@ decode_room_request(ReqBody) ->
 -spec decode_card(term()) -> tianjiupai:card().
 decode_card(CardObj) ->
     case CardObj of
-        ?LABELED_PATTERN(<<"Wen">>, Wen) when is_integer(Wen) -> {wen, Wen};
-        ?LABELED_PATTERN(<<"Wu">>, Wu) when is_integer(Wu)    -> {wu, Wu}
+        ?LABELED_PATTERN(<<"Wen">>, Wen)
+        when is_integer(Wen) ->
+            {wen, Wen};
+        ?LABELED_PATTERN(<<"Wu">>, #{<<"number">> := Wunum, <<"design">> := B})
+        when is_integer(Wunum) andalso is_boolean(B) ->
+            {wu, #{number => Wunum, design => B}}
     end.
 
 -spec encode_enter_room_response(tianjiupai:personal_room_state()) -> binary().
@@ -373,12 +377,12 @@ make_table_object(Table) ->
             ?LABELED(<<"TrickSingleWu">>, make_exposed_object(fun make_card_wu_object/1, WuExposed));
         {double_wen, WenExposed} ->
             ?LABELED(<<"TrickDoubleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
-        {double_wu, WuExposed} ->
-            ?LABELED(<<"TrickDoubleWu">>, make_exposed_object(fun make_card_wu_object/1, WuExposed));
-        {double_both, BigExposed} ->
-            ?LABELED(<<"TrickDoubleBoth">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
-        {triple_wen, BigExposed} ->
-            ?LABELED(<<"TrickTripleWen">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
+        {double_wu, WunumExposed} ->
+            ?LABELED(<<"TrickDoubleWu">>, make_exposed_object(fun make_card_wu_number_object/1, WunumExposed));
+        {double_both, BigdExposed} ->
+            ?LABELED(<<"TrickDoubleBoth">>, make_exposed_object(fun make_card_big_with_design_object/1, BigdExposed));
+        {triple_wen, BigdExposed} ->
+            ?LABELED(<<"TrickTripleWen">>, make_exposed_object(fun make_card_big_with_design_object/1, BigdExposed));
         {triple_wu, BigExposed} ->
             ?LABELED(<<"TrickTripleWu">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
         {quadruple, BigExposed} ->
@@ -394,6 +398,11 @@ make_card_big_object(Big) ->
         big4 -> 4
     end.
 
+%% `Bigd : Tianjiupai.Types.big_with_design'
+make_card_big_with_design_object(Bigd) ->
+    #{main := Big, design := B} = Bigd,
+    #{main => make_card_big_object(Big), design => B}.
+
 %% `Wen : Tianjiupai.Card.wen'
 make_card_wen_object(Wen) ->
     Wen.
@@ -401,6 +410,10 @@ make_card_wen_object(Wen) ->
 %% `Wu : Tianjiupai.Card.wu'
 make_card_wu_object(Wu) ->
     Wu.
+
+%% `Wu : Tianjiupai.Card.wu'
+make_card_wu_number_object(Wunum) ->
+    Wunum.
 
 -spec make_ok_object(ok) -> encodable().
 make_ok_object(ok) ->

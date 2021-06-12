@@ -131,7 +131,14 @@ per_seat($a) := {
 
 card_wen := int
 
-card_wu := int
+card_wu := {
+    design : design,
+    number : card_wu_number,
+}
+
+design := bool
+
+card_wu_number := int
 
 card_big := int
 
@@ -158,11 +165,16 @@ table :=
   | TrickSingleWen  : exposed(card_wen)
   | TrickSingleWu   : exposed(card_wu)
   | TrickDoubleWen  : exposed(card_wen)
-  | TrickDoubleWu   : exposed(card_wu)
-  | TrickDoubleBoth : exposed(card_big)
-  | TrickTripleWen  : exposed(card_big)
+  | TrickDoubleWu   : exposed(card_wu_number)
+  | TrickDoubleBoth : exposed(big_with_design)
+  | TrickTripleWen  : exposed(big_with_design)
   | TrickTripleWu   : exposed(card_big)
   | TrickQuadruple  : exposed(card_big)
+
+big_with_design := {
+  main   : card_big,
+  design : design,
+}
 
 seat := int
 
