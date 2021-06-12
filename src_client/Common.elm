@@ -67,6 +67,7 @@ type Msg
   | OpenWebSocket Port.WebSocket
   | TransitionToNextTrick ObservableGameState
   | Heartbeat
+  | WindowResized Int Int
 
 
 getSelectedCards : Set Int -> List Card -> List Card

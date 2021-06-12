@@ -7,6 +7,7 @@ import Url exposing (Url)
 import Time
 import Http
 import Browser
+import Browser.Events
 
 import Common exposing (..)
 import Models exposing (..)
@@ -72,6 +73,12 @@ update msg model =
   case model.state of
     AtEntrance userNameInput maybeUserAndRoom ->
       case msg of
+        WindowResized width height ->
+          ( { model | window = { width = width, height = height } }, Cmd.none )
+
+        Heartbeat ->
+          ( model, Cmd.none )
+
         UpdateInput (UserNameInput userNameInput1) ->
           ( { model | state = AtEntrance userNameInput1 maybeUserAndRoom }, Cmd.none )
 
@@ -107,15 +114,15 @@ update msg model =
                 let message = ( Warning, "unexpected message (AtEntrance): " ++ showMessage msg ) in
                 ( { model | message = message }, Cmd.none )
 
-        Heartbeat ->
-          ( model, Cmd.none )
-
         _ ->
           let message = ( Warning, "unexpected message (AtEntrance): " ++ showMessage msg ) in
           ( { model | message = message }, Cmd.none )
 
     AtPlaza ws user roomNameInput0 maybeRooms ->
       case msg of
+        WindowResized width height ->
+          ( { model | window = { width = width, height = height } }, Cmd.none )
+
         Heartbeat ->
           let cmd = WebSocketClient.sendHeartbeat ws in
           ( model, cmd )
@@ -198,6 +205,14 @@ update msg model =
 
     InRoom ws user pstate0 indices0 chatTextInput0 ->
       case ( pstate0.game, msg ) of
+        ( _, WindowResized width height ) ->
+          ( { model
+            | window  = { width = width, height = height }
+            , message = ( Information, "window resized. width: " ++ String.fromInt width )
+            }
+          , Cmd.none
+          )
+
         ( _, Heartbeat ) ->
           let cmd = WebSocketClient.sendHeartbeat ws in
           ( model, cmd )
@@ -429,6 +444,7 @@ showMessage msg =
     UnselectCard _              -> "UnselectCard"
     TransitionToNextTrick _     -> "TransitionToNextTrick"
     Heartbeat                   -> "Heartbeat"
+    WindowResized _ _           -> "WindowResized"
 
 
 showResponse : Response -> String
@@ -461,4 +477,5 @@ subscriptions model =
       [ WebSocketClient.onOpen
       , WebSocketClient.subscribe
       , Time.every Constants.heartbeatIntervalMs (\_ -> Heartbeat)
+      , Browser.Events.onResize WindowResized
       ]
