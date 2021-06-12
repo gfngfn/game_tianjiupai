@@ -172,7 +172,7 @@ handle_command(Data, State) ->
                     ok = ?USER_FRONT:require_next_inning(UserId, SnapshotId),
                     {ok, State};
                 heartbeat ->
-                    io:format("~p: heartbeat (user_id: ~p)~n", [?MODULE, UserId]),
+                    %% io:format("~p: heartbeat (user_id: ~p)~n", [?MODULE, UserId]),
                     {ok, State}
             end;
         {error, Reason} ->

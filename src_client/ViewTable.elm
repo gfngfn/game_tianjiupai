@@ -74,59 +74,7 @@ makeRelativeQuad selfSeat gainsQuad submittedQuad =
 
 makeSubmittedQuad : Seat -> Table -> PerSeat (List (ClosedOr Card))
 makeSubmittedQuad startSeat table =
-  let
-    list0 : List (List (ClosedOr Card))
-    list0 =
-      case table of
-        Starting ->
-          []
-
-        TrickWuzun e ->
-          e |> exposedToList 2 (\u -> let Unit = u in [Wu 3, Wu 6])
-
-        TrickWenzun e ->
-          e |> exposedToList 2 (\b ->
-            case b of
-              False -> [Wen 1, Wen 1]
-              True  -> [Wen 2, Wen 2]
-          )
-
-        TrickSingleWen e ->
-          e |> exposedToList 1 (\wen -> [Wen wen])
-
-        TrickSingleWu e ->
-          e |> exposedToList 1 (\wu -> [Wu wu])
-
-        TrickDoubleWen e ->
-          e |> exposedToList 2 (\wen -> [Wen wen, Wen wen])
-
-        TrickDoubleWu e ->
-          e |> exposedToList 2 (\wu -> [Wu wu, Wu wu])
-
-        TrickDoubleBoth e ->
-          e |> exposedToList 2 (\big ->
-            let ( wen, wu ) = Game.bigToWenAndWu big in
-            [Wen wen, Wu wu]
-          )
-
-        TrickTripleWen e ->
-          e |> exposedToList 3 (\big ->
-            let ( wen, wu ) = Game.bigToWenAndWu big in
-            [Wen wen, Wen wen, Wu wu]
-          )
-
-        TrickTripleWu e ->
-          e |> exposedToList 3 (\big ->
-            let ( wen, wu ) = Game.bigToWenAndWu big in
-            [Wen wen, Wu wu, Wu wu]
-          )
-
-        TrickQuadruple e ->
-          e |> exposedToList 4 (\big ->
-            let ( wen, wu ) = Game.bigToWenAndWu big in
-            [Wen wen, Wu wu, Wu wu, Wu wu]
-          )
-  in
+  let list0 = Game.tableToCards table in
   let
     t =
       case list0 of
@@ -142,15 +90,6 @@ makeSubmittedQuad startSeat table =
     2 -> { east = t.x2, south = t.x3, west = t.x0, north = t.x1 }
     3 -> { east = t.x1, south = t.x2, west = t.x3, north = t.x0 }
     _ -> { east = [], south = [], west = [], north = [] } -- should never happen
-
-
-exposedToList : Int -> (a -> List Card) -> Exposed a -> List (List (ClosedOr Card))
-exposedToList n f e =
-  (Open e.first :: e.subsequent) |> List.map (\xOrClosed ->
-    case xOrClosed of
-      Open x -> f x |> List.map (\y -> Open y)
-      Closed -> List.repeat n Closed
-  )
 
 
 showTable : RelativeQuad -> Html Msg
@@ -276,4 +215,4 @@ showWen wen =
 
 showWu : CardWu -> String
 showWu wu =
-  "wu" ++ String.fromInt wu
+  "wu" ++ String.fromInt wu.number

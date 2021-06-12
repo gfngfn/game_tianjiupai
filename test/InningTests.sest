@@ -25,6 +25,15 @@ module InningTests = #[test] struct
         -got Quad.map(List.length, quad))
     end)
 
+  val wu_number(b, wunum) =
+    { design = b, number = wunum }
+
+  val wu(b, wunum) =
+    Card.Wu(wu_number(b, wunum))
+
+  val bigd(b, big) : big_with_design =
+    { design = b, main = big }
+
   #[test]
   val make_starting_table_test() =
     let first(x) = {x, []} in
@@ -51,54 +60,54 @@ module InningTests = #[test] struct
               {[Card.Wen(11)],
                  SingleWen(first(11))},
 
-              {[Card.Wu(8)],
-                 SingleWu(first(8))},
+              {[wu(true, 8)],
+                 SingleWu(first(wu_number(true, 8)))},
 
               {[Card.Wen(4), Card.Wen(4)],
                  DoubleWen(first(4))},
 
-              {[Card.Wu(7), Card.Wu(7)],
+              {[wu(false, 7), wu(true, 7)],
                  DoubleWu(first(7))},
 
               {[Card.Wen(1), Card.Wen(1)],
                  Wenzun(first(Minor))},
 
-              {[Card.Wu(3), Card.Wu(6)],
+              {[wu(true, 3), wu(true, 6)],
                  Wuzun(first({}))},
 
-              {[Card.Wen(11), Card.Wu(9)],
-                 DoubleBoth(first(Card.Big4))},
-              {[Card.Wen(10), Card.Wu(8)],
-                 DoubleBoth(first(Card.Big3))},
-              {[Card.Wen(9), Card.Wu(7)],
-                 DoubleBoth(first(Card.Big2))},
-              {[Card.Wen(8), Card.Wu(5)],
-                 DoubleBoth(first(Card.Big1))},
+              {[Card.Wen(11), wu(true, 9)],
+                 DoubleBoth(first(bigd(true, Card.Big4)))},
+              {[Card.Wen(10), wu(false, 8)],
+                 DoubleBoth(first(bigd(false, Card.Big3)))},
+              {[Card.Wen(9), wu(false, 7)],
+                 DoubleBoth(first(bigd(false, Card.Big2)))},
+              {[Card.Wen(8), wu(true, 5)],
+                 DoubleBoth(first(bigd(true, Card.Big1)))},
 
-              {[Card.Wu(9), Card.Wen(11)],
-                 DoubleBoth(first(Card.Big4))},
-              {[Card.Wu(8), Card.Wen(10)],
-                 DoubleBoth(first(Card.Big3))},
-              {[Card.Wu(7), Card.Wen(9)],
-                 DoubleBoth(first(Card.Big2))},
-              {[Card.Wu(5), Card.Wen(8)],
-                 DoubleBoth(first(Card.Big1))},
+              {[wu(false, 9), Card.Wen(11)],
+                 DoubleBoth(first(bigd(false, Card.Big4)))},
+              {[wu(true, 8), Card.Wen(10)],
+                 DoubleBoth(first(bigd(true, Card.Big3)))},
+              {[wu(true, 7), Card.Wen(9)],
+                 DoubleBoth(first(bigd(true, Card.Big2)))},
+              {[wu(false, 5), Card.Wen(8)],
+                 DoubleBoth(first(bigd(false, Card.Big1)))},
 
-              {[Card.Wen(11), Card.Wu(9), Card.Wen(11)],
-                 TripleWen(first(Card.Big4))},
-              {[Card.Wu(8), Card.Wen(10), Card.Wen(10)],
-                 TripleWen(first(Card.Big3))},
-              {[Card.Wen(9), Card.Wen(9), Card.Wu(7)],
-                 TripleWen(first(Card.Big2))},
-              {[Card.Wen(8), Card.Wu(5), Card.Wen(8)],
-                 TripleWen(first(Card.Big1))},
+              {[Card.Wen(11), wu(true, 9), Card.Wen(11)],
+                 TripleWen(first(bigd(true, Card.Big4)))},
+              {[wu(false, 8), Card.Wen(10), Card.Wen(10)],
+                 TripleWen(first(bigd(false, Card.Big3)))},
+              {[Card.Wen(9), Card.Wen(9), wu(true, 7)],
+                 TripleWen(first(bigd(true, Card.Big2)))},
+              {[Card.Wen(8), wu(true, 5), Card.Wen(8)],
+                 TripleWen(first(bigd(true, Card.Big1)))},
             ]),
           [
             {[],
                error()},
             {[Card.Wen(4), Card.Wen(5)],
                error()},
-            {[Card.Wen(11), Card.Wu(8)],
+            {[Card.Wen(11), wu(true, 8)],
                error()}
           ])))
 end
