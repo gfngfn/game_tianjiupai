@@ -215,4 +215,4 @@ showWen wen =
 
 showWu : CardWu -> String
 showWu wu =
-  "wu" ++ String.fromInt wu.number
+  "wu" ++ String.fromInt wu.number ++ (if wu.design then "T" else "F")

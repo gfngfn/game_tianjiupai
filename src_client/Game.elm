@@ -127,7 +127,7 @@ tableToCards table =
 
     TrickDoubleWu e ->
       e |> exposedToList 2 (\wunum ->
-        [Wu { design = True, number = wunum }, Wu { design = True, number = wunum }]
+        [Wu { design = True, number = wunum }, Wu { design = False, number = wunum }]
       )
 
     TrickDoubleBoth e ->
@@ -190,5 +190,5 @@ sortCards =
     (\card ->
       case card of
         Wen wen -> wen
-        Wu wu   -> 100 + wu.number
+        Wu wu   -> 100 + wu.number * 2 + (if wu.design then 1 else 0)
     )

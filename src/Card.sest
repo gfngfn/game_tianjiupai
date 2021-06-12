@@ -43,7 +43,24 @@ module Card = struct
 
   val sort : fun(list<t>) -> list<t> = external 1 ```
     sort(Cards) ->
-        lists:sort(Cards).
+        lists:sort(
+            fun(Card1, Card2) ->
+                case {Card1, Card2} of
+                    {{wu, #{number := Wunum1, design := B1}},
+                     {wu, #{number := Wunum2, design := B2}}} ->
+                        case Wunum1 =:= Wunum2 of
+                            true  -> B1 =< B2;
+                            false -> Wunum1 < Wunum2
+                        end;
+                    {{wen, Wen1}, {wen, Wen2}} ->
+                        Wen1 =< Wen2;
+                    {{wen, _}, {wu, _}} ->
+                        true;
+                    {{wu, _}, {wen, _}} ->
+                        false
+                end
+            end,
+            Cards).
   ```
 
   val big_to_wen_and_wu(big : big) : {wen, wu_number} =
