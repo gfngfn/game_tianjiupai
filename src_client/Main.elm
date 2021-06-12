@@ -61,6 +61,7 @@ init flag =
     model =
       { message = ( Information, "flag user: " ++ flag.user ++ ", window width: " ++ String.fromInt flag.windowWidth )
       , state   = state
+      , window  = { width = flag.windowWidth, height = flag.windowHeight }
       }
   in
   ( model, cmd )

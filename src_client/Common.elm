@@ -31,8 +31,9 @@ type MessageLevel
   | Information
 
 type alias Model =
-  { message       : ( MessageLevel, String )
-  , state         : State
+  { message : ( MessageLevel, String )
+  , state   : State
+  , window  : { width : Int, height : Int }
   }
 
 type Request
