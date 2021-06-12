@@ -19,19 +19,20 @@ type alias HandInfo =
 
 viewBody : Model -> List (Html Msg)
 viewBody model =
-  let
-    elemMain =
-      case model.state of
-        AtEntrance userNameInput _ ->
-          viewEntrance userNameInput
+  let message = model.message in
+  case model.state of
+    AtEntrance userNameInput _ ->
+      viewEntrance message userNameInput
 
-        AtPlaza _ user roomNameInput maybeRoomSummaries ->
-          viewPlaza user roomNameInput maybeRoomSummaries
+    AtPlaza _ user roomNameInput maybeRoomSummaries ->
+      viewPlaza message user roomNameInput maybeRoomSummaries
 
-        InRoom _ user personalState indices chatTextInput ->
-          viewRoom user personalState indices chatTextInput
-  in
-  let ( level, message ) = model.message in
+    InRoom _ user personalState indices chatTextInput ->
+      viewRoom message user personalState indices chatTextInput
+
+
+viewEntrance : ( MessageLevel, String ) -> UserName -> List (Html Msg)
+viewEntrance ( level, message ) userNameInput =
   let
     sty =
       case level of
@@ -39,45 +40,44 @@ viewBody model =
         Warning     -> style "color" "red"
   in
   [ div []
-      [ div [ sty ] [ text message ]
-      , elemMain
-      ]
+      [ div [ sty ] [ text message ] ]
+  , input
+      [ type_ "text"
+      , placeholder "ユーザ名"
+      , value userNameInput
+      , onInput (UpdateInput << UserNameInput)
+      ] []
+  , button
+      [ onClick (SendRequest CreateUser) ]
+      [ text "開始" ]
   ]
 
 
-viewEntrance : UserName -> Html Msg
-viewEntrance userNameInput =
-  div []
-    [ input
-        [ type_ "text"
-        , placeholder "ユーザ名"
-        , value userNameInput
-        , onInput (UpdateInput << UserNameInput)
-        ] []
-    , button
-        [ onClick (SendRequest CreateUser) ]
-        [ text "開始" ]
-    ]
-
-
-viewPlaza : User -> RoomName -> Maybe (List RoomSummary) -> Html Msg
-viewPlaza user roomNameInput maybeRoomSummaries =
-  div []
-    [ div []
-        [ text ("Hi, " ++ user.userName ++ "! (your user ID: " ++ user.userId ++ ")") ]
-    , viewRoomList maybeRoomSummaries
-    , div []
-        [ input
-            [ type_ "text"
-            , placeholder "部屋名"
-            , value roomNameInput
-            , onInput (UpdateInput << RoomNameInput)
-            ] []
-        , button
-            [ onClick (SendRequest CreateRoom) ]
-            [ text "作成" ]
-        ]
-    ]
+viewPlaza : ( MessageLevel, String ) -> User -> RoomName -> Maybe (List RoomSummary) -> List (Html Msg)
+viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
+  let
+    sty =
+      case level of
+        Information -> style "color" "gray"
+        Warning     -> style "color" "red"
+  in
+  [ div []
+      [ div [ sty ] [ text message ] ]
+  , div []
+      [ text ("Hi, " ++ user.userName ++ "! (your user ID: " ++ user.userId ++ ")") ]
+  , viewRoomList maybeRoomSummaries
+  , div []
+      [ input
+          [ type_ "text"
+          , placeholder "部屋名"
+          , value roomNameInput
+          , onInput (UpdateInput << RoomNameInput)
+          ] []
+      , button
+          [ onClick (SendRequest CreateRoom) ]
+          [ text "作成" ]
+      ]
+  ]
 
 
 viewRoomList : Maybe (List RoomSummary) -> Html Msg
@@ -105,8 +105,8 @@ viewRoomList maybeRoomSummaries =
       ul [] elems
 
 
-viewRoom : User -> PersonalState -> Set Int -> String -> Html Msg
-viewRoom user pstate indices chatTextInput =
+viewRoom : ( MessageLevel, String ) -> User -> PersonalState -> Set Int -> String -> List (Html Msg)
+viewRoom ( level, message ) user pstate indices chatTextInput =
   let
     room : Room
     room = pstate.room
@@ -114,10 +114,9 @@ viewRoom user pstate indices chatTextInput =
   case pstate.game of
     WaitingStart users ->
       let members = String.join ", " (users |> List.map (\u -> u.userName)) in
-      div []
-        [ div []
-            [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
-        ]
+      [ div []
+          [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
+      ]
 
     PlayingGame ostate ->
       let gameMeta = ostate.meta in
@@ -188,19 +187,26 @@ viewRoom user pstate indices chatTextInput =
               ]
           ]
       in
-      div [ class "grid-container" ]
-        [ div [ class "grid-element-header" ]
-            [ text "header" ]
-        , div [ class "grid-element-left" ]
-            elemsDebug
-        , div [ class "grid-element-center" ]
-            [ viewObservableInning user.userId handInfo ostate.observableInning
-            ]
-        , div [ class "grid-element-right" ]
-            elemsChat
-        , div [ class "grid-element-footer" ]
-            []
-        ]
+      let
+        stys =
+          case level of
+            Information -> [ class "grid-element-footer", class "footer-style-normal" ]
+            Warning     -> [ class "grid-element-footer", class "footer-style-warning" ]
+      in
+      [ div [ class "grid-container" ]
+          [ div [ class "grid-element-header" ]
+              [ text "header" ]
+          , div [ class "grid-element-left" ]
+              elemsDebug
+          , div [ class "grid-element-center" ]
+              [ viewObservableInning user.userId handInfo ostate.observableInning
+              ]
+          , div [ class "grid-element-right" ]
+              elemsChat
+          , div [ class "grid-element-footer" ]
+              [ div stys [ text message ] ]
+          ]
+      ]
 
 
 viewPlayers : PerSeat GamePlayer -> Html Msg

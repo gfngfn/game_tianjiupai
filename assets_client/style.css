@@ -1,6 +1,11 @@
 @charset "UTF-8";
 
 body {
+  margin-top: 0px;
+  margin-left: 0px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+
   padding-top: 0px;
   padding-left: 0px;
   padding-right: 0px;
@@ -60,4 +65,14 @@ body {
   grid-column-end: 4;
   grid-row-start: 3;
   grid-row-end: 4;
+}
+
+.footer-style-normal {
+  background-color: #444444;
+  color: #eeeeee;
+}
+
+.footer-style-warning {
+  background-color: #ee2222;
+  color: #eeeeee;
 }
