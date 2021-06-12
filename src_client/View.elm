@@ -8,6 +8,7 @@ import Html.Events exposing (onClick, onInput)
 import Models exposing (..)
 import Common exposing (..)
 import Game
+import PerSeat
 import ViewTable exposing (HandInfo)
 
 
@@ -165,45 +166,54 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
       let gameMeta = ostate.meta in
       let synchronizing = ostate.synchronizing in
       let turn = Game.isMyTurn user.userId ostate in
-      let
-        maybeTable =
-          case ostate.observableInning of
-            ObservableDuringInning oinning -> Just oinning.table
-            ObservableInningEnd _          -> Nothing
-      in
-      let
-        handInfo : HandInfo
-        handInfo =
-          { maybeIndices  = if turn then Just indices else Nothing
-          , maybeTable    = maybeTable
-          , synchronizing = synchronizing
-          }
-      in
-      let
-        elemsDebug : List (Html Msg)
-        elemsDebug =
-          [ div []
-              [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
-          , div []
-              [ text (String.fromInt gameMeta.inningIndex ++ "局目") ]
-          , div []
-              [ text (String.fromInt (gameMeta.numConsecutives - 1) ++ "本場") ]
-          , viewPlayers gameMeta.players
-          , div []
-              [ text ("snapshot ID: " ++ ostate.snapshotId) ]
-          , div []
-              [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
-          , div []
-              [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
-          ]
-      in
-      viewGridScheme
-        { header = [ text "header" ]
-        , left   = elemsDebug
-        , center = [ ViewTable.view user.userId handInfo ostate.observableInning ]
-        , right  = elemsChat
-        , footer = [ div stys [ text message ] ]
-        }
+      let userId = user.userId in
+      case
+        gameMeta.players |> PerSeat.find (\p -> p.user.userId == userId)
+      of
+        Nothing ->
+        -- Should never happen
+          [ div [] [ text "broken" ] ]
+
+        Just seat ->
+          let
+            maybeTable =
+              case ostate.observableInning of
+                ObservableDuringInning oinning -> Just oinning.table
+                ObservableInningEnd _          -> Nothing
+          in
+          let
+            handInfo : HandInfo
+            handInfo =
+              { maybeIndices  = if turn then Just indices else Nothing
+              , maybeTable    = maybeTable
+              , synchronizing = synchronizing
+              }
+          in
+          let
+            elemsDebug : List (Html Msg)
+            elemsDebug =
+              [ div []
+                  [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
+              , div []
+                  [ text (String.fromInt gameMeta.inningIndex ++ "局目") ]
+              , div []
+                  [ text (String.fromInt (gameMeta.numConsecutives - 1) ++ "本場") ]
+              , viewPlayers gameMeta.players
+              , div []
+                  [ text ("snapshot ID: " ++ ostate.snapshotId) ]
+              , div []
+                  [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
+              , div []
+                  [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
+              ]
+          in
+          viewGridScheme
+            { header = [ text "header" ]
+            , left   = elemsDebug
+            , center = [ ViewTable.view userId seat handInfo ostate.observableInning ]
+            , right  = elemsChat
+            , footer = [ div stys [ text message ] ]
+            }
 
 
 type alias GridScheme =

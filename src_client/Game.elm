@@ -1,4 +1,9 @@
-module Game exposing (isMyTurn, isSubmittable, isWaitingLastSubmission)
+module Game exposing
+  ( isMyTurn
+  , isSubmittable
+  , isWaitingLastSubmission
+  , bigToWenAndWu
+  )
 
 import Models exposing (..)
 import PerSeat
@@ -101,6 +106,16 @@ areTheSameBig wen wu =
     ( 9, 7 )  -> True
     ( 8, 5 )  -> True
     _         -> False
+
+
+bigToWenAndWu : CardBig -> ( CardWen, CardWu )
+bigToWenAndWu big =
+  case big of
+    1 -> ( 8, 5 )
+    2 -> ( 9, 7 )
+    3 -> ( 10, 8 )
+    4 -> ( 11, 9 )
+    _ -> ( 0, 0 ) -- Should never happen
 
 
 sortCards : List Card -> List Card
