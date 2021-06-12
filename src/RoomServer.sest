@@ -280,15 +280,15 @@ end = struct
                   }
                 in
                 do game_state <- start_new_inning(game_meta) in
-                let user_id0 = u0.user_id in
-                let user_id1 = u1.user_id in
-                let user_id2 = u2.user_id in
-                let Some(obs0) = make_observable_game_state(game_state, user_id0) in
-                let Some(obs1) = make_observable_game_state(game_state, user_id1) in
-                let Some(obs2) = make_observable_game_state(game_state, user_id2) in
-                do dummy <- notify(user_id0, [notif_enter, NotifyGameStart(obs0)]) in
-                do dummy <- notify(user_id1, [notif_enter, NotifyGameStart(obs1)]) in
-                do dummy <- notify(user_id2, [notif_enter, NotifyGameStart(obs2)]) in
+                do dummy <-
+                  List.for_each(
+                    fun(u) -> act
+                      let Some(obs) = make_observable_game_state(game_state, u) in
+                      notify(u, [notif_enter, NotifyGameStart(obs)])
+                    end,
+                    [u0.user_id, u1.user_id, u2.user_id]
+                  )
+                in
                 let state =
                   { state |
                     room_state    = InternalPlaying(game_state),
