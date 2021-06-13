@@ -5,9 +5,14 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 
+import Svg exposing (Svg)
+import Svg.Attributes as SvgA
+import Svg.Events as SvgE
+
 import Models exposing (..)
 import Common exposing (..)
 import Game
+import Constants as C
 
 
 type alias HandInfo =
@@ -38,23 +43,173 @@ view userId selfSeat handInfo observableInning =
         relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
         yourHand = oinning.yourHand
       in
-      div []
-        [ div [] [ text "ObservableDuringInning" ]
-        , showGainsOfRelativeQuad relQuad
-        , showTable relQuad
-        , showHand handInfo yourHand
+      Svg.svg
+        [ SvgA.width (String.fromInt C.svgWidth)
+        , SvgA.height (String.fromInt C.svgHeight)
+        , SvgA.viewBox ("0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight)
         ]
+        (List.concat
+          [ displayGains relQuad
+          , displayTable relQuad
+          , displayHand handInfo yourHand
+          ])
 
     ObservableInningEnd gainsQuad ->
       let
         submittedQuad = { east = [], south = [], west = [], north = [] }
         relQuad = makeRelativeQuad selfSeat gainsQuad submittedQuad
       in
-      div []
-        [ div [] [ text "ObservableInningEnd" ]
-        , showGainsOfRelativeQuad relQuad
-        , button [ disabled handInfo.synchronizing, onClick (SendRequest RequireNextInning) ] [ text "次へ" ]
+      Svg.svg
+        [ SvgA.width (String.fromInt C.svgWidth)
+        , SvgA.height (String.fromInt C.svgHeight)
+        , SvgA.viewBox ("0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight)
         ]
+        (displayGains relQuad)
+--        , button [ disabled handInfo.synchronizing, onClick (SendRequest RequireNextInning) ] [ text "次へ" ]
+--        ]
+
+
+displayTable : RelativeQuad -> List (Svg Msg)
+displayTable relQuad =
+  Debug.todo "displayTable"
+
+
+displayGains : RelativeQuad -> List (Svg Msg)
+displayGains relQuad =
+  Debug.todo "displayGains"
+
+
+showSubmitted : List (ClosedOr Card) -> String
+showSubmitted submitted =
+  submitted |> List.map (\cardOrClosed ->
+    case cardOrClosed of
+      Closed    -> "*"
+      Open card -> C.stringifyCard card
+  ) |> String.join ", "
+
+
+showExposed : (a -> String) -> Exposed a -> String
+showExposed pf exposed =
+  let
+    s0 =
+      pf exposed.first
+
+    ss =
+      exposed.subsequent |> List.map (\xOrClosed ->
+        case xOrClosed of
+          Open x -> pf x
+          Closed -> "close"
+      )
+  in
+  (s0 :: ss) |> String.join "-"
+
+
+displayHand : HandInfo -> List Card -> List (Svg Msg)
+displayHand handInfo cards =
+  let
+    svgsCard =
+      if handInfo.synchronizing then
+        cards |> List.indexedMap (\index card ->
+          displayCardInHand index Disabled card
+            (C.selfHandX + C.verticalTileImageWidth * index)
+            C.selfHandY
+        )
+      else
+        case handInfo.maybeIndices of
+          Nothing ->
+            cards |> List.indexedMap (\index card ->
+              displayCardInHand index Disabled card
+                (C.selfHandX + C.verticalTileImageWidth * index)
+                C.selfHandY
+            )
+
+          Just indices ->
+            cards |> List.indexedMap (\index card ->
+              if indices |> Set.member index then
+                displayCardInHand index Selected card
+                  (C.selfHandX + C.verticalTileImageWidth * index)
+                  (C.selfHandY - C.selectionShift)
+              else
+                displayCardInHand index NotSelected card
+                  (C.selfHandX + C.verticalTileImageWidth * index)
+                  C.selfHandY
+            )
+
+    svgsButton =
+      case handInfo.maybeIndices of
+        Nothing ->
+          []
+
+        Just indices ->
+          let selectedCards = getSelectedCards indices cards in
+          let
+            submittable =
+              case handInfo.maybeTable of
+                Nothing    -> False
+                Just table -> Game.isSubmittable table selectedCards
+          in
+          [ button [ disabled (not submittable), onClick (SendRequest SubmitCards) ] [ text "決定" ] ]
+  in
+  svgsCard ++ svgsButton
+
+
+displayDecisionButton : Bool -> Int -> Svg Msg
+displayDecisionButton submittable numberOfCards =
+  let x = C.selfHandX + C.verticalTileImageWidth * numberOfCards + C.decisionButtonGap in
+  let
+    stySize =
+      [ SvgA.x (String.fromInt x)
+      , SvgA.y (String.fromInt C.decisionButtonY)
+      , SvgA.width (String.fromInt C.decisionButtonWidth)
+      , SvgA.height (String.fromInt C.decisionButtonHeight)
+      ]
+  in
+  if submittable then
+    Svg.g []
+      [ Svg.rect
+          (stySize ++ [ SvgA.id "decision-button-enabled" ])
+          []
+      , Svg.text_
+          [ SvgA.x (String.fromInt (x + C.decisionButtonTextDepth))
+          , SvgA.y (String.fromInt (C.decisionButtonY + C.decisionButtonWidth // 2))
+          , SvgA.textAnchor "middle"
+          ]
+          [ Svg.text "決定" ]
+      , Svg.rect
+          (stySize ++
+            [ SvgE.onClick (SendRequest SubmitCards)
+            , SvgA.id "decision-button-front"
+            ])
+          []
+      ]
+  else
+    Svg.rect
+      (stySize ++ [ SvgA.id "decision-button-disabled" ])
+      []
+
+
+type CardState
+  = Disabled
+  | Selected
+  | NotSelected
+
+
+displayCardInHand : Int -> CardState -> Card -> Int -> Int -> Svg Msg
+displayCardInHand index cardState card x y =
+  let
+    sty =
+      case cardState of
+        Disabled    -> SvgA.opacity "0.8"
+        Selected    -> SvgE.onClick (UnselectCard index)
+        NotSelected -> SvgE.onClick (SelectCard index)
+  in
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.y (String.fromInt y)
+    , sty
+    , SvgA.xlinkHref (C.standingCardPath card)
+    ]
+    []
 
 
 makeRelativeQuad : Seat -> PerSeat (List Card) -> PerSeat (List (ClosedOr Card)) -> RelativeQuad
@@ -90,129 +245,3 @@ makeSubmittedQuad startSeat table =
     2 -> { east = t.x2, south = t.x3, west = t.x0, north = t.x1 }
     3 -> { east = t.x1, south = t.x2, west = t.x3, north = t.x0 }
     _ -> { east = [], south = [], west = [], north = [] } -- should never happen
-
-
-showTable : RelativeQuad -> Html Msg
-showTable relQuad =
-  div []
-    [ div [] [ text "場:" ]
-    , ul []
-        [ li [] [ text ("自 " ++ showSubmitted relQuad.self.submitted) ]
-        , li [] [ text ("右 " ++ showSubmitted relQuad.right.submitted) ]
-        , li [] [ text ("奥 " ++ showSubmitted relQuad.front.submitted) ]
-        , li [] [ text ("左 " ++ showSubmitted relQuad.left.submitted) ]
-        ]
-    ]
-
-showSubmitted : List (ClosedOr Card) -> String
-showSubmitted submitted =
-  submitted |> List.map (\cardOrClosed ->
-    case cardOrClosed of
-      Closed    -> "*"
-      Open card -> showCard card
-  ) |> String.join ", "
-
-
-showExposed : (a -> String) -> Exposed a -> String
-showExposed pf exposed =
-  let
-    s0 =
-      pf exposed.first
-
-    ss =
-      exposed.subsequent |> List.map (\xOrClosed ->
-        case xOrClosed of
-          Open x -> pf x
-          Closed -> "close"
-      )
-  in
-  (s0 :: ss) |> String.join "-"
-
-
-showGainsOfRelativeQuad : RelativeQuad -> Html Msg
-showGainsOfRelativeQuad relQuad =
-  div []
-    [ div []
-        [ text "山:" ]
-    , ul []
-        [ li [] [ text ("自 " ++ showCards relQuad.self.gains) ]
-        , li [] [ text ("右 " ++ showCards relQuad.right.gains) ]
-        , li [] [ text ("奥 " ++ showCards relQuad.front.gains) ]
-        , li [] [ text ("左 " ++ showCards relQuad.left.gains) ]
-        ]
-    ]
-
-
-showHand : HandInfo -> List Card -> Html Msg
-showHand handInfo cards =
-  let
-    elems =
-      if handInfo.synchronizing then
-        cards |> List.map (\card ->
-          li [] [ text (showCard card) ]
-        )
-      else
-        case handInfo.maybeIndices of
-          Nothing ->
-            cards |> List.map (\card ->
-              li [] [ text ("| " ++ showCard card) ]
-            )
-
-          Just indices ->
-            cards |> List.indexedMap (\index card ->
-              if indices |> Set.member index then
-                li []
-                 [ div [ onClick (UnselectCard index) ]
-                     [ text ("@ " ++ showCard card) ]
-                 ]
-              else
-                li []
-                 [ div [ onClick (SelectCard index) ]
-                     [ text ("- " ++ showCard card) ]
-                 ]
-            )
-
-    buttonElems =
-      case handInfo.maybeIndices of
-        Nothing ->
-          []
-
-        Just indices ->
-          let selectedCards = getSelectedCards indices cards in
-          let
-            submittable =
-              case handInfo.maybeTable of
-                Nothing    -> False
-                Just table -> Game.isSubmittable table selectedCards
-          in
-          [ button [ disabled (not submittable), onClick (SendRequest SubmitCards) ] [ text "submit" ] ]
-  in
-  div []
-    ([ div [] [ text "手牌:" ], ul [] elems ] ++ buttonElems)
-
-
-showCards : List Card -> String
-showCards cards =
-  cards |> List.map showCard |> String.join ", "
-
-
-showCard : Card -> String
-showCard card =
-  case card of
-    Wen wen -> showWen wen
-    Wu wu   -> showWu wu
-
-
-showBig : CardBig -> String
-showBig big =
-  "big" ++ String.fromInt big
-
-
-showWen : CardWen -> String
-showWen wen =
-  "wen" ++ String.fromInt wen
-
-
-showWu : CardWu -> String
-showWu wu =
-  "wu" ++ String.fromInt wu.number ++ (if wu.design then "T" else "F")
