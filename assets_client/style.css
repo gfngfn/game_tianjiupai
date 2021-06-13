@@ -83,3 +83,25 @@ body {
   background-color: #ee2222;
   color: #eeeeee;
 }
+
+#decision-button-enabled {
+  fill: #ee6622;
+  stroke: #aa4400;
+  stroke-width: 2px;
+}
+
+#decision-button-front {
+  fill: #ffffff00;
+}
+
+#decision-button-front:hover {
+  fill: #ffffff44;
+  stroke: #ffffff44;
+  stroke-width: 2px;
+}
+
+#decision-button-disabled {
+  fill: #aaaaaa;
+  stroke: #888888;
+  stroke-width: 2px;
+}
