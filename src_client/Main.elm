@@ -38,16 +38,18 @@ init flag =
   let
     maybeFlagUser : Maybe FlagUser
     maybeFlagUser =
-      case JD.decodeString decodeFlagUser flag.user of
-          Ok(flagUser) -> Just flagUser
-          Err(_)       -> Nothing
+      case JD.decodeString (decodeOption decodeFlagUser) flag.user of
+        Ok(maybeFlagUser0) -> maybeFlagUser0
+        Err(err)           -> let _ = Debug.log "failed to parse" err in Nothing
 
     ( cmd, state ) =
       case maybeFlagUser of
         Nothing ->
+          let _ = Debug.log "no user" () in
           ( Cmd.none, AtEntrance "" Nothing )
 
         Just flagUser ->
+          let _ = Debug.log "flag user" flagUser in
           let userId = flagUser.id in
           let userName = flagUser.name in
           let cmd0 = WebSocketClient.listen userId in

@@ -209,7 +209,9 @@ make_flag_user_object(MaybeInfo) ->
         undefined ->
             ?LABEL_ONLY(<<"None">>);
         #{user_id := UserId} ->
-            case ?USER_FRONT:get_info(UserId) of
+            Result = ?USER_FRONT:get_info(UserId),
+            io:format("user_id: ~p, info: ~p~n", [UserId, Result]),
+            case Result of
                 {ok, Info} ->
                     #{user_name := UserName, belongs_to := MaybeRoomId} = Info,
                     MaybeRoomObj =
