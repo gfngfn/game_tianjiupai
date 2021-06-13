@@ -1,128 +1,35 @@
 
-## Endpoints
+# [WIP] A Tian Jiu Pai Game Server
 
-### Register as a user
-
-```
-POST /users
-  create_user_request := {
-    user_name : string,
-  }
-<--- 201 Created
-  create_user_response := {
-    user_id : user_id,
-  }
-```
+A *Tian Jiu Pai* (*Tien Gow Pai*, 天九牌) game server written in [Sesterl](https://github.com/gfngfn/Sesterl), Erlang, and Elm.
 
 
-### Create a new room
+## Memos for development
 
-```
-POST /rooms
-  create_room_request := {
-    room_name : string,
-  }
-<--- 201 Created
-  create_room_response := {
-    room_id : room_id,
-  }
-```
+### Build dependencies
 
-
-### Attend an existing room
-
-```
-PATCH /rooms/<room_id>
-  EnterRoom {
-    user_id : user_id,
-  }
-<--- 200 OK
-  enter_room_response := personal_state
-```
+* make
+* Erlang/OTP
+* Rebar3
+* Elm
+* [APBuf](https://github.com/gfngfn/apbuf)
+  - Used for generating a JSON encoder/decoder from `model.apbuf`.
+  - Can be intalled via OPAM pin.
+* [Sesterl](https://github.com/gfngfn/Sesterl)
+  - A statically-typed Erlang.
+  - Can be intalled via OPAM pin.
 
 
-### Post a comment
+### How to build
 
-```
-PATCH /rooms/<room_id>
-  Comment {
-    user_id : user_id,
-    text    : string,
-  }
-<--- 200 OK
-```
+Just invoke `make`.
 
 
-### Send Ack
+### How to run tests
 
-```
-PATCH /rooms/<room_id>
-  Ack {
-    user_id     : user_id,
-    snapshot_id : snapshot_id,
-  }
-<--- 200 OK
-  ack_response := ( StillWaiting | Transition transition )
-```
+Invoke `make && rebar3 eunit`.
 
 
-### Submit card(s)
+### How to launch locally
 
-```
-PATCH /rooms/<room_id>
-  Submit {
-    user_id : user_id,
-    cards   : list(card),
-  }
-<--- 201 Created
-  {
-    observable_game_state : observable_game_state,
-  }
-```
-
-
-### Get the current list of rooms
-
-```
-GET /rooms
-<--- 200 OK
-  get_all_rooms_response := {
-    rooms : list(room_summary)
-  }
-```
-
-
-### Get the current personal state of a room
-
-```
-GET /rooms/<room_id>/users/<user_id>
-<--- 200 OK
-  get_room_response := personal_state
-```
-
-
-### Get the page
-
-```
-GET /
-<--- 200 OK
-  (HTML)
-```
-
-
-## Notifications
-
-### Starting of a game
-
-```
-<---
-  NotifyStartGame observable_game_state
-```
-
-
-### Transition to the next step
-
-```
-<---
-  NotifyNextStep transition
-```
+Invoke `make && rebar3 shell`.
