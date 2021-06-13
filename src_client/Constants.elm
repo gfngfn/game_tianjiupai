@@ -38,6 +38,12 @@ decisionButtonY = 620 - svgButtonHeight
 decisionButtonGap : Int
 decisionButtonGap = 15
 
+goToNextButtonX : Int
+goToNextButtonX = 350 - svgButtonWidth // 2
+
+goToNextButtonY : Int
+goToNextButtonY = 340 - svgButtonHeight // 2
+
 svgButtonWidth : Int
 svgButtonWidth = 70
 

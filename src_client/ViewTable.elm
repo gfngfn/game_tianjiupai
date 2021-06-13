@@ -64,9 +64,14 @@ view userId selfSeat handInfo observableInning =
         , SvgA.height (String.fromInt C.svgHeight)
         , SvgA.viewBox ("0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight)
         ]
-        (displayGains relQuad)
---        , button [ disabled handInfo.synchronizing, onClick (SendRequest RequireNextInning) ] [ text "次へ" ]
---        ]
+        (displayGains relQuad ++
+          [ displayButton
+              (not handInfo.synchronizing)
+              (SendRequest RequireNextInning)
+              "次へ"
+              C.goToNextButtonX
+              C.goToNextButtonY
+          ])
 
 
 displayTable : RelativeQuad -> List (Svg Msg)
