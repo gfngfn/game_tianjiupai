@@ -205,53 +205,59 @@ displayHand handInfo cards =
                 Nothing    -> False
                 Just table -> Game.isSubmittable table selectedCards
           in
-          [ displayDecisionButton submittable (List.length cards) ]
+          let numberOfHandCards = List.length cards in
+          [ displayButton
+              submittable
+              (SendRequest SubmitCards)
+              "決定"
+              (C.selfHandX + C.verticalTileImageWidth * numberOfHandCards + C.decisionButtonGap)
+              C.decisionButtonY
+          ]
   in
   svgsCard ++ svgsButton
 
 
-displayDecisionButton : Bool -> Int -> Svg Msg
-displayDecisionButton submittable numberOfHandCards =
-  let x = C.selfHandX + C.verticalTileImageWidth * numberOfHandCards + C.decisionButtonGap in
+displayButton : Bool -> Msg -> String -> Int -> Int -> Svg Msg
+displayButton enabled msg text x y =
   let
     stySize =
       [ SvgA.x (String.fromInt x)
-      , SvgA.y (String.fromInt C.decisionButtonY)
-      , SvgA.width (String.fromInt C.decisionButtonWidth)
-      , SvgA.height (String.fromInt C.decisionButtonHeight)
+      , SvgA.y (String.fromInt y)
+      , SvgA.width (String.fromInt C.svgButtonWidth)
+      , SvgA.height (String.fromInt C.svgButtonHeight)
       ]
   in
-  if submittable then
+  if enabled then
     Svg.g []
       [ Svg.rect
-          (stySize ++ [ SvgA.class "decision-button-enabled" ])
+          (stySize ++ [ SvgA.class "svg-button-enabled" ])
           []
       , Svg.text_
-          [ SvgA.x (String.fromInt (x + C.decisionButtonWidth // 2))
-          , SvgA.y (String.fromInt (C.decisionButtonY + C.decisionButtonTextDepth))
+          [ SvgA.x (String.fromInt (x + C.svgButtonWidth // 2))
+          , SvgA.y (String.fromInt (y + C.svgButtonTextDepth))
           , SvgA.textAnchor "middle"
-          , SvgA.class "decision-button-text-enabled"
+          , SvgA.class "svg-button-text-enabled"
           ]
-          [ Svg.text "決定" ]
+          [ Svg.text text ]
       , Svg.rect
           (stySize ++
-            [ SvgE.onClick (SendRequest SubmitCards)
-            , SvgA.class "decision-button-front"
+            [ SvgE.onClick msg
+            , SvgA.class "svg-button-front"
             ])
           []
       ]
   else
     Svg.g []
       [ Svg.rect
-          (stySize ++ [ SvgA.class "decision-button-disabled" ])
+          (stySize ++ [ SvgA.class "svg-button-disabled" ])
           []
       , Svg.text_
-          [ SvgA.x (String.fromInt (x + C.decisionButtonWidth // 2))
-          , SvgA.y (String.fromInt (C.decisionButtonY + C.decisionButtonTextDepth))
+          [ SvgA.x (String.fromInt (x + C.svgButtonWidth // 2))
+          , SvgA.y (String.fromInt (y + C.svgButtonTextDepth))
           , SvgA.textAnchor "middle"
-          , SvgA.class "decision-button-text-disabled"
+          , SvgA.class "svg-button-text-disabled"
           ]
-          [ Svg.text "決定" ]
+          [ Svg.text text ]
       ]
 
 

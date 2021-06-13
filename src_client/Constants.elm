@@ -33,19 +33,19 @@ selectionShift : Int
 selectionShift = 10
 
 decisionButtonY : Int
-decisionButtonY = 620 - decisionButtonHeight
+decisionButtonY = 620 - svgButtonHeight
 
 decisionButtonGap : Int
 decisionButtonGap = 15
 
-decisionButtonWidth : Int
-decisionButtonWidth = 70
+svgButtonWidth : Int
+svgButtonWidth = 70
 
-decisionButtonHeight : Int
-decisionButtonHeight = 40
+svgButtonHeight : Int
+svgButtonHeight = 40
 
-decisionButtonTextDepth : Int
-decisionButtonTextDepth = 25
+svgButtonTextDepth : Int
+svgButtonTextDepth = 25
 
 selfHandX : Int
 selfHandX = 190

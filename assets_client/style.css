@@ -84,32 +84,32 @@ body {
   color: #eeeeee;
 }
 
-.decision-button-enabled {
+.svg-button-enabled {
   fill: #ee6622;
   stroke: #aa4400;
   stroke-width: 2px;
 }
 
-.decision-button-front {
+.svg-button-front {
   fill: #ffffff00;
 }
 
-.decision-button-front:hover {
+.svg-button-front:hover {
   fill: #ffffff44;
   stroke: #ffffff44;
   stroke-width: 2px;
 }
 
-.decision-button-disabled {
+.svg-button-disabled {
   fill: #aaaaaa;
   stroke: #888888;
   stroke-width: 2px;
 }
 
-.decision-button-text-enabled {
+.svg-button-text-enabled {
   color: #eeeeee;
 }
 
-.decision-button-text-disabled {
+.svg-button-text-disabled {
   color: #bbbbbb;
 }
