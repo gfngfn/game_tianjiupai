@@ -71,37 +71,61 @@ view userId selfSeat handInfo observableInning =
 
 displayTable : RelativeQuad -> List (Svg Msg)
 displayTable relQuad =
-  Debug.todo "displayTable"
+  List.concat
+    [ displayVerticalSubmitted C.selfSubmittedX C.selfSubmittedY relQuad.self.submitted
+    , displayHorizontalSubmitted C.rightSubmittedX C.rightSubmittedY relQuad.right.submitted
+    , displayVerticalSubmitted C.frontSubmittedX C.frontSubmittedY relQuad.front.submitted
+    , displayHorizontalSubmitted C.leftSubmittedX C.leftSubmittedY relQuad.left.submitted
+    ]
+
+
+displayVerticalSubmitted : Int -> Int -> List (ClosedOr Card) -> List (Svg Msg)
+displayVerticalSubmitted x y submitted =
+  let num = List.length submitted in
+  let x0 = x - (C.verticalTileImageWidth * num // 2) in
+  let
+    (_, svgacc0 ) =
+      submitted |> List.foldl (\cardOrClosed ( index, svgacc ) ->
+        let
+          svg =
+            case cardOrClosed of
+              Open card ->
+                displayVerticalOpenCard card (x0 + C.verticalTileImageWidth * index) y
+
+              Closed ->
+                displayVerticalClosedCard (x0 + C.verticalTileImageWidth * index) y
+        in
+        ( index + 1, svg :: svgacc )
+      ) ( 0, [] )
+  in
+  List.reverse svgacc0
+
+
+displayHorizontalSubmitted : Int -> Int -> List (ClosedOr Card) -> List (Svg Msg)
+displayHorizontalSubmitted x y submitted =
+  let num = List.length submitted in
+  let y0 = y - (C.horizontalTileTopHeight * num // 2) in
+  let
+    ( _, svgacc0 ) =
+      submitted |> List.foldl (\cardOrClosed ( index, svgacc ) ->
+        let
+          svg =
+            case cardOrClosed of
+              Open card ->
+                displayHorizontalOpenCard card x (y0 + C.horizontalTileTopHeight * index)
+
+              Closed ->
+                displayHorizontalClosedCard x (y0 + C.horizontalTileTopHeight * index)
+        in
+        ( index + 1, svg :: svgacc )
+      ) ( 0, [] )
+  in
+  List.reverse svgacc0
 
 
 displayGains : RelativeQuad -> List (Svg Msg)
 displayGains relQuad =
   Debug.todo "displayGains"
-
-
-showSubmitted : List (ClosedOr Card) -> String
-showSubmitted submitted =
-  submitted |> List.map (\cardOrClosed ->
-    case cardOrClosed of
-      Closed    -> "*"
-      Open card -> C.stringifyCard card
-  ) |> String.join ", "
-
-
-showExposed : (a -> String) -> Exposed a -> String
-showExposed pf exposed =
-  let
-    s0 =
-      pf exposed.first
-
-    ss =
-      exposed.subsequent |> List.map (\xOrClosed ->
-        case xOrClosed of
-          Open x -> pf x
-          Closed -> "close"
-      )
-  in
-  (s0 :: ss) |> String.join "-"
 
 
 displayHand : HandInfo -> List Card -> List (Svg Msg)
@@ -148,7 +172,7 @@ displayHand handInfo cards =
                 Nothing    -> False
                 Just table -> Game.isSubmittable table selectedCards
           in
-          [ button [ disabled (not submittable), onClick (SendRequest SubmitCards) ] [ text "決定" ] ]
+          [ displayDecisionButton submittable (List.length selectedCards) ]
   in
   svgsCard ++ svgsButton
 
@@ -208,6 +232,46 @@ displayCardInHand index cardState card x y =
     , SvgA.y (String.fromInt y)
     , sty
     , SvgA.xlinkHref (C.standingCardPath card)
+    ]
+    []
+
+
+displayHorizontalOpenCard : Card -> Int -> Int -> Svg Msg
+displayHorizontalOpenCard card x y =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.x (String.fromInt y)
+    , SvgA.xlinkHref (C.horizontalOpenCardPath card)
+    ]
+    []
+
+
+displayHorizontalClosedCard : Int -> Int -> Svg Msg
+displayHorizontalClosedCard x y =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.x (String.fromInt y)
+    , SvgA.xlinkHref C.horizontalClosedCardPath
+    ]
+    []
+
+
+displayVerticalOpenCard : Card -> Int -> Int -> Svg Msg
+displayVerticalOpenCard card x y =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.x (String.fromInt y)
+    , SvgA.xlinkHref (C.verticalOpenCardPath card)
+    ]
+    []
+
+
+displayVerticalClosedCard : Int -> Int -> Svg Msg
+displayVerticalClosedCard x y =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.x (String.fromInt y)
+    , SvgA.xlinkHref C.verticalClosedCardPath
     ]
     []
 

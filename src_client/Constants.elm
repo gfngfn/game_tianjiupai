@@ -23,6 +23,9 @@ verticalTileImageWidth = 40
 verticalTileImageHeight : Int
 verticalTileImageHeight = 105
 
+horizontalTileTopHeight : Int
+horizontalTileTopHeight = 34
+
 selectionShift : Int
 selectionShift = 10
 
@@ -98,7 +101,27 @@ leftSubmittedY = 340
 
 standingCardPath : Card -> String
 standingCardPath card =
-  ("assets/stand-" ++ stringifyCard card ++ ".png")
+  "assets/stand-" ++ stringifyCard card ++ ".png"
+
+
+horizontalOpenCardPath : Card -> String
+horizontalOpenCardPath card =
+  "assets/openh-" ++ stringifyCard card ++ ".png"
+
+
+horizontalClosedCardPath : String
+horizontalClosedCardPath =
+  "assets/closeh.png"
+
+
+verticalOpenCardPath : Card -> String
+verticalOpenCardPath card =
+  "assets/openv-" ++ stringifyCard card ++ ".png"
+
+
+verticalClosedCardPath : String
+verticalClosedCardPath =
+  "assets/closev.png"
 
 
 stringifyCard : Card -> String
