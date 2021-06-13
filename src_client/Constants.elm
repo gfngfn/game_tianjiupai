@@ -36,7 +36,7 @@ decisionButtonY : Int
 decisionButtonY = 620 - decisionButtonHeight
 
 decisionButtonGap : Int
-decisionButtonGap = 20
+decisionButtonGap = 15
 
 decisionButtonWidth : Int
 decisionButtonWidth = 70
@@ -45,7 +45,7 @@ decisionButtonHeight : Int
 decisionButtonHeight = 40
 
 decisionButtonTextDepth : Int
-decisionButtonTextDepth = 32
+decisionButtonTextDepth = 25
 
 selfHandX : Int
 selfHandX = 190

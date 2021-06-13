@@ -84,24 +84,32 @@ body {
   color: #eeeeee;
 }
 
-#decision-button-enabled {
+.decision-button-enabled {
   fill: #ee6622;
   stroke: #aa4400;
   stroke-width: 2px;
 }
 
-#decision-button-front {
+.decision-button-front {
   fill: #ffffff00;
 }
 
-#decision-button-front:hover {
+.decision-button-front:hover {
   fill: #ffffff44;
   stroke: #ffffff44;
   stroke-width: 2px;
 }
 
-#decision-button-disabled {
+.decision-button-disabled {
   fill: #aaaaaa;
   stroke: #888888;
   stroke-width: 2px;
+}
+
+.decision-button-text-enabled {
+  color: #eeeeee;
+}
+
+.decision-button-text-disabled {
+  color: #bbbbbb;
 }

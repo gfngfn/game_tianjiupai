@@ -224,25 +224,35 @@ displayDecisionButton submittable numberOfHandCards =
   if submittable then
     Svg.g []
       [ Svg.rect
-          (stySize ++ [ SvgA.id "decision-button-enabled" ])
+          (stySize ++ [ SvgA.class "decision-button-enabled" ])
           []
       , Svg.text_
           [ SvgA.x (String.fromInt (x + C.decisionButtonWidth // 2))
           , SvgA.y (String.fromInt (C.decisionButtonY + C.decisionButtonTextDepth))
           , SvgA.textAnchor "middle"
+          , SvgA.class "decision-button-text-enabled"
           ]
           [ Svg.text "決定" ]
       , Svg.rect
           (stySize ++
             [ SvgE.onClick (SendRequest SubmitCards)
-            , SvgA.id "decision-button-front"
+            , SvgA.class "decision-button-front"
             ])
           []
       ]
   else
-    Svg.rect
-      (stySize ++ [ SvgA.id "decision-button-disabled" ])
-      []
+    Svg.g []
+      [ Svg.rect
+          (stySize ++ [ SvgA.class "decision-button-disabled" ])
+          []
+      , Svg.text_
+          [ SvgA.x (String.fromInt (x + C.decisionButtonWidth // 2))
+          , SvgA.y (String.fromInt (C.decisionButtonY + C.decisionButtonTextDepth))
+          , SvgA.textAnchor "middle"
+          , SvgA.class "decision-button-text-disabled"
+          ]
+          [ Svg.text "決定" ]
+      ]
 
 
 type CardState
