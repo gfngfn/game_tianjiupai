@@ -72,10 +72,10 @@ view userId selfSeat handInfo observableInning =
 displayTable : RelativeQuad -> List (Svg Msg)
 displayTable relQuad =
   List.concat
-    [ displayVerticalSubmitted C.selfSubmittedX C.selfSubmittedY relQuad.self.submitted
+    [ displayVerticalSubmitted   C.selfSubmittedX  C.selfSubmittedY  relQuad.self.submitted
     , displayHorizontalSubmitted C.rightSubmittedX C.rightSubmittedY relQuad.right.submitted
-    , displayVerticalSubmitted C.frontSubmittedX C.frontSubmittedY relQuad.front.submitted
-    , displayHorizontalSubmitted C.leftSubmittedX C.leftSubmittedY relQuad.left.submitted
+    , displayVerticalSubmitted   C.frontSubmittedX C.frontSubmittedY relQuad.front.submitted
+    , displayHorizontalSubmitted C.leftSubmittedX  C.leftSubmittedY  relQuad.left.submitted
     ]
 
 
@@ -125,7 +125,40 @@ displayHorizontalSubmitted x y submitted =
 
 displayGains : RelativeQuad -> List (Svg Msg)
 displayGains relQuad =
-  Debug.todo "displayGains"
+  let selfGains = relQuad.self.gains in
+  let selfX = C.selfPileX - C.verticalTileImageWidth * (List.length selfGains) in
+  let leftGains = relQuad.left.gains in
+  let leftY = C.leftPileY - C.horizontalTileTopHeight * (List.length leftGains) in
+  List.concat
+    [ displayVerticalPile   selfX        C.selfPileY  selfGains
+    , displayHorizontalPile C.rightPileX C.rightPileY relQuad.right.gains
+    , displayVerticalPile   C.frontPileX C.frontPileY relQuad.front.gains
+    , displayHorizontalPile C.leftPileX  leftY        leftGains
+    ]
+
+
+displayVerticalPile : Int -> Int -> List Card -> List (Svg Msg)
+displayVerticalPile x0 y0 gains =
+  gains |> List.indexedMap (\index card ->
+    let x = x0 + C.verticalTileImageWidth * index in
+    [ displayVerticalClosedCard x (y0 + C.tileThickness * 3)
+    , displayVerticalClosedCard x (y0 + C.tileThickness * 2)
+    , displayVerticalClosedCard x (y0 + C.tileThickness)
+    , displayVerticalOpenCard card x y0
+    ]
+  ) |> List.concat
+
+
+displayHorizontalPile : Int -> Int -> List Card -> List (Svg Msg)
+displayHorizontalPile x0 y0 gains =
+  gains |> List.indexedMap (\index card ->
+    let y = y0 + C.horizontalTileTopHeight * index in
+    [ displayHorizontalClosedCard x0 (y + C.tileThickness * 3)
+    , displayHorizontalClosedCard x0 (y + C.tileThickness * 2)
+    , displayHorizontalClosedCard x0 (y + C.tileThickness)
+    , displayHorizontalOpenCard card x0 y
+    ]
+  ) |> List.concat
 
 
 displayHand : HandInfo -> List Card -> List (Svg Msg)
@@ -172,14 +205,14 @@ displayHand handInfo cards =
                 Nothing    -> False
                 Just table -> Game.isSubmittable table selectedCards
           in
-          [ displayDecisionButton submittable (List.length selectedCards) ]
+          [ displayDecisionButton submittable (List.length cards) ]
   in
   svgsCard ++ svgsButton
 
 
 displayDecisionButton : Bool -> Int -> Svg Msg
-displayDecisionButton submittable numberOfCards =
-  let x = C.selfHandX + C.verticalTileImageWidth * numberOfCards + C.decisionButtonGap in
+displayDecisionButton submittable numberOfHandCards =
+  let x = C.selfHandX + C.verticalTileImageWidth * numberOfHandCards + C.decisionButtonGap in
   let
     stySize =
       [ SvgA.x (String.fromInt x)
@@ -194,8 +227,8 @@ displayDecisionButton submittable numberOfCards =
           (stySize ++ [ SvgA.id "decision-button-enabled" ])
           []
       , Svg.text_
-          [ SvgA.x (String.fromInt (x + C.decisionButtonTextDepth))
-          , SvgA.y (String.fromInt (C.decisionButtonY + C.decisionButtonWidth // 2))
+          [ SvgA.x (String.fromInt (x + C.decisionButtonWidth // 2))
+          , SvgA.y (String.fromInt (C.decisionButtonY + C.decisionButtonTextDepth))
           , SvgA.textAnchor "middle"
           ]
           [ Svg.text "決定" ]
@@ -240,7 +273,7 @@ displayHorizontalOpenCard : Card -> Int -> Int -> Svg Msg
 displayHorizontalOpenCard card x y =
   Svg.image
     [ SvgA.x (String.fromInt x)
-    , SvgA.x (String.fromInt y)
+    , SvgA.y (String.fromInt y)
     , SvgA.xlinkHref (C.horizontalOpenCardPath card)
     ]
     []
@@ -250,7 +283,7 @@ displayHorizontalClosedCard : Int -> Int -> Svg Msg
 displayHorizontalClosedCard x y =
   Svg.image
     [ SvgA.x (String.fromInt x)
-    , SvgA.x (String.fromInt y)
+    , SvgA.y (String.fromInt y)
     , SvgA.xlinkHref C.horizontalClosedCardPath
     ]
     []
@@ -260,7 +293,7 @@ displayVerticalOpenCard : Card -> Int -> Int -> Svg Msg
 displayVerticalOpenCard card x y =
   Svg.image
     [ SvgA.x (String.fromInt x)
-    , SvgA.x (String.fromInt y)
+    , SvgA.y (String.fromInt y)
     , SvgA.xlinkHref (C.verticalOpenCardPath card)
     ]
     []
@@ -270,7 +303,7 @@ displayVerticalClosedCard : Int -> Int -> Svg Msg
 displayVerticalClosedCard x y =
   Svg.image
     [ SvgA.x (String.fromInt x)
-    , SvgA.x (String.fromInt y)
+    , SvgA.y (String.fromInt y)
     , SvgA.xlinkHref C.verticalClosedCardPath
     ]
     []

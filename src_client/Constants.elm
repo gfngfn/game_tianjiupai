@@ -26,6 +26,9 @@ verticalTileImageHeight = 105
 horizontalTileTopHeight : Int
 horizontalTileTopHeight = 34
 
+tileThickness : Int
+tileThickness = 16
+
 selectionShift : Int
 selectionShift = 10
 
