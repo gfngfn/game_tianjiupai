@@ -38,16 +38,18 @@ init flag =
   let
     maybeFlagUser : Maybe FlagUser
     maybeFlagUser =
-      case JD.decodeString decodeFlagUser flag.user of
-          Ok(flagUser) -> Just flagUser
-          Err(_)       -> Nothing
+      case JD.decodeString (decodeOption decodeFlagUser) flag.user of
+        Ok(maybeFlagUser0) -> maybeFlagUser0
+        Err(err)           -> let _ = Debug.log "failed to parse" err in Nothing
 
     ( cmd, state ) =
       case maybeFlagUser of
         Nothing ->
+          let _ = Debug.log "no user" () in
           ( Cmd.none, AtEntrance "" Nothing )
 
         Just flagUser ->
+          let _ = Debug.log "flag user" flagUser in
           let userId = flagUser.id in
           let userName = flagUser.name in
           let cmd0 = WebSocketClient.listen userId in
@@ -242,7 +244,8 @@ update msg model =
         ( _, ReceiveNotification (Ok (NotifyGameStart ostate0)) ) ->
           let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
           let ostate1 = { ostate0 | synchronizing = True } in
-          let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+          let pstate1 = { pstate0 | game = PlayingGame ostate1, logs = pstate0.logs ++ [ LogGameStart ] } in
+          let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
           Debug.log "NotifyGameStart (+)" ( { model | state = state1 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
