@@ -59,7 +59,7 @@ viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
   [ div []
       [ div [ sty ] [ text message ] ]
   , div []
-      [ text ("Hi, " ++ user.userName ++ "! (your user ID: " ++ user.userId ++ ")") ]
+      [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
   , viewRoomList maybeRoomSummaries
   , div []
       [ input
@@ -164,11 +164,12 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
 
     PlayingGame ostate ->
       let gameMeta = ostate.meta in
+      let players = gameMeta.players in
       let synchronizing = ostate.synchronizing in
       let turn = Game.isMyTurn user.userId ostate in
       let userId = user.userId in
       case
-        gameMeta.players |> PerSeat.find (\p -> p.user.userId == userId)
+        players |> PerSeat.find (\p -> p.user.userId == userId)
       of
         Nothing ->
         -- Should never happen
@@ -193,12 +194,7 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
             elemsDebug : List (Html Msg)
             elemsDebug =
               [ div []
-                  [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
-              , div []
-                  [ text (String.fromInt gameMeta.inningIndex ++ "局目") ]
-              , div []
-                  [ text (String.fromInt (gameMeta.numConsecutives - 1) ++ "本場") ]
-              , viewPlayers gameMeta.players
+                  [ text ("room ID: " ++ room.roomId) ]
               , div []
                   [ text ("snapshot ID: " ++ ostate.snapshotId) ]
               , div []
@@ -207,9 +203,26 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
                   [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
               ]
           in
+          let
+            elemsLeft =
+              [ div [ class "room-name" ]
+                  [ text room.roomName ]
+              , div []
+                  [ text
+                      (String.fromInt (gameMeta.inningIndex + 1) ++ "局目，"
+                        ++ String.fromInt (gameMeta.numConsecutives - 1) ++ "本場")
+                  ]
+              , viewPlayer "東" players.east
+              , viewPlayer "南" players.south
+              , viewPlayer "西" players.west
+              , viewPlayer "北" players.north
+              , div []
+                  elemsDebug
+              ]
+          in
           viewGridScheme
             { header = [ text "header" ]
-            , left   = elemsDebug
+            , left   = elemsLeft
             , center = [ ViewTable.view userId seat handInfo ostate.observableInning ]
             , right  = elemsChat
             , footer = [ div stys [ text message ] ]
@@ -237,15 +250,9 @@ viewGridScheme gridScheme =
   ]
 
 
-viewPlayers : PerSeat GamePlayer -> Html Msg
-viewPlayers players =
-  div []
-    [ div []
-        [ text "players:" ]
-    , ul []
-        [ li [] [ text ("東 " ++ players.east.user.userName  ++ ", 得点: " ++ String.fromInt players.east.score) ]
-        , li [] [ text ("南 " ++ players.south.user.userName ++ ", 得点: " ++ String.fromInt players.south.score) ]
-        , li [] [ text ("西 " ++ players.west.user.userName  ++ ", 得点: " ++ String.fromInt players.west.score) ]
-        , li [] [ text ("北 " ++ players.north.user.userName ++ ", 得点: " ++ String.fromInt players.north.score) ]
-        ]
+viewPlayer : String -> GamePlayer -> Html Msg
+viewPlayer direction player =
+  div [ class "player-frame" ]
+    [ div [ class "player-name" ] [ text (direction ++ " " ++ player.user.userName) ]
+    , div [] [ text ("得点： " ++ String.fromInt player.score) ]
     ]

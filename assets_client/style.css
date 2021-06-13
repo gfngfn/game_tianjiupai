@@ -43,6 +43,11 @@ body {
   border-style: solid;
   border-width: 1px;
   border-color: gray;
+
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px;
 }
 
 .grid-element-center {
@@ -107,9 +112,38 @@ body {
 }
 
 .svg-button-text-enabled {
-  color: #eeeeee;
+  fill: #eeeeee;
 }
 
 .svg-button-text-disabled {
-  color: #bbbbbb;
+  fill: #888888;
+}
+
+.room-name {
+  color: #444444;
+  font-style: sans-serif;
+  font-size: 24px;
+}
+
+.player-frame {
+  margin-top: 4px;
+  margin-bottom: 4px;
+
+  border-style: solid;
+  border-width: 3px;
+  border-color: #888888;
+
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px;
+
+  background-color: #cccccc;
+  color: #444444;
+}
+
+.player-name {
+  color: #444444;
+  font-style: sans-serif;
+  font-size: 20px;
 }
