@@ -244,7 +244,8 @@ update msg model =
         ( _, ReceiveNotification (Ok (NotifyGameStart ostate0)) ) ->
           let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
           let ostate1 = { ostate0 | synchronizing = True } in
-          let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+          let pstate1 = { pstate0 | game = PlayingGame ostate1, logs = pstate0.logs ++ [ LogGameStart ] } in
+          let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
           Debug.log "NotifyGameStart (+)" ( { model | state = state1 }, cmd )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
