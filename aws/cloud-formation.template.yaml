@@ -39,60 +39,56 @@ Resources:
               owner: "root"
               group: "root"
               content: |
-#!/bin/bash
-set -xe
-/home/ubuntu/game_tianjiupai/pipeline.sh
-echo "==== Reboot after installation ===="
-sleep 10 && sudo reboot &
-exit 0
+                #!/bin/bash
+                set -xe
+                /home/ubuntu/game_tianjiupai/pipeline.sh
+                echo "==== Reboot after installation ===="
+                sleep 10 && sudo reboot &
+                exit 0
 
             "/etc/init.d/erlang-app":
               mode: "000755"
               owner: "root"
               group: "root"
               content: |
-#!/bin/bash
-set -xe
-APP_DIR=/home/ubuntu/game_tianjiupai/_build/prod/rel/tianjiupai
-APP_NAME=tianjiupai
-case "$1" in
-    start)
-        cd "${APP_DIR}"
-        "bin/${APP_NAME}" start
-        ;;
-    stop)
-        cd "${APP_DIR}"
-        "bin/${APP_NAME}" stop
-        ;;
-    *)
-        echo "cannot recognize '$1'"
-esac
-exit 0
+                #!/bin/bash
+                set -xe
+                APP_DIR=/home/ubuntu/game_tianjiupai/_build/prod/rel/tianjiupai
+                APP_NAME=tianjiupai
+                case "$1" in
+                    start)
+                        cd "${APP_DIR}"
+                        "bin/${APP_NAME}" start
+                        ;;
+                    stop)
+                        cd "${APP_DIR}"
+                        "bin/${APP_NAME}" stop
+                        ;;
+                    *)
+                        echo "cannot recognize '$1'"
+                esac
+                exit 0
 
           commands:
             "install_erlang":
               command: "/home/ubuntu/game_tianjiupai/install.sh > /home/ubuntu/install_log.txt"
 
-    "ServerSecurityGroup":
-      Type: "AWS::EC2::SecurityGroup"
-      Properties:
-        SecurityGroupIngress:
-          - IpProtocol: "tcp"
-            FromPort: "80"
-            ToPort: "80"
-            CidrIp: "0.0.0.0/0"
-          - IpProtocol: "tcp"
-            FromPort: "8080"
-            ToPort: "8080"
-            CidrIp: "0.0.0.0/0"
+  "ServerSecurityGroup":
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "8080"
+          ToPort: "8080"
+          CidrIp: "0.0.0.0/0"
 
 Outputs:
   WebsiteURL:
     Value:
-      Fn::Join
+      Fn::Join:
         - ""
-        -
-          - "http://"
-          - Fn::GetAtt:
-            - "ServerInstance"
-            - "PublicDnsName"
+        - ["http://", { "Fn::GetAtt": ["ServerInstance", "PublicDnsName"]}]
