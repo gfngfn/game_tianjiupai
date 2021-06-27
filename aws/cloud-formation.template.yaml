@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  "KeyName":
+    Type: "AWS::EC2::KeyPair::KeyName"
+  "InstanceTypeParameter":
+    Type: "String"
+    Default: "t2.micro"
+    AllowedValues:
+      - "t2.micro"
+    Description: "EC2 instance type"
+  "AMI":
+    Type: "String"
+    Default: "ami-0c9c7239c597b07d8"
+    Description: "Ubuntu 20.04 LTS amd64 hvm:ebs-ssd"
+
+Resources:
+  "ServerInstance":
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId:
+        Ref: "AMI"
+      InstanceType:
+        Ref: "InstanceTypeParameter"
+      SecurityGroups:
+        Ref: "ServerSecurityGroup"
+      KeyName:
+        Ref: "KeyName"
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            apt:
+              "make": []
+              "nginx": []
+              "erlang": []
+          files:
+            "/home/ubuntu/install.sh":
+              mode: "000755"
+              owner: "root"
+              group: "root"
+              content: |
+#!/bin/bash
+set -xe
+/home/ubuntu/game_tianjiupai/pipeline.sh
+echo "==== Reboot after installation ===="
+sleep 10 && sudo reboot &
+exit 0
+
+            "/etc/init.d/erlang-app":
+              mode: "000755"
+              owner: "root"
+              group: "root"
+              content: |
+#!/bin/bash
+set -xe
+APP_DIR=/home/ubuntu/game_tianjiupai/_build/prod/rel/tianjiupai
+APP_NAME=tianjiupai
+case "$1" in
+    start)
+        cd "${APP_DIR}"
+        "bin/${APP_NAME}" start
+        ;;
+    stop)
+        cd "${APP_DIR}"
+        "bin/${APP_NAME}" stop
+        ;;
+    *)
+        echo "cannot recognize '$1'"
+esac
+exit 0
+
+          commands:
+            "install_erlang":
+              command: "/home/ubuntu/game_tianjiupai/install.sh > /home/ubuntu/install_log.txt"
+
+    "ServerSecurityGroup":
+      Type: "AWS::EC2::SecurityGroup"
+      Properties:
+        SecurityGroupIngress:
+          - IpProtocol: "tcp"
+            FromPort: "80"
+            ToPort: "80"
+            CidrIp: "0.0.0.0/0"
+          - IpProtocol: "tcp"
+            FromPort: "8080"
+            ToPort: "8080"
+            CidrIp: "0.0.0.0/0"
+
+Outputs:
+  WebsiteURL:
+    Value:
+      Fn::Join
+        - ""
+        -
+          - "http://"
+          - Fn::GetAtt:
+            - "ServerInstance"
+            - "PublicDnsName"
