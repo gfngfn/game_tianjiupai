@@ -31,6 +31,7 @@ Resources:
     Properties:
       CidrBlock: "10.10.0.0/23"
       AvailabilityZone: "ap-northeast-1a"
+      MapPublicIpOnLaunch: true
       VpcId:
         Ref: "VPC"
 
