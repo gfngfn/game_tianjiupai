@@ -30,10 +30,13 @@ type MessageLevel
   = Warning
   | Information
 
+type alias Origin = String
+
 type alias Model =
   { message : ( MessageLevel, String )
   , state   : State
   , window  : { width : Int, height : Int }
+  , origin  : Origin
   }
 
 type Request
