@@ -30,17 +30,25 @@ type alias Flag =
   { user         : String
   , windowWidth  : Int
   , windowHeight : Int
+  , httpOrigin   : Origin
   }
+
+
+makeWebsocketOrigin : Origin -> Origin
+makeWebsocketOrigin httpOrigin =
+  if httpOrigin |> String.startsWith "http://" then
+    "ws://" ++ String.dropLeft 7 httpOrigin
+  else if httpOrigin |> String.startsWith "https://" then
+    "ws://" ++ String.dropLeft 8 httpOrigin
+  else
+    "ws://this-cannot-happen"
 
 
 init : Flag -> ( Model, Cmd Msg )
 init flag =
   let
-    httpOrigin : Origin
-    httpOrigin = "http://localhost:8080" -- TODO: use `self.origin`
-
     wsOrigin : Origin
-    wsOrigin = "ws://localhost:8080" -- TODO: make this from `httpOrigin`
+    wsOrigin = makeWebsocketOrigin flag.httpOrigin
 
     maybeFlagUser : Maybe FlagUser
     maybeFlagUser =
@@ -71,7 +79,7 @@ init flag =
       { message = ( Information, "flag user: " ++ flag.user ++ ", window width: " ++ String.fromInt flag.windowWidth )
       , state   = state
       , window  = { width = flag.windowWidth, height = flag.windowHeight }
-      , origin  = httpOrigin
+      , origin  = flag.httpOrigin
       }
   in
   ( model, cmd )
@@ -103,7 +111,7 @@ update msg model =
                 user : User
                 user = { userId = userId, userName = userName }
               in
-              let wsOrigin = "ws://localhost:8080" in -- TODO: make this from `model.origin`
+              let wsOrigin = makeWebsocketOrigin model.origin in
               let cmd = WebSocketClient.listen wsOrigin userId in
               ( { model | state = AtEntrance userNameInput (Just ( user, Nothing )) }, cmd )
 
