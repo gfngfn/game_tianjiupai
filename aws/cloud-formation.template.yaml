@@ -10,8 +10,8 @@ Parameters:
     Description: "EC2 instance type"
   "AMI":
     Type: "String"
-    Default: "ami-0c9c7239c597b07d8"
-    Description: "Ubuntu 20.04 LTS amd64 hvm:ebs-ssd"
+    Default: "ami-0827d8ed0295e3feb"
+    Description: "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20210621"
 
 Resources:
   "ServerInstance":
@@ -22,7 +22,7 @@ Resources:
       InstanceType:
         Ref: "InstanceTypeParameter"
       SecurityGroups:
-        Ref: "ServerSecurityGroup"
+        - Ref: "ServerSecurityGroup"
       KeyName:
         Ref: "KeyName"
     Metadata:
@@ -76,6 +76,7 @@ Resources:
   "ServerSecurityGroup":
     Type: "AWS::EC2::SecurityGroup"
     Properties:
+      GroupDescription: "Enable HTTP via port 80 and 8080"
       SecurityGroupIngress:
         - IpProtocol: "tcp"
           FromPort: "80"
