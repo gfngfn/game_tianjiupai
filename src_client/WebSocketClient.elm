@@ -20,14 +20,9 @@ import Port
 type alias WebSocket = Port.WebSocket
 
 
-host : String
-host =
-  "ws://localhost:8080"
-
-
-listen : UserId -> Cmd Msg
-listen userId =
-  Port.listenWebSocket (host ++ "/websocket/" ++ userId)
+listen : Origin -> UserId -> Cmd Msg
+listen origin userId =
+  Port.listenWebSocket (origin ++ "/websocket/" ++ userId)
 
 
 onOpen : Sub Msg

@@ -36,6 +36,12 @@ type alias Flag =
 init : Flag -> ( Model, Cmd Msg )
 init flag =
   let
+    httpOrigin : Origin
+    httpOrigin = "http://localhost:8080" -- TODO: use `self.origin`
+
+    wsOrigin : Origin
+    wsOrigin = "ws://localhost:8080" -- TODO: make this from `httpOrigin`
+
     maybeFlagUser : Maybe FlagUser
     maybeFlagUser =
       case JD.decodeString (decodeOption decodeFlagUser) flag.user of
@@ -52,7 +58,7 @@ init flag =
           let _ = Debug.log "flag user" flagUser in
           let userId = flagUser.id in
           let userName = flagUser.name in
-          let cmd0 = WebSocketClient.listen userId in
+          let cmd0 = WebSocketClient.listen wsOrigin userId in
           let
             user : User
             user =
@@ -65,6 +71,7 @@ init flag =
       { message = ( Information, "flag user: " ++ flag.user ++ ", window width: " ++ String.fromInt flag.windowWidth )
       , state   = state
       , window  = { width = flag.windowWidth, height = flag.windowHeight }
+      , origin  = httpOrigin
       }
   in
   ( model, cmd )
@@ -85,7 +92,7 @@ update msg model =
           ( { model | state = AtEntrance userNameInput1 maybeUserAndRoom }, Cmd.none )
 
         SendRequest CreateUser ->
-          let cmd = HttpClient.createUser userNameInput in
+          let cmd = HttpClient.createUser model.origin userNameInput in
           ( model, cmd )
 
         ReceiveResponse (UserCreated userName result) ->
@@ -96,7 +103,8 @@ update msg model =
                 user : User
                 user = { userId = userId, userName = userName }
               in
-              let cmd = WebSocketClient.listen userId in
+              let wsOrigin = "ws://localhost:8080" in -- TODO: make this from `model.origin`
+              let cmd = WebSocketClient.listen wsOrigin userId in
               ( { model | state = AtEntrance userNameInput (Just ( user, Nothing )) }, cmd )
 
             Err err ->
@@ -105,11 +113,11 @@ update msg model =
         OpenWebSocket ws ->
             case maybeUserAndRoom of
               Just ( user, Nothing ) ->
-                let cmd = HttpClient.getAllRooms in
+                let cmd = HttpClient.getAllRooms model.origin in
                 ( { model | state = AtPlaza ws user "" Nothing }, cmd )
 
               Just ( user, Just roomId ) ->
-                let cmd = HttpClient.getRoom user.userId roomId in
+                let cmd = HttpClient.getRoom model.origin user.userId roomId in
                 ( { model | state = AtPlaza ws user "" Nothing }, cmd )
 
               Nothing ->
@@ -142,7 +150,7 @@ update msg model =
               ( { model | message = makeErrorMessage "rooms" err }, Cmd.none )
 
         SendRequest CreateRoom ->
-          let cmd = HttpClient.createRoom user.userId roomNameInput0 in
+          let cmd = HttpClient.createRoom model.origin user.userId roomNameInput0 in
           ( { model | state = AtPlaza ws user "" maybeRooms }, cmd )
 
         ReceiveResponse (RoomCreated roomName result) ->
@@ -175,7 +183,7 @@ update msg model =
               ( { model | message = makeErrorMessage "room creation" err }, Cmd.none )
 
         SendRequest (EnterRoom roomId) ->
-          let cmd = HttpClient.enterRoom user.userId roomId in
+          let cmd = HttpClient.enterRoom model.origin user.userId roomId in
           ( model, cmd )
 
         ReceiveResponse (RoomEntered roomId result) ->
@@ -380,7 +388,7 @@ update msg model =
               let indices1 = Set.empty in
               let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices1 chatTextInput0 in
               let cards = inning.yourHand |> pickupSelectedCards indices0 in
-              let cmd = HttpClient.submitCards user.userId pstate0.room.roomId cards in
+              let cmd = HttpClient.submitCards model.origin user.userId pstate0.room.roomId cards in
               Debug.log "SubmitCards (+)" ( { model | state = state1 }, cmd )
 
             ObservableInningEnd _ ->
