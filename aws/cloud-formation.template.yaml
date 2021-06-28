@@ -70,6 +70,27 @@ Resources:
         Ref: "InternetGateway"
     DependsOn: "VPCGatewayAttachment"
 
+  "ServerSecurityGroup":
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable HTTP via port 80 and 8080"
+      VpcId:
+        Ref: "VPC"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "8080"
+          ToPort: "8080"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp:
+            Ref: "SSHLocation"
+
   "ServerInstance":
     Type: "AWS::EC2::Instance"
     Properties:
@@ -85,6 +106,31 @@ Resources:
         Ref: "InternetSubnet"
       KeyName:
         Ref: "KeyName"
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            -
+              - |-
+                #!/bin/bash -xe
+                STACK_NAME=
+
+              - Ref: "AWS::StackName"
+              - "\n"
+              - |-
+                REGION=
+
+              - Ref: "AWS::Region"
+              - "\n"
+              - |
+                sudo apt-get update
+                sudo apt-get install -y python-setuptools
+                sudo mkdir -p /opt/aws/bin
+                wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+                sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
+                /opt/aws/bin/cfn-init -v --resource ServerInstance --stack $STACK_NAME --region $REGION
+                /opt/aws/bin/cfn-signal -e $? -v --resource ServerInstance --stack $STACK_NAME --region $REGION
+
     Metadata:
       AWS::CloudFormation::Init:
         config:
@@ -132,27 +178,6 @@ Resources:
           commands:
             "install_erlang":
               command: "/home/ubuntu/game_tianjiupai/install.sh > /home/ubuntu/install_log.txt"
-
-  "ServerSecurityGroup":
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: "Enable HTTP via port 80 and 8080"
-      VpcId:
-        Ref: "VPC"
-      SecurityGroupIngress:
-        - IpProtocol: "tcp"
-          FromPort: "80"
-          ToPort: "80"
-          CidrIp: "0.0.0.0/0"
-        - IpProtocol: "tcp"
-          FromPort: "8080"
-          ToPort: "8080"
-          CidrIp: "0.0.0.0/0"
-        - IpProtocol: "tcp"
-          FromPort: "22"
-          ToPort: "22"
-          CidrIp:
-            Ref: "SSHLocation"
 
 Outputs:
   WebsiteURL:
