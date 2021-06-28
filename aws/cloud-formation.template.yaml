@@ -19,6 +19,10 @@ Parameters:
     MinLength: "9"
     MaxLength: "18"
     Default: "0.0.0.0/0"
+  "EBSVolumeSize":
+    Description: "The size of the EBS volume"
+    Type: "String"
+    Default: "8"
 
 Resources:
   "VPC":
@@ -94,6 +98,11 @@ Resources:
   "ServerInstance":
     Type: "AWS::EC2::Instance"
     Properties:
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize:
+              Ref: "EBSVolumeSize"
       ImageId:
         Ref: "AMI"
       InstanceType:
@@ -107,29 +116,9 @@ Resources:
       KeyName:
         Ref: "KeyName"
       UserData:
-        Fn::Base64:
-          Fn::Join:
-            - ""
-            -
-              - |-
-                #!/bin/bash -xe
-                STACK_NAME=
-
-              - Ref: "AWS::StackName"
-              - "\n"
-              - |-
-                REGION=
-
-              - Ref: "AWS::Region"
-              - "\n"
-              - |
-                sudo apt-get update
-                sudo apt-get install -y python-setuptools
-                sudo mkdir -p /opt/aws/bin
-                wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-                sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
-                /opt/aws/bin/cfn-init -v --resource ServerInstance --stack $STACK_NAME --region $REGION
-                /opt/aws/bin/cfn-signal -e $? -v --resource ServerInstance --stack $STACK_NAME --region $REGION
+        Fn::Base64: |
+          #!/bin/bash -xe
+          echo "Here is UserData!"
 
     Metadata:
       AWS::CloudFormation::Init:
