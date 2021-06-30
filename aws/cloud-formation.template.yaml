@@ -138,8 +138,8 @@ Resources:
                 sudo mkdir -p /opt/aws/bin
                 wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
                 sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
-                /opt/aws/bin/cfn-init -v --resource ServerInstance --stack $STACK_NAME --region $REGION
-                /opt/aws/bin/cfn-signal -e $? -v --resource ServerInstance --stack $STACK_NAME --region $REGION
+                /opt/aws/bin/cfn-init --verbose --resource ServerInstance --stack $STACK_NAME --region $REGION
+                /opt/aws/bin/cfn-signal --exit-code $? --resource ServerInstance --stack $STACK_NAME --region $REGION
                 echo "==== End UserData ===="
 
     Metadata:
