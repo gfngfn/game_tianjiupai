@@ -116,9 +116,31 @@ Resources:
       KeyName:
         Ref: "KeyName"
       UserData:
-        Fn::Base64: |
-          #!/bin/bash -xe
-          echo "Here is UserData!"
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            -
+              - |-
+                #!/bin/bash -xe
+                echo "==== Starting UserData ===="
+                STACK_NAME=
+
+              - Ref: "AWS::StackName"
+              - "\n"
+              - |-
+                REGION=
+
+              - Ref: "AWS::Region"
+              - "\n"
+              - |
+                sudo apt-get update
+                sudo apt-get install -y python-setuptools
+                sudo mkdir -p /opt/aws/bin
+                wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+                sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
+                /opt/aws/bin/cfn-init -v --resource ServerInstance --stack $STACK_NAME --region $REGION
+                /opt/aws/bin/cfn-signal -e $? -v --resource ServerInstance --stack $STACK_NAME --region $REGION
+                echo "==== End UserData ===="
 
     Metadata:
       AWS::CloudFormation::Init:
@@ -134,9 +156,21 @@ Resources:
               owner: "root"
               group: "root"
               content: |
-                #!/bin/bash
-                set -xe
-                /home/ubuntu/game_tianjiupai/pipeline.sh
+                #!/bin/bash -xe
+                BUILD_ROOT_PATH="home/ubuntu"
+                PROJECT_PATH="${BUILD_ROOT_PATH}/game_tianjiupai"
+                PROJECT_URL="https://github.com/gfngfn/game_tianjiupai"
+                REBAR3_URL="https://s3.amazonaws.com/rebar3/rebar3"
+                echo "==== Installing Rebar3 ===="
+                wget "${REBAR3_URL}"
+                sudo mv rebar3 /usr/bin
+                echo "==== Clone the repository ===="
+                git -C "${BUILD_ROOT_PATH}" clone "${PROJECT_URL}"
+                echo "==== Releasing the project ===="
+                cd "${PROJECT_PATH}" && rebar3 sesterl compile && rebar3 as prod release
+                chown -R ubuntu:ubuntu "${PROJECT_PATH}"
+                echo "==== Starting ===="
+                systemctl enable erlang-app
                 echo "==== Reboot after installation ===="
                 sleep 10 && sudo reboot &
                 exit 0
@@ -166,7 +200,8 @@ Resources:
 
           commands:
             "install_erlang":
-              command: "/home/ubuntu/game_tianjiupai/install.sh > /home/ubuntu/install_log.txt"
+               command: "echo \"Here Are Commands!\""
+#              command: "/home/ubuntu/install.sh > /home/ubuntu/install_log.txt"
 
 Outputs:
   WebsiteURL:
