@@ -1,0 +1,7 @@
+-module('Tianjiupai.UserServerSup').
+-export(['start_child_impl'/1, 'start_link'/0, 'start_child'/2, 'which_children'/0, 'as_pid'/1]).
+'start_child_impl'(S1241StartArg) -> begin {S1242UserId, S1243UserName} = S1241StartArg, 'SesterlStdlib.DynamicSupervisor':'make_child_proc'(fun() -> begin S1244Res = 'Tianjiupai.UserServer':'start_link'(S1242UserId, S1243UserName), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'((fun 'Tianjiupai.UserServer':'as_pid'/1), S1244Res)) end end) end.
+'start_link'() -> 'Tianjiupai.UserServerSup.Impl':'start_link_name'(ok, {'global', ok}).
+'start_child'(S1264UserId, S1265UserName) -> begin S1266Opt = 'Tianjiupai.UserServerSup.Impl':'where_is_global'(ok), case S1266Opt of {'ok', S1267Proc} -> begin S1268Res = 'Tianjiupai.UserServerSup.Impl':'start_child'(S1267Proc, {S1264UserId, S1265UserName}), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'((fun 'Tianjiupai.UserServer':'from_pid'/1), S1268Res)) end; 'error' -> sesterl_internal_prim:'return'({'error', 'SesterlStdlib.RawValue':'forget'(<<"supervisor not found">>)}) end end.
+'which_children'() -> begin S1270Opt = 'Tianjiupai.UserServerSup.Impl':'where_is_global'(ok), case S1270Opt of {'ok', S1271Proc} -> begin S1272Pids = 'Tianjiupai.UserServerSup.Impl':'which_children'(S1271Proc), sesterl_internal_prim:'return'('SesterlStdlib.List':'map'((fun 'Tianjiupai.UserServer':'from_pid'/1), S1272Pids)) end; 'error' -> sesterl_internal_prim:'return'([]) end end.
+'as_pid'(S1274Proc) -> 'Tianjiupai.UserServerSup.Impl':'as_pid'(S1274Proc).

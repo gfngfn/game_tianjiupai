@@ -1,6 +1,6 @@
 _build
 elm-stuff/
-public/
+public/assets/*.png
+public/assets/*.css
 src_client/_generated/
-_generated/
 _generated_test/
