@@ -157,18 +157,19 @@ Resources:
               group: "root"
               content: |
                 #!/bin/bash -xe
-                BUILD_ROOT_PATH="home/ubuntu"
+                BUILD_ROOT_PATH="/home/ubuntu"
                 PROJECT_PATH="${BUILD_ROOT_PATH}/game_tianjiupai"
                 PROJECT_URL="https://github.com/gfngfn/game_tianjiupai"
                 BRANCH_NAME="temp-deploy"
                 REBAR3_URL="https://s3.amazonaws.com/rebar3/rebar3"
                 echo "==== Installing Rebar3 ===="
                 wget "${REBAR3_URL}"
+                sudo chmod a+x rebar3
                 sudo mv rebar3 /usr/bin
                 echo "==== Clone the repository ===="
                 git -C "${BUILD_ROOT_PATH}" clone "${PROJECT_URL}" -b ${BRANCH_NAME}
                 echo "==== Releasing the project ===="
-                cd "${PROJECT_PATH}" && make public-assets && rebar3 compile && rebar3 as prod release
+                cd "${PROJECT_PATH}" && sudo make public-assets && sudo rebar3 compile && sudo rebar3 as prod release
                 chown -R ubuntu:ubuntu "${PROJECT_PATH}"
                 echo "==== Starting ===="
                 systemctl enable erlang-app
@@ -201,7 +202,7 @@ Resources:
 
           commands:
             "install":
-#              command: "/home/ubuntu/install.sh > /home/ubuntu/install_log.txt"
+              command: "/home/ubuntu/install.sh"
 
 Outputs:
   WebsiteURL:
