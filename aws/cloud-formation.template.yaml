@@ -170,9 +170,9 @@ Resources:
                 git -C "${BUILD_ROOT_PATH}" clone "${PROJECT_URL}" -b ${BRANCH_NAME}
                 echo "==== Releasing the project ===="
                 cd "${PROJECT_PATH}" && sudo make public-assets && sudo rebar3 compile && sudo rebar3 as prod release
-                chown -R ubuntu:ubuntu "${PROJECT_PATH}"
+                sudo chown -R ubuntu:ubuntu "${PROJECT_PATH}"
                 echo "==== Starting ===="
-                systemctl enable erlang-app
+                sudo systemctl enable erlang-app
                 echo "==== Reboot after installation ===="
                 sleep 10 && sudo reboot &
                 exit 0
@@ -183,6 +183,14 @@ Resources:
               group: "root"
               content: |
                 #!/bin/bash
+                ### BEGIN INIT INFO
+                # Provides:          erlang-app
+                # Required-Start:    $all
+                # Required-Stop:
+                # Default-Start:     2 3 4 5
+                # Default-Stop:
+                # Short-Description: Starts/Stops an Erlang application
+                ### END INIT INFO
                 set -xe
                 APP_DIR=/home/ubuntu/game_tianjiupai/_build/prod/rel/tianjiupai
                 APP_NAME=tianjiupai
