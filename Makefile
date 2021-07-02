@@ -1,3 +1,4 @@
+ASSETS_TARGET_DIR=priv/public/assets
 
 .PHONY: all
 all: client server
@@ -17,8 +18,8 @@ model:
 
 .PHONY: public-assets
 public-assets:
-	mkdir -p public/assets
-	cp assets_client/* public/assets
+	mkdir -p $(ASSETS_TARGET_DIR)
+	cp assets_client/* $(ASSETS_TARGET_DIR)
 
 .PHONY: test
 test: server
