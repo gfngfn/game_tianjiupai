@@ -169,7 +169,7 @@ Resources:
                 echo "==== Clone the repository ===="
                 git -C "${BUILD_ROOT_PATH}" clone "${PROJECT_URL}" -b ${BRANCH_NAME}
                 echo "==== Releasing the project ===="
-                cd "${PROJECT_PATH}" && sudo make public-assets && sudo rebar3 compile && sudo rebar3 as prod release
+                cd "${PROJECT_PATH}" && sudo make public-assets && sudo rebar3 as prod release
                 sudo chown -R ubuntu:ubuntu "${PROJECT_PATH}"
                 echo "==== Starting ===="
                 sudo systemctl enable erlang-app
@@ -197,7 +197,7 @@ Resources:
                 case "$1" in
                     start)
                         cd "${APP_DIR}"
-                        "bin/${APP_NAME}" start
+                        "bin/${APP_NAME}" daemon
                         ;;
                     stop)
                         cd "${APP_DIR}"
