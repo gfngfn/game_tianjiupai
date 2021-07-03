@@ -16,14 +16,16 @@
 %%====================================================================================================
 start(_StartType, _StartArgs) ->
     cowboy_session:start(),
-    Template = bbmustache:parse_file(<<"./assets/index.mustache.html">>),
+    PrivDirStr = code:priv_dir(tianjiupai),
+    PrivDirBin = erlang:list_to_binary(PrivDirStr),
+    Template = bbmustache:parse_file(<<PrivDirBin/binary, "/index.mustache.html">>),
     Dispatch =
         cowboy_router:compile([
             {'_', [
                 {<<"/">>,
                     tianjiupai_rest, {page, Template}},
                 {<<"/assets/[...]">>,
-                    cowboy_static, {dir, "public/assets"}},
+                    cowboy_static, {dir, PrivDirStr ++ "/public/assets"}},
                 {<<"/websocket/:user_id">>,
                     tianjiupai_websocket, undefined},
                 {<<"/users">>,

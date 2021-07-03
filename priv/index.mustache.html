@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title>tianjiupai</title>
+    <script type="text/javascript" charset="UTF-8" src="assets/main.js"></script>
+    <link rel="stylesheet" href="assets/style.css"/>
+    <link rel="preload" href="assets/closeh.png" as="image">
+    <link rel="preload" href="assets/closev.png" as="image">
+    <link rel="preload" href="assets/openh-wen1.png" as="image">
+    <link rel="preload" href="assets/openh-wen2.png" as="image">
+    <link rel="preload" href="assets/openh-wen3.png" as="image">
+    <link rel="preload" href="assets/openh-wen4.png" as="image">
+    <link rel="preload" href="assets/openh-wen5.png" as="image">
+    <link rel="preload" href="assets/openh-wen6.png" as="image">
+    <link rel="preload" href="assets/openh-wen7.png" as="image">
+    <link rel="preload" href="assets/openh-wen8.png" as="image">
+    <link rel="preload" href="assets/openh-wen9.png" as="image">
+    <link rel="preload" href="assets/openh-wen10.png" as="image">
+    <link rel="preload" href="assets/openh-wen11.png" as="image">
+    <link rel="preload" href="assets/openh-wu3t.png" as="image">
+    <link rel="preload" href="assets/openh-wu5f.png" as="image">
+    <link rel="preload" href="assets/openh-wu5t.png" as="image">
+    <link rel="preload" href="assets/openh-wu6t.png" as="image">
+    <link rel="preload" href="assets/openh-wu7f.png" as="image">
+    <link rel="preload" href="assets/openh-wu7t.png" as="image">
+    <link rel="preload" href="assets/openh-wu8f.png" as="image">
+    <link rel="preload" href="assets/openh-wu8t.png" as="image">
+    <link rel="preload" href="assets/openh-wu9f.png" as="image">
+    <link rel="preload" href="assets/openh-wu9t.png" as="image">
+    <link rel="preload" href="assets/openv-wen1.png" as="image">
+    <link rel="preload" href="assets/openv-wen2.png" as="image">
+    <link rel="preload" href="assets/openv-wen3.png" as="image">
+    <link rel="preload" href="assets/openv-wen4.png" as="image">
+    <link rel="preload" href="assets/openv-wen5.png" as="image">
+    <link rel="preload" href="assets/openv-wen6.png" as="image">
+    <link rel="preload" href="assets/openv-wen7.png" as="image">
+    <link rel="preload" href="assets/openv-wen8.png" as="image">
+    <link rel="preload" href="assets/openv-wen9.png" as="image">
+    <link rel="preload" href="assets/openv-wen10.png" as="image">
+    <link rel="preload" href="assets/openv-wen11.png" as="image">
+    <link rel="preload" href="assets/openv-wu3t.png" as="image">
+    <link rel="preload" href="assets/openv-wu5f.png" as="image">
+    <link rel="preload" href="assets/openv-wu5t.png" as="image">
+    <link rel="preload" href="assets/openv-wu6t.png" as="image">
+    <link rel="preload" href="assets/openv-wu7f.png" as="image">
+    <link rel="preload" href="assets/openv-wu7t.png" as="image">
+    <link rel="preload" href="assets/openv-wu8f.png" as="image">
+    <link rel="preload" href="assets/openv-wu8t.png" as="image">
+    <link rel="preload" href="assets/openv-wu9f.png" as="image">
+    <link rel="preload" href="assets/openv-wu9t.png" as="image">
+    <link rel="preload" href="assets/stand-wen1.png" as="image">
+    <link rel="preload" href="assets/stand-wen2.png" as="image">
+    <link rel="preload" href="assets/stand-wen3.png" as="image">
+    <link rel="preload" href="assets/stand-wen4.png" as="image">
+    <link rel="preload" href="assets/stand-wen5.png" as="image">
+    <link rel="preload" href="assets/stand-wen6.png" as="image">
+    <link rel="preload" href="assets/stand-wen7.png" as="image">
+    <link rel="preload" href="assets/stand-wen8.png" as="image">
+    <link rel="preload" href="assets/stand-wen9.png" as="image">
+    <link rel="preload" href="assets/stand-wen10.png" as="image">
+    <link rel="preload" href="assets/stand-wen11.png" as="image">
+    <link rel="preload" href="assets/stand-wu3t.png" as="image">
+    <link rel="preload" href="assets/stand-wu5f.png" as="image">
+    <link rel="preload" href="assets/stand-wu5t.png" as="image">
+    <link rel="preload" href="assets/stand-wu6t.png" as="image">
+    <link rel="preload" href="assets/stand-wu7f.png" as="image">
+    <link rel="preload" href="assets/stand-wu7t.png" as="image">
+    <link rel="preload" href="assets/stand-wu8f.png" as="image">
+    <link rel="preload" href="assets/stand-wu8t.png" as="image">
+    <link rel="preload" href="assets/stand-wu9f.png" as="image">
+    <link rel="preload" href="assets/stand-wu9t.png" as="image">
+  </head>
+  <body>
+    <div id="app">(Elm manipulates here)</div>
+    <script type="text/javascript">
+        var app = Elm.Main.init({
+          node: document.getElementById("app"),
+          flags: {
+            user: {{flags}},
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight,
+            httpOrigin: self.origin
+          }
+        })
+
+        app.ports.listenWebSocket.subscribe(function(url) {
+          var socket = new WebSocket(url);
+          socket.onopen = () => {
+            app.ports.onOpenWebSocket.send({socket: socket});
+          };
+          socket.addEventListener("message", function(event) {
+            app.ports.receiveWebSocketMessage.send(event.data);
+          });
+        });
+
+        app.ports.sendWebSocketMessage.subscribe(function(array) {
+          const [{socket: socket}, message] = array;
+          socket.send(message);
+        });
+    </script>
+  </body>
+</html>

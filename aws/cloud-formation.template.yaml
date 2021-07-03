@@ -162,20 +162,53 @@ Resources:
                 PROJECT_URL="https://github.com/gfngfn/game_tianjiupai"
                 BRANCH_NAME="temp-deploy"
                 REBAR3_URL="https://s3.amazonaws.com/rebar3/rebar3"
+                echo "==== Overwrite settings for Nginx ===="
+                sudo cp /home/ubuntu/nginx.conf /etc/nginx/sites-enabled/default
                 echo "==== Installing Rebar3 ===="
-                wget "${REBAR3_URL}"
-                sudo chmod a+x rebar3
-                sudo mv rebar3 /usr/bin
+                sudo wget -O /home/ubuntu/rebar3 "${REBAR3_URL}"
+                sudo chmod a+x /home/ubuntu/rebar3
+                sudo mv /home/ubuntu/rebar3 /usr/bin
                 echo "==== Clone the repository ===="
                 git -C "${BUILD_ROOT_PATH}" clone "${PROJECT_URL}" -b ${BRANCH_NAME}
                 echo "==== Releasing the project ===="
-                cd "${PROJECT_PATH}" && sudo make public-assets && sudo rebar3 compile && sudo rebar3 as prod release
+                cd "${PROJECT_PATH}" && sudo make public-assets && sudo rebar3 as prod release
                 sudo chown -R ubuntu:ubuntu "${PROJECT_PATH}"
                 echo "==== Starting ===="
                 sudo systemctl enable erlang-app
                 echo "==== Reboot after installation ===="
                 sleep 10 && sudo reboot &
                 exit 0
+
+            "/home/ubuntu/nginx.conf":
+              mode: "000555"
+              owner: "root"
+              group: "root"
+              content: |
+                map $http_upgrade $connection_upgrade {
+                    default upgrade;
+                    ''      close;
+                }
+
+                server {
+                    listen *:80 default_server;
+                    proxy_read_timeout 5m;
+
+                    server_name _;
+
+                    location /websocket/ {
+                        proxy_http_version 1.1;
+                        proxy_set_header Host $host;
+                        proxy_set_header Upgrade $http_upgrade;
+                        proxy_set_header Connection $connection_upgrade;
+                        proxy_pass "http://127.0.0.1:8080/websocket/";
+                    }
+
+                    location / {
+                        proxy_set_header X-Forwarded-For $remote_addr;
+                        proxy_set_header Host $http_host;
+                        proxy_pass "http://127.0.0.1:8080/";
+                    }
+                }
 
             "/etc/init.d/erlang-app":
               mode: "000755"
@@ -197,11 +230,11 @@ Resources:
                 case "$1" in
                     start)
                         cd "${APP_DIR}"
-                        "bin/${APP_NAME}" start
+                        HOME=/home/ubuntu "bin/${APP_NAME}" daemon
                         ;;
                     stop)
                         cd "${APP_DIR}"
-                        "bin/${APP_NAME}" stop
+                        HOME=/home/ubuntu "bin/${APP_NAME}" stop
                         ;;
                     *)
                         echo "cannot recognize '$1'"

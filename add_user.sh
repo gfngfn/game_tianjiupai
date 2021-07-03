@@ -1,8 +1,13 @@
 #!/bin/bash
 
+if [ $# -ne 2 ]; then
+  echo "Usage: $0 <VERBOSE> <HOST>"
+  exit 1
+fi
+
 VERBOSE="$1"
 
-HOST="localhost:8080"
+HOST="$2"
 URI="http://$HOST/users"
 BODY='{"user_name": "Taro"}'
 
