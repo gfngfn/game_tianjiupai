@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  "KeyName":
+    Type: "AWS::EC2::KeyPair::KeyName"
+  "InstanceTypeParameter":
+    Description: "EC2 instance type"
+    Type: "String"
+    Default: "t2.micro"
+    AllowedValues:
+      - "t2.micro"
+  "AMI":
+    Description: "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20210621"
+    Type: "String"
+    Default: "ami-0827d8ed0295e3feb"
+  "SSHLocation":
+    Description: "An IP address range used for SSH to an EC2 instance"
+    Type: "String"
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    MinLength: "9"
+    MaxLength: "18"
+    Default: "0.0.0.0/0"
+  "EBSVolumeSize":
+    Description: "The size of the EBS volume"
+    Type: "String"
+    Default: "8"
+
+Resources:
+  "VPC":
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.10.0.0/23"
+
+  "InternetSubnet":
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: "10.10.0.0/23"
+      AvailabilityZone: "ap-northeast-1a"
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: "VPC"
+
+  "InternetGateway":
+    Type: "AWS::EC2::InternetGateway"
+
+  "InternetRouteTable":
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId:
+        Ref: "VPC"
+
+  VPCGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId:
+        Ref: "VPC"
+      InternetGatewayId:
+        Ref: "InternetGateway"
+
+  "InternetSubnetRouteTableAssociation":
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId:
+        Ref: "InternetRouteTable"
+      SubnetId:
+        Ref: "InternetSubnet"
+
+  "InternetRoute":
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      RouteTableId:
+        Ref: "InternetRouteTable"
+      GatewayId:
+        Ref: "InternetGateway"
+    DependsOn: "VPCGatewayAttachment"
+
+  "ServerSecurityGroup":
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable HTTP via port 80 and 8080"
+      VpcId:
+        Ref: "VPC"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "8080"
+          ToPort: "8080"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp:
+            Ref: "SSHLocation"
+
+  "ServerInstance":
+    Type: "AWS::EC2::Instance"
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize:
+              Ref: "EBSVolumeSize"
+      ImageId:
+        Ref: "AMI"
+      InstanceType:
+        Ref: "InstanceTypeParameter"
+      SecurityGroupIds:
+        - Fn::GetAtt:
+          - "ServerSecurityGroup"
+          - "GroupId"
+      SubnetId:
+        Ref: "InternetSubnet"
+      KeyName:
+        Ref: "KeyName"
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            -
+              - |-
+                #!/bin/bash -xe
+                echo "==== Starting UserData ===="
+                STACK_NAME=
+
+              - Ref: "AWS::StackName"
+              - "\n"
+              - |-
+                REGION=
+
+              - Ref: "AWS::Region"
+              - "\n"
+              - |
+                sudo apt-get update
+                sudo apt-get install -y python-setuptools
+                sudo mkdir -p /opt/aws/bin
+                wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+                sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
+                /opt/aws/bin/cfn-init --verbose --resource ServerInstance --stack $STACK_NAME --region $REGION
+                /opt/aws/bin/cfn-signal --exit-code $? --resource ServerInstance --stack $STACK_NAME --region $REGION
+                echo "==== End UserData ===="
+
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            apt:
+              "make": []
+              "nginx": []
+              "erlang": []
+          files:
+            "/home/ubuntu/install.sh":
+              mode: "000755"
+              owner: "root"
+              group: "root"
+              content: |
+                #!/bin/bash -xe
+                BUILD_ROOT_PATH="/home/ubuntu"
+                PROJECT_PATH="${BUILD_ROOT_PATH}/game_tianjiupai"
+                PROJECT_URL="https://github.com/gfngfn/game_tianjiupai"
+                BRANCH_NAME="temp-deploy"
+                REBAR3_URL="https://s3.amazonaws.com/rebar3/rebar3"
+                echo "==== Overwrite settings for Nginx ===="
+                sudo cp /home/ubuntu/nginx.conf /etc/nginx/sites-enabled/default
+                echo "==== Installing Rebar3 ===="
+                sudo wget -O /home/ubuntu/rebar3 "${REBAR3_URL}"
+                sudo chmod a+x /home/ubuntu/rebar3
+                sudo mv /home/ubuntu/rebar3 /usr/bin
+                echo "==== Clone the repository ===="
+                git -C "${BUILD_ROOT_PATH}" clone "${PROJECT_URL}" -b ${BRANCH_NAME}
+                echo "==== Releasing the project ===="
+                cd "${PROJECT_PATH}" && sudo make public-assets && sudo rebar3 as prod release
+                sudo chown -R ubuntu:ubuntu "${PROJECT_PATH}"
+                echo "==== Starting ===="
+                sudo systemctl enable erlang-app
+                echo "==== Reboot after installation ===="
+                sleep 10 && sudo reboot &
+                exit 0
+
+            "/home/ubuntu/nginx.conf":
+              mode: "000555"
+              owner: "root"
+              group: "root"
+              content: |
+                map $http_upgrade $connection_upgrade {
+                    default upgrade;
+                    ''      close;
+                }
+
+                server {
+                    listen *:80 default_server;
+                    proxy_read_timeout 5m;
+
+                    server_name _;
+
+                    location /websocket/ {
+                        proxy_http_version 1.1;
+                        proxy_set_header Host $host;
+                        proxy_set_header Upgrade $http_upgrade;
+                        proxy_set_header Connection $connection_upgrade;
+                        proxy_pass "http://127.0.0.1:8080/websocket/";
+                    }
+
+                    location / {
+                        proxy_set_header X-Forwarded-For $remote_addr;
+                        proxy_set_header Host $http_host;
+                        proxy_pass "http://127.0.0.1:8080/";
+                    }
+                }
+
+            "/etc/init.d/erlang-app":
+              mode: "000755"
+              owner: "root"
+              group: "root"
+              content: |
+                #!/bin/bash
+                ### BEGIN INIT INFO
+                # Provides:          erlang-app
+                # Required-Start:    $all
+                # Required-Stop:
+                # Default-Start:     2 3 4 5
+                # Default-Stop:
+                # Short-Description: Starts/Stops an Erlang application
+                ### END INIT INFO
+                set -xe
+                APP_DIR=/home/ubuntu/game_tianjiupai/_build/prod/rel/tianjiupai
+                APP_NAME=tianjiupai
+                case "$1" in
+                    start)
+                        cd "${APP_DIR}"
+                        HOME=/home/ubuntu "bin/${APP_NAME}" daemon
+                        ;;
+                    stop)
+                        cd "${APP_DIR}"
+                        HOME=/home/ubuntu "bin/${APP_NAME}" stop
+                        ;;
+                    *)
+                        echo "cannot recognize '$1'"
+                esac
+                exit 0
+
+          commands:
+            "install":
+              command: "/home/ubuntu/install.sh"
+
+Outputs:
+  WebsiteURL:
+    Value:
+      Fn::Join:
+        - ""
+        - ["http://", {"Fn::GetAtt": ["ServerInstance", "PublicDnsName"]}]

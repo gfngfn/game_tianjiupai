@@ -1,6 +1,6 @@
 _build
 elm-stuff/
-public/
+priv/public/
 src_client/_generated/
 _generated/
 _generated_test/
