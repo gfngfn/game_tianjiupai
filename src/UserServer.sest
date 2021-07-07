@@ -1,3 +1,4 @@
+import Logger
 import Types
 import Room
 
@@ -141,7 +142,7 @@ end = struct
       end
 
     val handle_cast(msg, state) = act
-      let _ = print_debug({"unexpected cast message", msg}) in
+      let _ = assert Logger.warning(f'unexpected cast message (message: ~p, state: ~p)', {msg, state}) in
       GenServer.no_reply(state)
 
     val check_down_message : fun(info, monitor_ref) -> option<RawValue.t> = external 2 ```
@@ -170,28 +171,28 @@ end = struct
         case check_room_down(info, state) of
         | Some(reason) ->
             let _ =
-              print_debug(
-                format(
-                  f'Room closed (user_id: ~p, reason: ~p)~n',
-                  {user_id, reason}))
+              assert Logger.info(
+                f'room closed (user_id: ~p, reason: ~p)',
+                {user_id, reason}
+              )
             in
             { state | belongs_to = None }
         | None ->
             case check_websocket_down(info, state) of
             | Some(reason) ->
                 let _ =
-                  print_debug(
-                    format(
-                      f'WebSocket connection closed (user_id: ~p, reason: ~p)~n',
-                      {user_id, reason}))
+                  assert Logger.info(
+                    f'WebSocket connection closed (user_id: ~p, reason: ~p)',
+                    {user_id, reason}
+                  )
                 in
                 { state | websocket_connection = None }
             | None ->
                 let _ =
-                  print_debug(
-                    format(
-                      f'Unexpected info (user_id: ~p, message: ~p)',
-                      {user_id, info}))
+                  assert Logger.info(
+                    f'unexpected info (user_id: ~p, message: ~p)',
+                    {user_id, info}
+                  )
                 in
                 state
             end
@@ -200,12 +201,7 @@ end = struct
       GenServer.no_reply(state)
 
     val terminate(state) = act
-      let _ =
-        print_debug(
-          format(
-            f'terminate (user_id: ~p)',
-            {state.settings.user_id}))
-      in
+      let _ = assert Logger.info(f'terminate (user_id: ~p)', {state.settings.user_id}) in
       return({})
   end
 
