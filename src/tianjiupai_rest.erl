@@ -322,7 +322,15 @@ handle_enter_room(Req1, RoomId, UserId) ->
             {ok, UserName} = ?USER_FRONT:get_name(UserId),
             User = #{ user_id => UserId, user_name => UserName},
             Result = ?ROOM_FRONT:attend(RoomId, User),
-            (?LOGGER:info({"attend (result: ~p)", 1}, {Result}))(?MODULE, ?LINE),
+            IsSuccess =
+                case Result of
+                    {ok, _} -> true;
+                    error   -> false
+                end,
+            (?LOGGER:info(
+                {"attend (user_id: ~p, room_id: ~p, success: ~p)", 2},
+                {UserId, RoomId, IsSuccess}
+            ))(?MODULE, ?LINE),
             case Result of
                 {ok, PersonalStateMap} ->
                     RespBody = tianjiupai_format:encode_enter_room_response(PersonalStateMap),
@@ -346,7 +354,15 @@ handle_enter_room(Req1, RoomId, UserId) ->
     {boolean(), cowboy_req:req()}.
 handle_submission(Req1, RoomId, UserId, Cards) ->
     Result = ?ROOM_FRONT:submit(RoomId, UserId, Cards),
-    (?LOGGER:info({"submit (result: ~p)", 1}, {Result}))(?MODULE, ?LINE),
+    IsSuccess =
+        case Result of
+            {ok, _} -> true;
+            error   -> false
+        end,
+    (?LOGGER:info(
+        {"submit (room_id: ~p, user_id: ~p, cards: ~p, success: ~p)", 4},
+        {RoomId, UserId, Cards, IsSuccess}
+    ))(?MODULE, ?LINE),
     case Result of
         {ok, {ObservableGameState, TrickLastOpt}} ->
             RespBody = tianjiupai_format:encode_submit_cards_response(ObservableGameState, TrickLastOpt),

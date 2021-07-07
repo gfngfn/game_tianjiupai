@@ -245,7 +245,6 @@ end = struct
       List.for_each(fun(user_id) -> act notify(user_id, logs) end, user_ids)
 
     val handle_send_chat(user : user, text : binary, state : state) = act
-      let user_id = user.user_id in
       let {_, members} = get_members_from_state(state.room_state) in
       do dummy <-
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
