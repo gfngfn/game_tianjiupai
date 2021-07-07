@@ -50,6 +50,7 @@
 
 -define(ROOM_FRONT, 'Tianjiupai.Room').
 -define(USER_FRONT, 'Tianjiupai.User').
+-define(LOGGER, 'Tianjiupai.Logger').
 
 %%====================================================================================================
 %% `cowboy_rest' Callback Functions
@@ -232,6 +233,7 @@ handle_user_creation(Req0, MaybeInfo) ->
                             Req2 = tianjiupai_session:set(#{user_id => UserId}, Req1),
                             RespBody = tianjiupai_format:encode_create_user_response(UserId),
                             Req3 = cowboy_req:set_resp_body(RespBody, Req2),
+                            (?LOGGER:info({"user created (user_id: ~p)", 1}, {UserId}))(?MODULE, ?LINE),
                             {true, Req3};
                         {error, Reason} ->
                             Req2 = set_failure_reason_to_resp_body(Reason, Req1),
@@ -259,6 +261,7 @@ handle_room_creation(Req0, MaybeInfo) ->
                         {ok, RoomId} ->
                             RespBody = tianjiupai_format:encode_create_room_response(RoomId),
                             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+                            (?LOGGER:info({"room created (room_id: ~p, name: ~p, by: ~p)", 3}, {RoomId, RoomName, UserId}))(?MODULE, ?LINE),
                             {true, Req2};
                         {error, Reason} ->
                             Req2 = set_failure_reason_to_resp_body(Reason, Req1),
@@ -319,7 +322,7 @@ handle_enter_room(Req1, RoomId, UserId) ->
             {ok, UserName} = ?USER_FRONT:get_name(UserId),
             User = #{ user_id => UserId, user_name => UserName},
             Result = ?ROOM_FRONT:attend(RoomId, User),
-            io:format("attend (result: ~p)~n", [Result]),
+            (?LOGGER:info({"attend (result: ~p)", 1}, {Result}))(?MODULE, ?LINE),
             case Result of
                 {ok, PersonalStateMap} ->
                     RespBody = tianjiupai_format:encode_enter_room_response(PersonalStateMap),
@@ -343,7 +346,7 @@ handle_enter_room(Req1, RoomId, UserId) ->
     {boolean(), cowboy_req:req()}.
 handle_submission(Req1, RoomId, UserId, Cards) ->
     Result = ?ROOM_FRONT:submit(RoomId, UserId, Cards),
-    io:format("submit (result: ~p)~n", [Result]),
+    (?LOGGER:info({"submit (result: ~p)", 1}, {Result}))(?MODULE, ?LINE),
     case Result of
         {ok, {ObservableGameState, TrickLastOpt}} ->
             RespBody = tianjiupai_format:encode_submit_cards_response(ObservableGameState, TrickLastOpt),

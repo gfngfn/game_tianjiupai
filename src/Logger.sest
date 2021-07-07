@@ -4,12 +4,13 @@ module Logger :> sig
 end = struct
 
   val log_impl<$a> : fun(binary, int, list<char>, format<$a>, $a) -> unit = external 5 ```
-    log_impl(Filename, Line, LogLevel, Format, Args) ->
+    log_impl(Filename, Line, LogLevel, FormatAndArity, Args) ->
+        {Format, _} = FormatAndArity,
         TimestampMs = erlang:system_time(millisecond),
         TimestampString = calendar:system_time_to_rfc3339(TimestampMs, [{unit, millisecond}]),
         Self = self(),
         io:format(
-            "~s:~p ~s ~p [~s]" ++ Format ++ "~n",
+            "~s:~p ~s ~p [~s] " ++ Format ++ "~n",
             [Filename, Line, TimestampString, Self, LogLevel] ++ erlang:tuple_to_list(Args)).
   ```
 
