@@ -1,3 +1,4 @@
+import Logger
 import Quad
 import Card
 import SnapshotId
@@ -223,14 +224,19 @@ end = struct
         sync        = WaitingSync(make_initial_sync()),
       })
 
+    val warn_notification_failure(reason : RawValue.t, user_id : user_id, notifications : list<notification>) =
+      assert Logger.warning(
+        f'notify_log failed (reason: ~p, to: ~p, notifications: ~p)',
+        {reason, user_id, notifications}
+      )
+
     val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
       notify(UserId, Notifications) ->
           case tianjiupai_websocket:notify(UserId, Notifications) of
               ok ->
                   ok;
               {error, Reason} ->
-                  io:format("~p, notify_log failed (reason: ~p, to: ~p, notifications: ~p)",
-                      [?MODULE, Reason, UserId, Notifications]),
+                  ?MODULE:warn_notification_failure(Reason, UserId, Notifications),
                   ok
           end.
     ```
@@ -239,7 +245,6 @@ end = struct
       List.for_each(fun(user_id) -> act notify(user_id, logs) end, user_ids)
 
     val handle_send_chat(user : user, text : binary, state : state) = act
-      let user_id = user.user_id in
       let {_, members} = get_members_from_state(state.room_state) in
       do dummy <-
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
@@ -521,7 +526,12 @@ end = struct
                   case game_state.sync of
                   | WaitingSync(sync_quad) ->
                       let sync_quad = Quad.update(seat, true, sync_quad) in
-                      let _ = print_debug({"update sync", snapshot_id, game_state.snapshot_id, sync_quad}) in /* temporary */
+                      let _ =
+                        assert Logger.info(
+                          f'update sync (snapshot_id: ~p, quad: ~p)',
+                          {snapshot_id, sync_quad}
+                        )
+                      in
                       case sync_quad of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
@@ -535,11 +545,21 @@ end = struct
                           return(Some(game_state))
                       end
                   | WaitingInput ->
-                     let _ = print_debug({"waiting input", snapshot_id, game_state.snapshot_id}) in
+                      let _ =
+                        assert Logger.warning(
+                          f'waiting input (snapshot_id: ~p)',
+                          {snapshot_id}
+                        )
+                      in
                       return(None)
                   end
                 else
-                  let _ = print_debug({"snapshot mismatch", snapshot_id, game_state.snapshot_id}) in
+                  let _ =
+                    assert Logger.warning(
+                      f'snapshot mismatch (got: ~p, expected: ~p)',
+                      {snapshot_id, game_state.snapshot_id}
+                    )
+                  in
                   return(None)
             end
         end
@@ -568,7 +588,12 @@ end = struct
 
                   | InningEnd(gains_quad, inning_sync_quad) ->
                       let inning_sync_quad = Quad.update(seat, true, inning_sync_quad) in
-                      let _ = print_debug({"update inning sync", snapshot_id, game_state.snapshot_id, inning_sync_quad}) in /* temporary */
+                      let _ =
+                        assert Logger.info(
+                          f'update inning sync (snapshot_id: ~p, inning_sync_quad: ~p)',
+                          {snapshot_id, inning_sync_quad}
+                        )
+                      in
                       case inning_sync_quad of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
@@ -660,11 +685,11 @@ end = struct
       end
 
     val handle_info(info, state) = act
-      let _ = print_debug({"unexpected info", info}) in
+      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
       GenServer.no_reply(state)
 
     val terminate(state) = act
-      let _ = print_debug({"terminate", state}) in
+      let _ = assert Logger.info(f'terminate (room_id: ~p)', {state.settings.room_id}) in
       return({})
   end
 

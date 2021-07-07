@@ -35,19 +35,19 @@
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
 -define(USER_FRONT, 'Tianjiupai.User').
+-define(LOGGER, 'Tianjiupai.Logger').
 -define(IDLE_TIMEOUT_MILLISECONDS, 60000).
 
 %%====================================================================================================
 %% `cowboy_websocket' Callback Functions
 %%====================================================================================================
 init(Req0, _) ->
-    io:format("~p, init~n", [?MODULE]), % TODO
     {MaybeInfo, Req1} = tianjiupai_session:get(Req0),
     MaybeUserId = cowboy_req:binding(user_id, Req1, undefined),
     {cowboy_websocket, Req1, {MaybeUserId, MaybeInfo}, #{idle_timeout => ?IDLE_TIMEOUT_MILLISECONDS}}.
 
 websocket_init({MaybeUserId, MaybeInfo}) ->
-    io:format("~p, websocket_init (user_id: ~p, info: ~p)~n", [?MODULE, MaybeUserId, MaybeInfo]),
+    (?LOGGER:info({"websocket_init (user_id: ~p)", 1}, {MaybeUserId}))(?MODULE, ?LINE),
     case {MaybeUserId, MaybeInfo} of
         {undefined, _} ->
             {stop, user_id_unavailable};
@@ -57,10 +57,16 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
             State = #state{session_info = Info},
             case register_name(UserId) of
                 ok ->
-                    io:format("~p, succeeded in registration~n", [?MODULE]),
+                    (?LOGGER:info(
+                        {"succeeded in registration (user_id: ~p)", 1},
+                        {UserId}
+                    ))(?MODULE, ?LINE),
                     {ok, State};
                 {error, Reason} ->
-                    io:format("~p, failed in registration (reason: ~p)~n", [?MODULE, Reason]),
+                    (?LOGGER:info(
+                        {"succeeded in registration (user_id: ~p, reason: ~p)", 2},
+                        {UserId, Reason}
+                    ))(?MODULE, ?LINE),
                     {stop, Reason}
             end;
         _ ->
@@ -86,7 +92,7 @@ websocket_info(Msg, State) ->
                     Notifications),
             {reply, Chunks, State};
         _ ->
-            io:format("~p, unknown message (messge: ~p)~n", [?MODULE, Msg]),
+            (?LOGGER:warning({"unknown message (messge: ~p)", 1}, {Msg}))(?MODULE, ?LINE),
             {ok, State}
     end.
 
@@ -115,7 +121,10 @@ register_name(UserId) ->
             name(UserId),
             Self,
             fun(Name, Pid1, Pid2) ->
-                    io:format("name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)~n", [Name, Pid1, Pid2, Self]),
+                    (?LOGGER:warning(
+                        {"name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)", 4},
+                        {Name, Pid1, Pid2, Self}
+                    ))(?MODULE, ?LINE),
                     case {Pid1, Pid2} of
                         {Self, _} ->
                             erlang:exit(Pid2),
@@ -156,26 +165,34 @@ handle_command(Data, State) ->
                         {ok, ok} ->
                             ok;
                         error ->
-                            io:format("~p: failed to send a chat comment (user_id: ~p, text: ~p)~n",
-                                [?MODULE, UserId, Text]),
+                            (?LOGGER:warning(
+                                {"failed to send a chat comment (user_id: ~p, text: ~p)", 2},
+                                {UserId, Text}
+                            ))(?MODULE, ?LINE),
                             ok
                     end,
                     {ok, State};
                 {ack, SnapshotId} ->
-                    io:format("~p: ack (user_id: ~p, snapshot_id: ~p)~n",
-                        [?MODULE, UserId, SnapshotId]),
+                    (?LOGGER:info(
+                        {"ack (user_id: ~p, snapshot_id: ~p)", 2},
+                        {UserId, SnapshotId}
+                    ))(?MODULE, ?LINE),
                     ok = ?USER_FRONT:ack(UserId, SnapshotId),
                     {ok, State};
                 {next_inning, SnapshotId} ->
-                    io:format("~p: next inning (user_id: ~p, snapshot_id: ~p)~n",
-                        [?MODULE, UserId, SnapshotId]),
+                    (?LOGGER:info(
+                        {"next inning (user_id: ~p, snapshot_id: ~p)", 2},
+                        {UserId, SnapshotId}
+                    ))(?MODULE, ?LINE),
                     ok = ?USER_FRONT:require_next_inning(UserId, SnapshotId),
                     {ok, State};
                 heartbeat ->
-                    %% io:format("~p: heartbeat (user_id: ~p)~n", [?MODULE, UserId]),
                     {ok, State}
             end;
         {error, Reason} ->
-            io:format("~p: unknown command (reason: ~p)~n", [?MODULE, Reason]),
+            (?LOGGER:warning(
+                {"unknown command (reason: ~p)", 1},
+                {Reason}
+            ))(?MODULE, ?LINE),
             {ok, State}
     end.
