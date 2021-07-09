@@ -425,10 +425,6 @@ make_ok_object(ok) ->
 make_wenzun_object(major) -> true;
 make_wenzun_object(minor) -> false.
 
--spec make_bool_object(boolean()) -> encodable().
-make_bool_object(true)  -> true;
-make_bool_object(false) -> false.
-
 %% `F : fun($a) -> json'
 %% `Exposed : exposed($a)'
 make_exposed_object(F, Exposed) ->
