@@ -59,7 +59,7 @@
 init(Req0, EndpointKind) ->
     %% Method :: http_method()
     Method = cowboy_req:method(Req0),
-    %% MaybeInfo :: tianjiupai_session:info()
+    %% MaybeInfo :: undefined | tianjiupai_session:info()
     {MaybeInfo, Req1} = tianjiupai_session:get(Req0),
     %% Endpoint :: endpoint()
     Endpoint =
@@ -396,5 +396,23 @@ validate_cookie(MaybeInfo, UserId) ->
 
 -spec make_flags_from_cookie(undefined | tianjiupai_session:info()) -> binary().
 make_flags_from_cookie(MaybeInfo) ->
-    JsonBin = tianjiupai_format:encode_flags_object(MaybeInfo),
+    MaybeFlags =
+        case MaybeInfo of
+            #{user_id := UserId} ->
+                Result = ?USER_FRONT:get_info(UserId),
+                case Result of
+                    {ok, Info} ->
+                        #{user_name := UserName, belongs_to := MaybeRoomId} = Info,
+                        {ok, #{
+                            user_id    => UserId,
+                            user_name  => UserName,
+                            belongs_to => MaybeRoomId
+                        }};
+                    error ->
+                        error
+                end;
+            undefined ->
+                error
+        end,
+    JsonBin = tianjiupai_format:encode_flags_object(MaybeFlags),
     <<"'", JsonBin/binary, "'">>.

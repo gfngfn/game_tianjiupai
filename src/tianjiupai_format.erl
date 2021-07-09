@@ -38,6 +38,12 @@
     {enter_room, tianjiupai:user_id()}
   | {submit, tianjiupai:user_id(), [tianjiupai:card()]}.
 
+-type flags() :: #{
+    user_id    := tianjiupai:user_id(),
+    user_name  := binary(),
+    belongs_to := {ok, tianjiupai:room_id()} | error
+}.
+
 -type encodable() :: term().
 
 -define(LABEL_ONLY(_Label_), #{'_label' => _Label_}).
@@ -51,9 +57,9 @@
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec encode_flags_object(undefined | tianjiupai_session:info()) -> binary().
-encode_flags_object(MaybeInfo) ->
-    FlagUserObj = make_flag_user_object(MaybeInfo),
+-spec encode_flags_object({ok, flags()} | error) -> binary().
+encode_flags_object(MaybeFlags) ->
+    FlagUserObj = make_flag_user_object(MaybeFlags),
     jsone:encode(FlagUserObj).
 
 -spec decode_create_user_request(iodata()) ->
@@ -204,31 +210,25 @@ encode_notification(Notification) ->
     NotificationObj = make_notification_object(Notification),
     jsone:encode(NotificationObj).
 
-make_flag_user_object(MaybeInfo) ->
-    case MaybeInfo of
-        undefined ->
+-spec make_flag_user_object({ok, flags()} | error) -> encodable().
+make_flag_user_object(MaybeFlags) ->
+    case MaybeFlags of
+        error ->
             ?LABEL_ONLY(<<"None">>);
-        #{user_id := UserId} ->
-            Result = ?USER_FRONT:get_info(UserId),
-            io:format("user_id: ~p, info: ~p~n", [UserId, Result]),
-            case Result of
-                {ok, Info} ->
-                    #{user_name := UserName, belongs_to := MaybeRoomId} = Info,
-                    MaybeRoomObj =
-                        case MaybeRoomId of
-                            error ->
-                                ?LABEL_ONLY(<<"None">>);
-                            {ok, RoomId} ->
-                                ?LABELED(<<"Some">>, RoomId)
-                        end,
-                    ?LABELED(<<"Some">>, #{
-                        id         => UserId,
-                        name       => UserName,
-                        belongs_to => MaybeRoomObj
-                    });
-                error ->
-                    ?LABEL_ONLY(<<"None">>)
-            end
+        {ok, Flags} ->
+            #{user_id := UserId, user_name := UserName, belongs_to := MaybeRoomId} = Flags,
+            MaybeRoomObj =
+                case MaybeRoomId of
+                    error ->
+                        ?LABEL_ONLY(<<"None">>);
+                    {ok, RoomId} ->
+                        ?LABELED(<<"Some">>, RoomId)
+                end,
+            ?LABELED(<<"Some">>, #{
+                id         => UserId,
+                name       => UserName,
+                belongs_to => MaybeRoomObj
+            })
     end.
 
 -spec make_log_object(tianjiupai:log()) -> encodable().
