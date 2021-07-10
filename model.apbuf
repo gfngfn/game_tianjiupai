@@ -189,7 +189,11 @@ big_with_design := {
   design : design,
 }
 
-seat := int
+seat :=
+  | SeatA
+  | SeatB
+  | SeatC
+  | SeatD
 
 snapshot_id := string
 

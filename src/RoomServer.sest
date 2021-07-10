@@ -145,19 +145,19 @@ end = struct
 
     val the_other_seats(seat) =
       case seat of
-      | Quad.Seat0 -> [Quad.Seat1, Quad.Seat2, Quad.Seat3]
-      | Quad.Seat1 -> [Quad.Seat2, Quad.Seat3, Quad.Seat0]
-      | Quad.Seat2 -> [Quad.Seat3, Quad.Seat0, Quad.Seat1]
-      | Quad.Seat3 -> [Quad.Seat0, Quad.Seat1, Quad.Seat2]
+      | Models.SeatA -> [Models.SeatB, Models.SeatC, Models.SeatD]
+      | Models.SeatB -> [Models.SeatC, Models.SeatD, Models.SeatA]
+      | Models.SeatC -> [Models.SeatD, Models.SeatA, Models.SeatB]
+      | Models.SeatD -> [Models.SeatA, Models.SeatB, Models.SeatC]
       end
 
     val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<user_id> =
       let {u0, u1, u2, u3} = Quad.decompose(Quad.map(fun(p) -> p.user.user_id end, game_state.meta.players)) in
       case seat of
-      | Quad.Seat0 -> [u1, u2, u3]
-      | Quad.Seat1 -> [u2, u3, u0]
-      | Quad.Seat2 -> [u3, u0, u1]
-      | Quad.Seat3 -> [u0, u1, u2]
+      | Models.SeatA -> [u1, u2, u3]
+      | Models.SeatB -> [u2, u3, u0]
+      | Models.SeatC -> [u3, u0, u1]
+      | Models.SeatD -> [u0, u1, u2]
       end
 
     val make_observable_game_state(game_state : whole_game_state, user_id : user_id) : option<observable_game_state> =
@@ -276,7 +276,7 @@ end = struct
                   let player3 = { user = user, score = 0 } in
                   Quad.make({player0, player1, player2, player3})
                 in
-                let parent_seat = Quad.Seat0 in
+                let parent_seat = Models.SeatA in
                 let game_meta =
                   {
                     inning_index     = 0,

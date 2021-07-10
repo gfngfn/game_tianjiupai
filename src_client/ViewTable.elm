@@ -336,13 +336,11 @@ makeRelativeQuad selfSeat gainsQuad submittedQuad =
   let elem1 = { gains = gainsQuad.south, submitted = submittedQuad.south } in
   let elem2 = { gains = gainsQuad.west,  submitted = submittedQuad.west } in
   let elem3 = { gains = gainsQuad.north, submitted = submittedQuad.north } in
-  let elemX = { gains = [], submitted = [] } in -- used only for dummy values
   case selfSeat of
-    0 -> { self = elem0, right = elem1, front = elem2, left = elem3 }
-    1 -> { self = elem1, right = elem2, front = elem3, left = elem0 }
-    2 -> { self = elem2, right = elem3, front = elem0, left = elem1 }
-    3 -> { self = elem3, right = elem0, front = elem1, left = elem2 }
-    _ -> { self = elemX, right = elemX, front = elemX, left = elemX } -- should never happen
+    SeatA -> { self = elem0, right = elem1, front = elem2, left = elem3 }
+    SeatB -> { self = elem1, right = elem2, front = elem3, left = elem0 }
+    SeatC -> { self = elem2, right = elem3, front = elem0, left = elem1 }
+    SeatD -> { self = elem3, right = elem0, front = elem1, left = elem2 }
 
 
 makeSubmittedQuad : Seat -> Table -> PerSeat (List (ClosedOr Card))
@@ -358,8 +356,7 @@ makeSubmittedQuad startSeat table =
         x0 :: x1 :: x2 :: x3 :: _ -> { x0 = x0, x1 = x1, x2 = x2, x3 = x3 }
   in
   case startSeat of
-    0 -> { east = t.x0, south = t.x1, west = t.x2, north = t.x3 }
-    1 -> { east = t.x3, south = t.x0, west = t.x1, north = t.x2 }
-    2 -> { east = t.x2, south = t.x3, west = t.x0, north = t.x1 }
-    3 -> { east = t.x1, south = t.x2, west = t.x3, north = t.x0 }
-    _ -> { east = [], south = [], west = [], north = [] } -- should never happen
+    SeatA -> { east = t.x0, south = t.x1, west = t.x2, north = t.x3 }
+    SeatB -> { east = t.x3, south = t.x0, west = t.x1, north = t.x2 }
+    SeatC -> { east = t.x2, south = t.x3, west = t.x0, north = t.x1 }
+    SeatD -> { east = t.x1, south = t.x2, west = t.x3, north = t.x0 }

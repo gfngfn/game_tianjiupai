@@ -504,7 +504,7 @@ make_quad_object(F, Quad) ->
     }.
 
 -spec make_seat_object(tianjiupai:seat()) -> encodable().
-make_seat_object(seat0) -> 0;
-make_seat_object(seat1) -> 1;
-make_seat_object(seat2) -> 2;
-make_seat_object(seat3) -> 3.
+make_seat_object(seat_a) -> ?LABEL_ONLY(<<"SeatA">>);
+make_seat_object(seat_b) -> ?LABEL_ONLY(<<"SeatB">>);
+make_seat_object(seat_c) -> ?LABEL_ONLY(<<"SeatC">>);
+make_seat_object(seat_d) -> ?LABEL_ONLY(<<"SeatD">>).
