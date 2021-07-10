@@ -189,10 +189,10 @@ end = struct
     val make_observable(room_state : internal_room_state, user_id : user_id) : option<observable_room_state> =
       case room_state of
       | InternalWaiting(waiting_state) ->
-          Some(Waiting(waiting_state.members))
+          Some(Models.WaitingStart(waiting_state.members))
 
       | InternalPlaying(game_state) ->
-          Option.map(fun(obs) -> Playing(obs) end, make_observable_game_state(game_state, user_id))
+          Option.map(fun(obs) -> Models.PlayingGame(obs) end, make_observable_game_state(game_state, user_id))
       end
 
     val make_personal_state(state : state, user_id : user_id) : option<personal_state> =
@@ -203,9 +203,9 @@ end = struct
 
       | Some(observable) ->
           Some({
-            room       = { room_id = settings.room_id, room_name = settings.room_name },
-            logs       = List.reverse(state.reversed_logs),
-            observable = observable,
+            room = { room_id = settings.room_id, room_name = settings.room_name },
+            logs = List.reverse(state.reversed_logs),
+            game = observable,
           })
       end
 

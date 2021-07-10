@@ -247,7 +247,7 @@ make_log_object(Log) ->
 -spec make_notification_object(tianjiupai:notification()) -> encodable().
 make_notification_object(Notification) ->
     case Notification of
-        {notify_comment, From, Text} ->
+        {notify_comment, #{from := From, text := Text}} ->
             ?LABELED(<<"NotifyComment">>, #{from => make_user_object(From), text => Text});
         {notify_entered, User} ->
             ?LABELED(<<"NotifyEntered">>, make_user_object(User));
@@ -299,18 +299,18 @@ make_room_summary_object(WholeStateMap) ->
 -spec make_personal_state_object(tianjiupai:personal_room_state()) -> encodable().
 make_personal_state_object(PersonalStateMap) ->
     #{
-        room       := #{ room_id := RoomId, room_name := RoomName },
-        logs       := Logs,
-        observable := Observable
+        room := #{ room_id := RoomId, room_name := RoomName },
+        logs := Logs,
+        game := Observable
     } = PersonalStateMap,
     case Observable of
-        {waiting, Members} ->
+        {waiting_start, Members} ->
             #{
                 room => make_room_object(RoomId, RoomName),
                 logs => lists:map(fun make_log_object/1, Logs),
                 game => ?LABELED(<<"WaitingStart">>, lists:map(fun make_user_object/1, Members))
             };
-        {playing, ObservableGameState} ->
+        {playing_game, ObservableGameState} ->
             ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
             #{
                 room => make_room_object(RoomId, RoomName),
