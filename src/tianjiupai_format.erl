@@ -286,8 +286,7 @@ make_room_object(RoomId, RoomName) ->
 -spec make_room_summary_object(tianjiupai:whole_room_state()) -> encodable().
 make_room_summary_object(WholeStateMap) ->
     #{
-        room_id    := RoomId,
-        room_name  := RoomName,
+        room       := #{ room_id := RoomId, room_name := RoomName },
         members    := Members,
         is_playing := IsPlaying
     } = WholeStateMap,

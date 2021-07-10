@@ -128,8 +128,7 @@ end = struct
       let settings = state.settings in
       let {is_playing, members} = get_members_from_state(state.room_state) in
       {
-        room_id    = settings.room_id,
-        room_name  = settings.room_name,
+        room       = { room_id = settings.room_id, room_name = settings.room_name },
         is_playing = is_playing,
         members    = members,
       }
