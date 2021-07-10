@@ -238,7 +238,7 @@ end = struct
         if Card.wu_equal(wu1, wu2) then
           Some(DoubleWu(first_exposed(wu1.number)))
         else if wu1.number == 3 && wu2.number == 6 then
-          Some(Wuzun(first_exposed({})))
+          Some(Wuzun(first_exposed(Models.WuzunUnit)))
         else
           None
     | [Models.Wen(wen), Models.Wu(wu)] ->

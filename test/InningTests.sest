@@ -77,7 +77,7 @@ module InningTests = #[test] struct
                  Wenzun(first(Models.WenzunMinor))},
 
               {[wu(true, 3), wu(true, 6)],
-                 Wuzun(first({}))},
+                 Wuzun(first(Models.WuzunUnit))},
 
               {[wen(11), wu(true, 9)],
                  DoubleBoth(first(bigd(true, Models.BigD)))},

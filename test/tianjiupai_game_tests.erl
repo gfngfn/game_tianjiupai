@@ -589,7 +589,7 @@ submit_success_test_() ->
                       player1 => {?MOCKED_HAND12, []}, % MOCKED_HAND12 == MOCKED_HAND1 - wuT(3), wuT(6)
                       player2 => {?MOCKED_HAND2, []},
                       player3 => {?MOCKED_HAND3, []},
-                      table => {wuzun, Exposed(ok, [])}
+                      table => {wuzun, Exposed(wuzun_unit, [])}
                   })}
           },
           #submit_test_case{
