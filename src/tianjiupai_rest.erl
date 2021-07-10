@@ -317,31 +317,12 @@ handle_room_update(Req0, MaybeInfo, RoomId) ->
 ) ->
     {boolean(), cowboy_req:req()}.
 handle_enter_room(Req1, RoomId, UserId) ->
-    case ?USER_FRONT:set_room(UserId, RoomId) of
-        {ok, ok} ->
-            {ok, UserName} = ?USER_FRONT:get_name(UserId),
-            User = #{ user_id => UserId, user_name => UserName},
-            Result = ?ROOM_FRONT:attend(RoomId, User),
-            IsSuccess =
-                case Result of
-                    {ok, _} -> true;
-                    error   -> false
-                end,
-            (?LOGGER:info(
-                {"attend (user_id: ~p, room_id: ~p, success: ~p)", 2},
-                {UserId, RoomId, IsSuccess}
-            ))(?MODULE, ?LINE),
-            case Result of
-                {ok, PersonalStateMap} ->
-                    RespBody = tianjiupai_format:encode_enter_room_response(PersonalStateMap),
-                    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-                    {true, Req2};
-                error ->
-                    Req2 = set_failure_reason_to_resp_body(attend_failed, Req1),
-                    {false, Req2}
-            end;
+    case ?FRONT:enter_room(UserId, RoomId) of
+        {ok, RespBody} ->
+            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+            {true, Req2};
         error ->
-            Req2 = set_failure_reason_to_resp_body(set_room_failed, Req1),
+            Req2 = set_failure_reason_to_resp_body(enter_room_failed, Req1),
             {false, Req2}
     end.
 

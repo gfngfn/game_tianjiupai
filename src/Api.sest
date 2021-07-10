@@ -1,3 +1,4 @@
+import Logger
 import Models
 import Types
 import User
@@ -16,5 +17,36 @@ module Api = struct
 
   val create_room(room_name : room_name) = act
     Room.create(room_name)
+
+  val enter_room(user_id : user_id, room_id : room_id) = act
+    do res <- User.set_room(user_id, room_id) in
+    case res of
+    | Some({}) ->
+        do res <- User.get_name(user_id) in
+        let Some(user_name) = res in
+        let user = { user_id = user_id, user_name = user_name } in
+        do res <- Room.attend(room_id, user) in
+        let is_success =
+          case res of
+          | Some(_) -> true
+          | None    -> false
+          end
+        in
+        let _ =
+          assert Logger.info(
+            f'attend (user_id: ~p, room_id: ~p, success: ~p)',
+            {user_id, room_id, is_success}
+          )
+        in
+        case res of
+        | Some(personal_state) ->
+            let enc = Models.encode_enter_room_response() in
+            return(Some(Json.Encode.run(enc(personal_state))))
+        | None ->
+            return(None)
+        end
+    | None ->
+        return(None)
+    end
 
 end
