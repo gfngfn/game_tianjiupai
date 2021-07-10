@@ -52,7 +52,7 @@ module Types = struct
     | Waiting(list<user>)
     | Playing(observable_game_state)
 
-  type personal_room_state = {
+  type personal_state = {
     room_id    : room_id,
     room_name  : room_name,
     logs       : list<log>,

@@ -19,10 +19,10 @@ module RoomServer :> sig
 
   val get_whole_state<$a> : fun(room_id) -> [$a]option<whole_room_state>
   val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<whole_room_state>
-  val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
+  val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
 
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
-  val attend<$a> : fun(room_id, user) -> [$a]option<personal_room_state>
+  val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
@@ -75,9 +75,9 @@ end = struct
 
   type response_impl =
     | WholeState(whole_room_state)
-    | PersonalState(option<personal_room_state>)
+    | PersonalState(option<personal_state>)
     | ChatSent
-    | Attended(option<personal_room_state>)
+    | Attended(option<personal_state>)
     | Exited(bool)
     | SubmissionDone(option<{observable_game_state, option<table_state>}>)
 
@@ -195,7 +195,7 @@ end = struct
           Option.map(fun(obs) -> Playing(obs) end, make_observable_game_state(game_state, user_id))
       end
 
-    val make_personal_room_state(state : state, user_id : user_id) : option<personal_room_state> =
+    val make_personal_state(state : state, user_id : user_id) : option<personal_state> =
       let settings = state.settings in
       case make_observable(state.room_state, user_id) of
       | None ->
@@ -262,7 +262,7 @@ end = struct
       | InternalWaiting(waiting_state) ->
           let members = waiting_state.members in
           if List.any(fun(u) -> Binary.equal(u.user_id, user_id) end, members) then
-            let Some(personal_state) = make_personal_room_state(state, user_id) in
+            let Some(personal_state) = make_personal_state(state, user_id) in
             GenServer.reply(Attended(Some(personal_state)), state)
           else
             let log_enter = Models.LogEntered(user) in
@@ -301,7 +301,7 @@ end = struct
                     reversed_logs = Models.LogGameStart :: log_enter :: state.reversed_logs,
                   }
                 in
-                let Some(personal_state) = make_personal_room_state(state, user_id) in
+                let Some(personal_state) = make_personal_state(state, user_id) in
                 GenServer.reply(Attended(Some(personal_state)), state)
 
             | _ ->
@@ -313,7 +313,7 @@ end = struct
                     reversed_logs = log_enter :: state.reversed_logs,
                   }
                 in
-                let Some(personal_state) = make_personal_room_state(state, user_id) in
+                let Some(personal_state) = make_personal_state(state, user_id) in
                 GenServer.reply(Attended(Some(personal_state)), state)
             end
       end
@@ -664,7 +664,7 @@ end = struct
           GenServer.reply(WholeState(whole_state), state)
       | GetPersonalState(user_id) ->
           do state <- update_sync(user_id, state) in
-          let personal_state_opt = make_personal_room_state(state, user_id) in
+          let personal_state_opt = make_personal_state(state, user_id) in
           GenServer.reply(PersonalState(personal_state_opt), state)
       | SendChat(user, text) ->
           handle_send_chat(user, text, state)
@@ -748,7 +748,7 @@ end = struct
     | WholeState(whole_state) -> return(Some(whole_state))
     end
 
-  val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_room_state> = act
+  val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_state> = act
     call(room_id, GetPersonalState(user_id), fun(resp) -> act
       case resp of
       | PersonalState(personal_state_opt) -> return(personal_state_opt)
@@ -762,7 +762,7 @@ end = struct
       end
     end)
 
-  val attend<$a>(room_id : room_id, user : user) : [$a]option<personal_room_state> = act
+  val attend<$a>(room_id : room_id, user : user) : [$a]option<personal_state> = act
     call(room_id, Attend(user), fun(resp) -> act
       case resp of
       | Attended(game_state_opt) -> return(game_state_opt)
