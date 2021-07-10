@@ -1,0 +1,20 @@
+import Models
+import Types
+import User
+import Room
+
+module Api = struct
+  open Types
+
+  val create_user(user_name : user_name) = act
+    User.create(user_name)
+
+  val get_all_rooms() = act
+    do room_summaries <- Room.get_all_rooms() in
+    let enc = Models.encode_get_all_rooms_response() in
+    return(Json.Encode.run(enc({rooms = room_summaries})))
+
+  val create_room(room_name : room_name) = act
+    Room.create(room_name)
+
+end

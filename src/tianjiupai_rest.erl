@@ -48,6 +48,7 @@
     session_info :: undefined | tianjiupai_session:info()
 }).
 
+-define(FRONT, 'Tianjiupai.Api').
 -define(ROOM_FRONT, 'Tianjiupai.Room').
 -define(USER_FRONT, 'Tianjiupai.User').
 -define(LOGGER, 'Tianjiupai.Logger').
@@ -164,8 +165,7 @@ provide_json(Req0, State) ->
     RespBody =
         case State of
             #state{method = <<"GET">>, endpoint = all_rooms} ->
-                RoomStateMaps = ?ROOM_FRONT:get_all_rooms(),
-                tianjiupai_format:encode_get_all_rooms_response(RoomStateMaps);
+                ?FRONT:get_all_rooms();
             #state{
                 method       = <<"GET">>,
                 endpoint     = {specific_room_and_user, RoomId, UserId},
@@ -228,7 +228,7 @@ handle_user_creation(Req0, MaybeInfo) ->
             {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
             case tianjiupai_format:decode_create_user_request(ReqBody) of
                 {ok, UserName} ->
-                    case ?USER_FRONT:create(UserName) of
+                    case ?FRONT:create_user(UserName) of
                         {ok, UserId} ->
                             Req2 = tianjiupai_session:set(#{user_id => UserId}, Req1),
                             RespBody = tianjiupai_format:encode_create_user_response(UserId),
@@ -257,7 +257,7 @@ handle_room_creation(Req0, MaybeInfo) ->
         {ok, {UserId, RoomName}} ->
             case validate_cookie(MaybeInfo, UserId) of
                 true ->
-                    case ?ROOM_FRONT:create(RoomName) of
+                    case ?FRONT:create_room(RoomName) of
                         {ok, RoomId} ->
                             RespBody = tianjiupai_format:encode_create_room_response(RoomId),
                             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
