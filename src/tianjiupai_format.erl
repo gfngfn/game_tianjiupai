@@ -367,27 +367,27 @@ make_observable_inning_state_object(ObservableInningStateMap) ->
 make_table_object(Table) ->
     case Table of
         starting ->
-            ?LABEL_ONLY(<<"TrickStarting">>);
+            ?LABEL_ONLY(<<"Starting">>);
         {wuzun, Exposed} ->
-            ?LABELED(<<"TrickWuzun">>, make_exposed_object(fun make_ok_object/1, Exposed));
+            ?LABELED(<<"Wuzun">>, make_exposed_object(fun make_ok_object/1, Exposed));
         {wenzun, Exposed} ->
-            ?LABELED(<<"TrickWenzun">>, make_exposed_object(fun make_wenzun_object/1, Exposed));
+            ?LABELED(<<"Wenzun">>, make_exposed_object(fun make_wenzun_object/1, Exposed));
         {single_wen, WenExposed} ->
-            ?LABELED(<<"TrickSingleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
+            ?LABELED(<<"SingleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
         {single_wu, WuExposed} ->
-            ?LABELED(<<"TrickSingleWu">>, make_exposed_object(fun make_card_wu_object/1, WuExposed));
+            ?LABELED(<<"SingleWu">>, make_exposed_object(fun make_card_wu_object/1, WuExposed));
         {double_wen, WenExposed} ->
-            ?LABELED(<<"TrickDoubleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
+            ?LABELED(<<"DoubleWen">>, make_exposed_object(fun make_card_wen_object/1, WenExposed));
         {double_wu, WunumExposed} ->
-            ?LABELED(<<"TrickDoubleWu">>, make_exposed_object(fun make_card_wu_number_object/1, WunumExposed));
+            ?LABELED(<<"DoubleWu">>, make_exposed_object(fun make_card_wu_number_object/1, WunumExposed));
         {double_both, BigdExposed} ->
-            ?LABELED(<<"TrickDoubleBoth">>, make_exposed_object(fun make_card_big_with_design_object/1, BigdExposed));
+            ?LABELED(<<"DoubleBoth">>, make_exposed_object(fun make_card_big_with_design_object/1, BigdExposed));
         {triple_wen, BigdExposed} ->
-            ?LABELED(<<"TrickTripleWen">>, make_exposed_object(fun make_card_big_with_design_object/1, BigdExposed));
+            ?LABELED(<<"TripleWen">>, make_exposed_object(fun make_card_big_with_design_object/1, BigdExposed));
         {triple_wu, BigExposed} ->
-            ?LABELED(<<"TrickTripleWu">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
+            ?LABELED(<<"TripleWu">>, make_exposed_object(fun make_card_big_object/1, BigExposed));
         {quadruple, BigExposed} ->
-            ?LABELED(<<"TrickQuadruple">>, make_exposed_object(fun make_card_big_object/1, BigExposed))
+            ?LABELED(<<"Quadruple">>, make_exposed_object(fun make_card_big_object/1, BigExposed))
     end.
 
 %% `Big : Tianjiupai.Card.big'

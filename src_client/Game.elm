@@ -50,17 +50,17 @@ isWaitingLastSubmission ostate =
 getTableSize : Table -> Int
 getTableSize table =
   case table of
-    TrickStarting     -> 0
-    TrickWuzun e      -> getExposedSize e
-    TrickWenzun e     -> getExposedSize e
-    TrickSingleWen e  -> getExposedSize e
-    TrickSingleWu e   -> getExposedSize e
-    TrickDoubleWen e  -> getExposedSize e
-    TrickDoubleWu e   -> getExposedSize e
-    TrickDoubleBoth e -> getExposedSize e
-    TrickTripleWen e  -> getExposedSize e
-    TrickTripleWu e   -> getExposedSize e
-    TrickQuadruple e  -> getExposedSize e
+    Starting     -> 0
+    Wuzun e      -> getExposedSize e
+    Wenzun e     -> getExposedSize e
+    SingleWen e  -> getExposedSize e
+    SingleWu e   -> getExposedSize e
+    DoubleWen e  -> getExposedSize e
+    DoubleWu e   -> getExposedSize e
+    DoubleBoth e -> getExposedSize e
+    TripleWen e  -> getExposedSize e
+    TripleWu e   -> getExposedSize e
+    Quadruple e  -> getExposedSize e
 
 
 getExposedSize : Exposed a -> Int
@@ -71,17 +71,17 @@ getExposedSize exposed =
 isSubmittable : Table -> List Card -> Bool
 isSubmittable table cards =
   case table of
-    TrickStarting     -> isStartable cards
-    TrickWuzun e      -> List.length cards == 2
-    TrickWenzun e     -> List.length cards == 2
-    TrickSingleWen e  -> List.length cards == 1
-    TrickSingleWu e   -> List.length cards == 1
-    TrickDoubleWen e  -> List.length cards == 2
-    TrickDoubleWu e   -> List.length cards == 2
-    TrickDoubleBoth e -> List.length cards == 2
-    TrickTripleWen e  -> List.length cards == 3
-    TrickTripleWu e   -> List.length cards == 3
-    TrickQuadruple e  -> List.length cards == 4
+    Starting     -> isStartable cards
+    Wuzun e      -> List.length cards == 2
+    Wenzun e     -> List.length cards == 2
+    SingleWen e  -> List.length cards == 1
+    SingleWu e   -> List.length cards == 1
+    DoubleWen e  -> List.length cards == 2
+    DoubleWu e   -> List.length cards == 2
+    DoubleBoth e -> List.length cards == 2
+    TripleWen e  -> List.length cards == 3
+    TripleWu e   -> List.length cards == 3
+    Quadruple e  -> List.length cards == 4
 
 
 isStartable : List Card -> Bool
@@ -100,55 +100,55 @@ isStartable cards =
 tableToCards : Table -> List (List (ClosedOr Card))
 tableToCards table =
   case table of
-    TrickStarting ->
+    Starting ->
       []
 
-    TrickWuzun e ->
+    Wuzun e ->
       e |> exposedToList 2 (\u ->
         let WuzunUnit = u in
         [Wu { design = True, number = 3 }, Wu { design = True, number = 6 }]
       )
 
-    TrickWenzun e ->
+    Wenzun e ->
       e |> exposedToList 2 (\elem ->
         case elem of
           WenzunMinor -> [Wen 1, Wen 1]
           WenzunMajor -> [Wen 2, Wen 2]
       )
 
-    TrickSingleWen e ->
+    SingleWen e ->
       e |> exposedToList 1 (\wen -> [Wen wen])
 
-    TrickSingleWu e ->
+    SingleWu e ->
       e |> exposedToList 1 (\wu -> [Wu wu])
 
-    TrickDoubleWen e ->
+    DoubleWen e ->
       e |> exposedToList 2 (\wen -> [Wen wen, Wen wen])
 
-    TrickDoubleWu e ->
+    DoubleWu e ->
       e |> exposedToList 2 (\wunum ->
         [Wu { design = True, number = wunum }, Wu { design = False, number = wunum }]
       )
 
-    TrickDoubleBoth e ->
+    DoubleBoth e ->
       e |> exposedToList 2 (\bigd ->
         let ( wen, wunum ) = bigToWenAndWu bigd.main in
         [Wen wen, Wu { design = bigd.design, number = wunum }]
       )
 
-    TrickTripleWen e ->
+    TripleWen e ->
       e |> exposedToList 3 (\bigd ->
         let ( wen, wunum ) = bigToWenAndWu bigd.main in
         [Wen wen, Wen wen, Wu { design = bigd.design, number = wunum }]
       )
 
-    TrickTripleWu e ->
+    TripleWu e ->
       e |> exposedToList 3 (\big ->
         let ( wen, wunum ) = bigToWenAndWu big in
         [Wen wen, Wu { design = True, number = wunum }, Wu { design = False, number = wunum }]
       )
 
-    TrickQuadruple e ->
+    Quadruple e ->
       e |> exposedToList 4 (\big ->
         let ( wen, wunum ) = bigToWenAndWu big in
         [Wen wen, Wen wen, Wu { design = True, number = wunum }, Wu { design = False, number = wunum }]

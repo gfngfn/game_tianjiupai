@@ -6,6 +6,7 @@ import Inning
 
 module InningTests = #[test] struct
   open Stdlib
+  open Models
   open Types
 
   #[test]

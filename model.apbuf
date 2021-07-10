@@ -172,17 +172,17 @@ wenzun_element :=
   | WenzunMinor
 
 table :=
-  | TrickStarting
-  | TrickWuzun      : exposed(wuzun_element)
-  | TrickWenzun     : exposed(wenzun_element)
-  | TrickSingleWen  : exposed(card_wen)
-  | TrickSingleWu   : exposed(card_wu)
-  | TrickDoubleWen  : exposed(card_wen)
-  | TrickDoubleWu   : exposed(card_wu_number)
-  | TrickDoubleBoth : exposed(big_with_design)
-  | TrickTripleWen  : exposed(big_with_design)
-  | TrickTripleWu   : exposed(card_big)
-  | TrickQuadruple  : exposed(card_big)
+  | Starting
+  | Wuzun      : exposed(wuzun_element)
+  | Wenzun     : exposed(wenzun_element)
+  | SingleWen  : exposed(card_wen)
+  | SingleWu   : exposed(card_wu)
+  | DoubleWen  : exposed(card_wen)
+  | DoubleWu   : exposed(card_wu_number)
+  | DoubleBoth : exposed(big_with_design)
+  | TripleWen  : exposed(big_with_design)
+  | TripleWu   : exposed(card_big)
+  | Quadruple  : exposed(card_big)
 
 big_with_design := {
   main   : card_big,

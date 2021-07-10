@@ -27,23 +27,12 @@ module Types = struct
 
   type exposed<$a> = Models.exposed<$a>
 
+  type table_state = Models.table
+
   type user_state = {
     user_name  : user_name,
     belongs_to : option<room_id>,
   }
-
-  type table_state =
-    | Starting
-    | Wuzun(exposed<Models.wuzun_element>)
-    | Wenzun(exposed<Models.wenzun_element>)
-    | SingleWen(exposed<Card.wen>)
-    | SingleWu(exposed<Card.wu>)
-    | DoubleWen(exposed<Card.wen>)
-    | DoubleWu(exposed<Card.wu_number>)
-    | DoubleBoth(exposed<big_with_design>)
-    | TripleWen(exposed<big_with_design>)
-    | TripleWu(exposed<Card.big>)
-    | Quadruple(exposed<Card.big>)
 
   type game_meta = {
     inning_index     : int,
