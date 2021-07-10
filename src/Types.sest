@@ -9,6 +9,8 @@ module Types = struct
 
   type room_name = Models.room_name
 
+  type room = Models.room
+
   type user_id = Models.user_id
 
   type user_name = Models.user_name
@@ -53,8 +55,7 @@ module Types = struct
     | Playing(observable_game_state)
 
   type personal_state = {
-    room_id    : room_id,
-    room_name  : room_name,
+    room       : room,
     logs       : list<log>,
     observable : observable_room_state,
   }

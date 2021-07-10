@@ -203,8 +203,7 @@ end = struct
 
       | Some(observable) ->
           Some({
-            room_id    = settings.room_id,
-            room_name  = settings.room_name,
+            room       = { room_id = settings.room_id, room_name = settings.room_name },
             logs       = List.reverse(state.reversed_logs),
             observable = observable,
           })

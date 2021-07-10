@@ -299,8 +299,7 @@ make_room_summary_object(WholeStateMap) ->
 -spec make_personal_state_object(tianjiupai:personal_room_state()) -> encodable().
 make_personal_state_object(PersonalStateMap) ->
     #{
-        room_id    := RoomId,
-        room_name  := RoomName,
+        room       := #{ room_id := RoomId, room_name := RoomName },
         logs       := Logs,
         observable := Observable
     } = PersonalStateMap,
