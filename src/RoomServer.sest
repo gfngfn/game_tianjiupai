@@ -17,8 +17,8 @@ module RoomServer :> sig
   val from_pid : fun(pid<info>) -> proc
   val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
 
-  val get_whole_state<$a> : fun(room_id) -> [$a]option<whole_room_state>
-  val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<whole_room_state>
+  val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
+  val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<room_summary>
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
 
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
@@ -74,7 +74,7 @@ end = struct
     | Submit(user_id, list<Card.t>)
 
   type response_impl =
-    | WholeState(whole_room_state)
+    | WholeState(room_summary)
     | PersonalState(option<personal_state>)
     | ChatSent
     | Attended(option<personal_state>)
@@ -125,7 +125,7 @@ end = struct
           {true, members}
       end
 
-    val make_whole_room_state(state : state) : whole_room_state =
+    val make_whole_room_state(state : state) : room_summary =
       let settings = state.settings in
       let {is_playing, members} = get_members_from_state(state.room_state) in
       {
@@ -734,14 +734,14 @@ end = struct
         f(resp)
     end
 
-  val get_whole_state<$a>(room_id : room_id) : [$a]option<whole_room_state> = act
+  val get_whole_state<$a>(room_id : room_id) : [$a]option<room_summary> = act
     call(room_id, GetWholeState, fun(resp) -> act
       case resp of
       | WholeState(whole_state) -> return(Some(whole_state))
       end
     end)
 
-  val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<whole_room_state> = act
+  val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<room_summary> = act
     do resp <- Impl.call(proc, GetWholeState) in
     case resp of
     | WholeState(whole_state) -> return(Some(whole_state))

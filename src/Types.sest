@@ -19,7 +19,7 @@ module Types = struct
 
   type snapshot_id = Models.snapshot_id
 
-  type whole_room_state = Models.room_summary
+  type room_summary = Models.room_summary
 
   type game_player = Models.game_player
 
