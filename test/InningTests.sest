@@ -40,7 +40,7 @@ module InningTests = #[test] struct
 
   #[test]
   val make_starting_table_test() =
-    let first(x) = {x, []} in
+    let first(x) = { first = x, subsequent = [] } in
     let ok(x) = Some(x) in
     let error() = None in
     Testing.list(

@@ -427,7 +427,7 @@ make_wenzun_object(wenzun_minor) -> ?LABEL_ONLY(<<"WenzunMinor">>).
 %% `F : fun($a) -> json'
 %% `Exposed : exposed($a)'
 make_exposed_object(F, Exposed) ->
-    {X, XOrCloseds} = Exposed,
+    #{ first := X, subsequent := XOrCloseds} = Exposed,
     #{
         first      => F(X),
         subsequent => make_closed_or_objects(F, XOrCloseds)

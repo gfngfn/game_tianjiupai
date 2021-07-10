@@ -71,8 +71,8 @@ max_with_index_test_() ->
     ].
 
 update_table_success_test_() ->
-    First = fun(X) -> {X, []} end,
-    Exposed = fun(X, XOrCloseds) -> {X, XOrCloseds} end,
+    Exposed = fun(X, XOrCloseds) -> #{first => X, subsequent => XOrCloseds} end,
+    First = fun(X) -> Exposed(X, []) end,
     [
      {"Succeeds in updating table states.",
       fun() ->
@@ -305,7 +305,7 @@ update_table_success_test_() ->
     ].
 
 get_winner_test_() ->
-    Exposed = fun(X, Xs) -> {X, Xs} end,
+    Exposed = fun(X, XOrCloseds) -> #{first => X, subsequent => XOrCloseds} end,
     [
      {"Judge the winner.",
       fun() ->
@@ -315,7 +315,7 @@ get_winner_test_() ->
     ||
       {Table, Expected} <- [
           %% Results of `wuzun'.
-          {{wuzun, Exposed(ok, [closed, closed, closed])},
+          {{wuzun, Exposed(wuzun_unit, [closed, closed, closed])},
               {0, [wuT(3), wuT(6)]}},
 
           %% Results of `wenzun'.
@@ -389,7 +389,7 @@ get_winner_test_() ->
     ].
 
 submit_success_test_() ->
-    Exposed = fun(X, XOrCloseds) -> {X, XOrCloseds} end,
+    Exposed = fun(X, XOrCloseds) -> #{first => X, subsequent => XOrCloseds} end,
     [
      {"submit (" ++ Subtitle ++ ")",
       fun() ->

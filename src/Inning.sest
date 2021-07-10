@@ -112,13 +112,20 @@ end = struct
       table     = inning.table,
     }
 
-  val table_length : fun(table_state) -> int = external 1 ```
-    table_length(Table) ->
-        case Table of
-            starting                 -> 0;
-            {_Tag, {_X, XOrCloseds}} -> 1 + erlang:length(XOrCloseds)
-        end.
-  ```
+  val table_length(table : table_state) : int =
+    case table of
+    | Starting      -> 0
+    | Wuzun(e)      -> 1 + List.length(e.subsequent)
+    | Wenzun(e)     -> 1 + List.length(e.subsequent)
+    | SingleWen(e)  -> 1 + List.length(e.subsequent)
+    | SingleWu(e)   -> 1 + List.length(e.subsequent)
+    | DoubleWen(e)  -> 1 + List.length(e.subsequent)
+    | DoubleWu(e)   -> 1 + List.length(e.subsequent)
+    | DoubleBoth(e) -> 1 + List.length(e.subsequent)
+    | TripleWen(e)  -> 1 + List.length(e.subsequent)
+    | TripleWu(e)   -> 1 + List.length(e.subsequent)
+    | Quadruple(e)  -> 1 + List.length(e.subsequent)
+    end
 
   val count_gained(players) =
     let {n0, n1, n2, n3} = Quad.map(fun(p) -> List.length(p.gained) end, players) in
@@ -133,18 +140,23 @@ end = struct
         end.
   ```
 
-  val append_closed_to_table : fun(table_state) -> option<table_state> = external 1 ```
-    append_closed_to_table(Table) ->
-        case Table of
-            {Tag, {X, XOrCloseds}} ->
-            %% `Table0' must be other than `starting' here,
-            %% Since the first submitter of a trick after the first trick
-            %% must gain at least one card.
-                {ok, {Tag, {X, XOrCloseds ++ [closed]}}};
-            _ ->
-                error
-        end.
-  ```
+  val append_closed_to_table(table : table_state) : option<table_state> =
+    let f(e) =
+      { first = e.first, subsequent = List.append(e.subsequent, [Models.Closed]) }
+    in
+    case table of
+    | Wuzun(e)      -> Some(Wuzun(f(e)))
+    | Wenzun(e)     -> Some(Wenzun(f(e)))
+    | SingleWen(e)  -> Some(SingleWen(f(e)))
+    | SingleWu(e)   -> Some(SingleWu(f(e)))
+    | DoubleWen(e)  -> Some(DoubleWen(f(e)))
+    | DoubleWu(e)   -> Some(DoubleWu(f(e)))
+    | DoubleBoth(e) -> Some(DoubleBoth(f(e)))
+    | TripleWen(e)  -> Some(TripleWen(f(e)))
+    | TripleWu(e)   -> Some(TripleWu(f(e)))
+    | Quadruple(e)  -> Some(Quadruple(f(e)))
+    | _             -> None
+    end
 
   val zip_with_indices<$a> : fun(list<$a>) -> list<{int, $a}> = external 1 ```
     zip_with_indices(Xs) ->
@@ -164,7 +176,8 @@ end = struct
   ```
 
   val num_max_scheme(greater, exposed) =
-    let {x0, x_or_closeds} = exposed in
+    let x0 = exposed.first in
+    let x_or_closeds = exposed.subsequent in
     let {trick_index, Open(x)} =
       max_with_index(
         fun(xo1, xo2) ->
@@ -189,7 +202,8 @@ end = struct
     num_max_scheme(Card.wu_number_greater, wunum_exposed)
 
   val big_max(big_exposed) =
-    let {big0, big_or_closeds} = big_exposed in
+    let big0 = big_exposed.first in
+    let big_or_closeds = big_exposed.subsequent in
     let {trick_index, Open(big)} =
       max_with_index(
         fun(bo1, bo2) ->
@@ -204,7 +218,8 @@ end = struct
     {trick_index, big}
 
   val big_with_design_max(bigd_exposed : Types.exposed<big_with_design>) =
-    let {bigd0, bigd_or_closeds} = bigd_exposed in
+    let bigd0 = bigd_exposed.first in
+    let bigd_or_closeds = bigd_exposed.subsequent in
     let {trick_index, Open(bigd)} =
       max_with_index(
         fun(bo1, bo2) ->
@@ -219,7 +234,7 @@ end = struct
     {trick_index, bigd}
 
   val first_exposed(x) =
-    {x, []}
+    { first = x, subsequent = [] }
 
   val make_starting_table(submitted_cards) =
     case Card.sort(submitted_cards) of
@@ -283,8 +298,10 @@ end = struct
     end
 
   val expose(x_exposed, x_new) =
-    let {x, x_or_closeds} = x_exposed in
-    {x, List.append(x_or_closeds, [x_new])}
+    {
+      first      = x_exposed.first,
+      subsequent = List.append(x_exposed.subsequent, [x_new]),
+    }
 
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
     case table of
@@ -453,9 +470,13 @@ end = struct
 
   val get_winner(table : table_state) : {int, list<Card.t>} =
     case table of
-    | Wuzun({_, Closed :: Closed :: Closed :: []}) ->
+    | Wuzun(exposed) ->
+        let Models.WuzunUnit = exposed.first in
+        let [Closed, Closed, Closed] = exposed.subsequent in
         {0, [Models.Wu({ design = true, number = 3 }), Models.Wu({ design = true, number = 6 })]}
-    | Wenzun({WenzunMinor, major_or_closeds}) ->
+    | Wenzun(exposed) ->
+        let WenzunMinor = exposed.first in
+        let major_or_closeds = exposed.subsequent in
         let ns =
           List.map(
             fun(x) ->
@@ -526,8 +547,7 @@ end = struct
 
   val check_last_submission_is_open(table : table_state) : bool =
     let f(exposed) =
-      let {x, x_or_closeds} = exposed in
-      case List.reverse(x_or_closeds) of
+      case List.reverse(exposed.subsequent) of
       | []           -> true
       | Open(_) :: _ -> true
       | Closed :: _  -> false
