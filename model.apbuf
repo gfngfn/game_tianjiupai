@@ -145,7 +145,11 @@ design := bool
 
 card_wu_number := int
 
-card_big := int
+card_big :=
+  | BigA
+  | BigB
+  | BigC
+  | BigD
 
 card :=
   | Wen : card_wen

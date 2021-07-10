@@ -394,10 +394,10 @@ make_table_object(Table) ->
 %% `Big : Tianjiupai.Card.big'
 make_card_big_object(Big) ->
     case Big of
-        big1 -> 1;
-        big2 -> 2;
-        big3 -> 3;
-        big4 -> 4
+        big1 -> ?LABEL_ONLY(<<"BigA">>);
+        big2 -> ?LABEL_ONLY(<<"BigB">>);
+        big3 -> ?LABEL_ONLY(<<"BigC">>);
+        big4 -> ?LABEL_ONLY(<<"BigD">>)
     end.
 
 %% `Bigd : Tianjiupai.Types.big_with_design'

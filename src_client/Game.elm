@@ -177,11 +177,10 @@ areTheSameBig wen wu =
 bigToWenAndWu : CardBig -> ( CardWen, CardWuNumber )
 bigToWenAndWu big =
   case big of
-    1 -> ( 8, 5 )
-    2 -> ( 9, 7 )
-    3 -> ( 10, 8 )
-    4 -> ( 11, 9 )
-    _ -> ( 0, 0 ) -- Should never happen
+    BigA -> ( 8, 5 )
+    BigB -> ( 9, 7 )
+    BigC -> ( 10, 8 )
+    BigD -> ( 11, 9 )
 
 
 sortCards : List Card -> List Card
