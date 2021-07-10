@@ -1,3 +1,4 @@
+import Models
 import Quad
 import Card
 import Types
@@ -30,6 +31,7 @@ module Inning :> sig
 end = struct
   open Stdlib
   open Types
+  open Models
 
   type player = {
     hand   : list<Card.t>,
@@ -97,10 +99,10 @@ end = struct
     {
       starts_at = seat,
       players   = Quad.map(fun(hand) -> { hand = hand, gained = [] } end, hand_quad),
-      table     = Starting,
+      table     = Types.Starting,
     }
 
-  val observe(seat : Quad.seat, inning : t) : observable_inning_state =
+  val observe(seat : Quad.seat, inning : t) : Types.observable_inning_state =
     let player_quad = inning.players in
     let you = Quad.access(seat, player_quad) in
     {
@@ -201,7 +203,7 @@ end = struct
     in
     {trick_index, big}
 
-  val big_with_design_max(bigd_exposed : exposed<big_with_design>) =
+  val big_with_design_max(bigd_exposed : Types.exposed<big_with_design>) =
     let {bigd0, bigd_or_closeds} = bigd_exposed in
     let {trick_index, Open(bigd)} =
       max_with_index(
@@ -221,32 +223,32 @@ end = struct
 
   val make_starting_table(submitted_cards) =
     case Card.sort(submitted_cards) of
-    | [Card.Wen(1), Card.Wen(1)] ->
+    | [Models.Wen(1), Models.Wen(1)] ->
         Some(Wenzun(first_exposed(Minor)))
-    | [Card.Wen(wen)] ->
+    | [Models.Wen(wen)] ->
         Some(SingleWen(first_exposed(wen)))
-    | [Card.Wu(wu)] ->
+    | [Models.Wu(wu)] ->
         Some(SingleWu(first_exposed(wu)))
-    | [Card.Wen(wen1), Card.Wen(wen2)] ->
+    | [Models.Wen(wen1), Models.Wen(wen2)] ->
         if Card.wen_equal(wen1, wen2) then
           Some(DoubleWen(first_exposed(wen1)))
         else
           None
-    | [Card.Wu(wu1), Card.Wu(wu2)] ->
+    | [Models.Wu(wu1), Models.Wu(wu2)] ->
         if Card.wu_equal(wu1, wu2) then
           Some(DoubleWu(first_exposed(wu1.number)))
         else if wu1.number == 3 && wu2.number == 6 then
           Some(Wuzun(first_exposed({})))
         else
           None
-    | [Card.Wen(wen), Card.Wu(wu)] ->
+    | [Models.Wen(wen), Models.Wu(wu)] ->
         case Card.wen_and_wu_to_big(wen, wu.number) of
         | Some(big) ->
             Some(DoubleBoth(first_exposed({ main = big, design = wu.design })))
         | None ->
             None
         end
-    | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu)] ->
+    | [Models.Wen(wen1), Models.Wen(wen2), Models.Wu(wu)] ->
         if Card.wen_equal(wen1, wen2) then
           case Card.wen_and_wu_to_big(wen1, wu.number) of
           | Some(big) ->
@@ -256,7 +258,7 @@ end = struct
           end
         else
           None
-    | [Card.Wen(wen), Card.Wu(wu1), Card.Wu(wu2)] ->
+    | [Models.Wen(wen), Models.Wu(wu1), Models.Wu(wu2)] ->
         if Card.wu_equal(wu1, wu2) then
           case Card.wen_and_wu_to_big(wen, wu1.number) of
           | Some(big) ->
@@ -266,7 +268,7 @@ end = struct
           end
         else
           None
-    | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu1), Card.Wu(wu2)] ->
+    | [Models.Wen(wen1), Models.Wen(wen2), Models.Wu(wu1), Models.Wu(wu2)] ->
         if Card.wen_equal(wen1, wen2) && Card.wu_equal(wu1, wu2) then
           case Card.wen_and_wu_to_big(wen1, wu1.number) of
           | Some(big) ->
@@ -286,7 +288,7 @@ end = struct
 
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
     case table of
-    | Starting ->
+    | Types.Starting ->
         make_starting_table(submitted_cards)
     | Wuzun(exposed_ok) ->
         case submitted_cards of
@@ -297,7 +299,7 @@ end = struct
         end
     | Wenzun(exposed) ->
         case submitted_cards of
-        | [Card.Wen(2), Card.Wen(2)] ->
+        | [Models.Wen(2), Models.Wen(2)] ->
             Some(Wenzun(expose(exposed, Open(Major))))
         | [_, _] ->
             Some(Wenzun(expose(exposed, Closed)))
@@ -306,7 +308,7 @@ end = struct
         end
     | SingleWen(exposed_wen) ->
         case submitted_cards of
-        | [Card.Wen(wen)] ->
+        | [Models.Wen(wen)] ->
             let {_, wen0} = wen_max(exposed_wen) in
             let new_one =
               if Card.wen_greater(wen, wen0) then Open(wen) else Closed
@@ -319,7 +321,7 @@ end = struct
         end
     | SingleWu(exposed_wu) ->
         case submitted_cards of
-        | [Card.Wu(wu)] ->
+        | [Models.Wu(wu)] ->
             let {_, wu0} = wu_max(exposed_wu) in
             let new_one =
               if Card.wu_greater(wu, wu0) then Open(wu) else Closed
@@ -332,7 +334,7 @@ end = struct
         end
     | DoubleWen(exposed_wen) ->
         case submitted_cards of
-        | [Card.Wen(wen1), Card.Wen(wen2)] ->
+        | [Models.Wen(wen1), Models.Wen(wen2)] ->
             if Card.wen_equal(wen1, wen2) then
               let {_, wen0} = wen_max(exposed_wen) in
               let new_one = if Card.wen_greater(wen1, wen0) then Open(wen1) else Closed in
@@ -346,7 +348,7 @@ end = struct
         end
     | DoubleWu(exposed_wunum) ->
         case submitted_cards of
-        | [Card.Wu(wu1), Card.Wu(wu2)] ->
+        | [Models.Wu(wu1), Models.Wu(wu2)] ->
             if Card.wu_equal(wu1, wu2) then
               let wunum1 = wu1.number in
               let {_, wunum0} = wu_number_max(exposed_wunum) in
@@ -366,7 +368,7 @@ end = struct
         end
     | DoubleBoth(exposed_bigd) ->
         case Card.sort(submitted_cards) of
-        | [Card.Wen(wen), Card.Wu(wu)] ->
+        | [Models.Wen(wen), Models.Wu(wu)] ->
             case Card.wen_and_wu_to_big(wen, wu.number) of
             | Some(big) ->
                 let {_, bigd0} = big_with_design_max(exposed_bigd) in
@@ -387,7 +389,7 @@ end = struct
         end
     | TripleWen(exposed_bigd) ->
         case Card.sort(submitted_cards) of
-        | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu)] ->
+        | [Models.Wen(wen1), Models.Wen(wen2), Models.Wu(wu)] ->
             if Card.wen_equal(wen1, wen2) then
               case Card.wen_and_wu_to_big(wen1, wu.number) of
               | Some(big) ->
@@ -411,7 +413,7 @@ end = struct
         end
     | TripleWu(exposed_big) ->
         case Card.sort(submitted_cards) of
-        | [Card.Wen(wen), Card.Wu(wu1), Card.Wu(wu2)] ->
+        | [Models.Wen(wen), Models.Wu(wu1), Models.Wu(wu2)] ->
             if Card.wu_equal(wu1, wu2) then
               case Card.wen_and_wu_to_big(wen, wu1.number) of
               | Some(big) ->
@@ -430,7 +432,7 @@ end = struct
         end
     | Quadruple(exposed_big) ->
         case Card.sort(submitted_cards) of
-        | [Card.Wen(wen1), Card.Wen(wen2), Card.Wu(wu1), Card.Wu(wu2)] ->
+        | [Models.Wen(wen1), Models.Wen(wen2), Models.Wu(wu1), Models.Wu(wu2)] ->
             if Card.wen_equal(wen1, wen2) && Card.wu_equal(wu1, wu2) then
               case Card.wen_and_wu_to_big(wen1, wu1.number) of
               | Some(big) ->
@@ -452,7 +454,7 @@ end = struct
   val get_winner(table : table_state) : {int, list<Card.t>} =
     case table of
     | Wuzun({_, Closed :: Closed :: Closed :: []}) ->
-        {0, [Card.Wu({ design = true, number = 3 }), Card.Wu({ design = true, number = 6 })]}
+        {0, [Models.Wu({ design = true, number = 3 }), Models.Wu({ design = true, number = 6 })]}
     | Wenzun({Minor, major_or_closeds}) ->
         let ns =
           List.map(
@@ -470,55 +472,55 @@ end = struct
             1 :: ns)
         in
         case one_or_two of
-        | 1 -> {0, [Card.Wen(1), Card.Wen(1)]}
-        | 2 -> {trick_index, [Card.Wen(2), Card.Wen(2)]}
+        | 1 -> {0, [Models.Wen(1), Models.Wen(1)]}
+        | 2 -> {trick_index, [Models.Wen(2), Models.Wen(2)]}
         end
     | SingleWen(wen_exposed) ->
         let {trick_index, wen} = wen_max(wen_exposed) in
-        {trick_index, [Card.Wen(wen)]}
+        {trick_index, [Models.Wen(wen)]}
     | SingleWu(wu_exposed) ->
         let {trick_index, wu} = wu_max(wu_exposed) in
-        {trick_index, [Card.Wu(wu)]}
+        {trick_index, [Models.Wu(wu)]}
     | DoubleWen(wen_exposed) ->
         let {trick_index, wen} = wen_max(wen_exposed) in
-        {trick_index, [Card.Wen(wen), Card.Wen(wen)]}
+        {trick_index, [Models.Wen(wen), Models.Wen(wen)]}
     | DoubleWu(wunum_exposed) ->
         let {trick_index, wunum} = wu_number_max(wunum_exposed) in
         {trick_index, [
-          Card.Wu({ number = wunum, design = false }),
-          Card.Wu({ number = wunum, design = true }),
+          Models.Wu({ number = wunum, design = false }),
+          Models.Wu({ number = wunum, design = true }),
         ]}
     | DoubleBoth(bigd_exposed) ->
         let {trick_index, bigd} = big_with_design_max(bigd_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(bigd.main) in
         {trick_index, [
-          Card.Wen(wen),
-          Card.Wu({ number = wunum, design = bigd.design }),
+          Models.Wen(wen),
+          Models.Wu({ number = wunum, design = bigd.design }),
         ]}
     | TripleWen(bigd_exposed) ->
         let {trick_index, bigd} = big_with_design_max(bigd_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(bigd.main) in
         {trick_index, [
-          Card.Wen(wen),
-          Card.Wen(wen),
-          Card.Wu({ number = wunum, design = bigd.design }),
+          Models.Wen(wen),
+          Models.Wen(wen),
+          Models.Wu({ number = wunum, design = bigd.design }),
         ]}
     | TripleWu(big_exposed) ->
         let {trick_index, big} = big_max(big_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(big) in
         {trick_index, [
-          Card.Wen(wen),
-          Card.Wu({ number = wunum, design = false }),
-          Card.Wu({ number = wunum, design = true }),
+          Models.Wen(wen),
+          Models.Wu({ number = wunum, design = false }),
+          Models.Wu({ number = wunum, design = true }),
         ]}
     | Quadruple(big_exposed) ->
         let {trick_index, big} = big_max(big_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(big) in
         {trick_index, [
-          Card.Wen(wen),
-          Card.Wen(wen),
-          Card.Wu({ number = wunum, design = false }),
-          Card.Wu({ number = wunum, design = true }),
+          Models.Wen(wen),
+          Models.Wen(wen),
+          Models.Wu({ number = wunum, design = false }),
+          Models.Wu({ number = wunum, design = true }),
         ]}
     end
 
@@ -599,7 +601,7 @@ end = struct
                     let inning1 =
                       {
                         starts_at = winner_seat,
-                        table     = Starting,
+                        table     = Types.Starting,
                         players   = players2,
                       }
                     in

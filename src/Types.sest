@@ -39,8 +39,7 @@ module Types = struct
     | Major
 
   type closed_or<$a> =
-    | Open($a)
-    | Closed
+    Models.closed_or<$a>
 
   type exposed<$a> =
     {$a, list<closed_or<$a>>}

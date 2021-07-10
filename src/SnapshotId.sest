@@ -1,7 +1,9 @@
+import Models
+
 module SnapshotId = struct
   open Stdlib
 
-  type t = binary
+  type t = Models.snapshot_id
 
   val generate<$a> : fun() -> [$a]t = external 0 ```
     generate() ->
