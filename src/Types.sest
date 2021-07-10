@@ -47,15 +47,11 @@ module Types = struct
 
   type observable_room_state = Models.observable_room_state
 
+  type personal_state = Models.personal_state
+
   type user_state = {
     user_name  : user_name,
     belongs_to : option<room_id>,
-  }
-
-  type personal_state = {
-    room : room,
-    logs : list<log>,
-    game : observable_room_state,
   }
 
 end
