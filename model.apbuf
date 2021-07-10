@@ -4,6 +4,11 @@
   module  = "Models",
   imports = [],
 }
+@output "sesterl": {
+  dir     = "./src/_generated",
+  module  = "Models",
+  imports = [],
+}
 
 user_id := string
 
