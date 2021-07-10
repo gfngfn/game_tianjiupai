@@ -9,10 +9,10 @@
 -define(CARD_MODULE, 'Tianjiupai.Card').
 -define(QUAD_MODULE, 'Tianjiupai.Quad').
 
--define(SEAT0, seat0).
--define(SEAT1, seat1).
--define(SEAT2, seat2).
--define(SEAT3, seat3).
+-define(SEAT0, seat_a).
+-define(SEAT1, seat_b).
+-define(SEAT2, seat_c).
+-define(SEAT3, seat_d).
 
 -define(OK(_X_), {ok, _X_}).
 -define(ERROR, error).
@@ -677,11 +677,11 @@ submit_success_test_() ->
               expected =
                   {wins_inning, ?SEAT2,
                       {single_wu, Exposed(wunumT(7), [closed, closed, {open, wunumT(9)}])},
-                      {
-                         [wuT(3), wuT(6)],
-                         [],
-                         [wen(10), wuF(8), wuT(9)],
-                         [wen(11), wen(7), wen(7)]
+                      #{
+                         east  => [wuT(3), wuT(6)],
+                         south => [],
+                         west  => [wen(10), wuF(8), wuT(9)],
+                         north => [wen(11), wen(7), wen(7)]
                       }}
           }
       ]
@@ -706,11 +706,11 @@ inning_state(#{
     player3   := {Hand3, Gaineds3},
     table     := TableState
 }) ->
-    PlayerQuad = {
-        #{hand => Hand0, gained => Gaineds0},
-        #{hand => Hand1, gained => Gaineds1},
-        #{hand => Hand2, gained => Gaineds2},
-        #{hand => Hand3, gained => Gaineds3}
+    PlayerQuad = #{
+        east  => #{hand => Hand0, gained => Gaineds0},
+        south => #{hand => Hand1, gained => Gaineds1},
+        west  => #{hand => Hand2, gained => Gaineds2},
+        north => #{hand => Hand3, gained => Gaineds3}
     },
     #{
         starts_at => StartSeat,
