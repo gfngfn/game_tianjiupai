@@ -29,6 +29,8 @@ module Types = struct
 
   type table_state = Models.table
 
+  type log = Models.log
+
   type user_state = {
     user_name  : user_name,
     belongs_to : option<room_id>,
@@ -58,12 +60,6 @@ module Types = struct
     synchronizing     : bool,
     snapshot_id       : snapshot_id,
   }
-
-  type log =
-    | LogComment(user, binary)
-    | LogEntered(user)
-    | LogExited(user)
-    | LogGameStart
 
   type submission = {
     seat       : Quad.seat,

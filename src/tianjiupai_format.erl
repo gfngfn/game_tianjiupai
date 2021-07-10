@@ -234,7 +234,7 @@ make_flag_user_object(MaybeFlags) ->
 -spec make_log_object(tianjiupai:log()) -> encodable().
 make_log_object(Log) ->
     case Log of
-        {log_comment, From, Text} ->
+        {log_comment, #{from := From, text := Text}} ->
             ?LABELED(<<"LogComment">>, #{from => make_user_object(From), text => Text});
         {log_entered, User} ->
             ?LABELED(<<"LogEntered">>, make_user_object(User));

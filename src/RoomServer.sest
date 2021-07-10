@@ -1,4 +1,5 @@
 import Logger
+import Models
 import Quad
 import Card
 import SnapshotId
@@ -249,7 +250,8 @@ end = struct
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
         notify_for_each(user_ids, [NotifyComment(user, text)])
       in
-      GenServer.reply(ChatSent, { state | reversed_logs = LogComment(user, text) :: state.reversed_logs })
+      let comment = { from = user, text = text } in
+      GenServer.reply(ChatSent, { state | reversed_logs = Models.LogComment(comment) :: state.reversed_logs })
 
     val handle_attend(user : user, state : state) = act
       let user_id = user.user_id in
@@ -263,7 +265,7 @@ end = struct
             let Some(personal_state) = make_personal_room_state(state, user_id) in
             GenServer.reply(Attended(Some(personal_state)), state)
           else
-            let log_enter = LogEntered(user) in
+            let log_enter = Models.LogEntered(user) in
             let notif_enter = NotifyEntered(user) in
             case members of
             | u0 :: u1 :: u2 :: _ ->
@@ -296,7 +298,7 @@ end = struct
                 let state =
                   { state |
                     room_state    = InternalPlaying(game_state),
-                    reversed_logs = LogGameStart :: log_enter :: state.reversed_logs,
+                    reversed_logs = Models.LogGameStart :: log_enter :: state.reversed_logs,
                   }
                 in
                 let Some(personal_state) = make_personal_room_state(state, user_id) in
