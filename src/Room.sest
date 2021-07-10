@@ -1,8 +1,25 @@
 import Types
 import RoomServerSup
 import RoomServer
+import Card
 
-module Room = struct
+module Room :> sig
+  open Stdlib
+  open Types
+
+  val create<$a> : fun(room_name) -> [$a]result<room_id, GenServer.start_link_error>
+  val get_all_rooms<$a> : fun() -> [$a]list<room_summary>
+  val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
+  val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
+  val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
+  val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
+  val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
+  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
+  val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+  val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+
+  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
+end = struct
   open Stdlib
   open Types
 
@@ -12,7 +29,7 @@ module Room = struct
         list_to_binary(uuid:uuid_to_string(Uuid)).
   ```
 
-  val create<$a>(room_name : binary) : [$a]result<room_id, GenServer.start_link_error> = act
+  val create<$a>(room_name : room_name) : [$a]result<room_id, GenServer.start_link_error> = act
     do room_id <- generate_room_id() in
     do res <- RoomServerSup.start_child(-room_id room_id, -room_name room_name) in
     return(Result.map(fun(proc) -> room_id end, res))
