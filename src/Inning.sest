@@ -70,8 +70,8 @@ end = struct
         lists:append([WenHalf, WenHalf, Wus]).
   ```
 
-  val shuffle : fun() -> Quad.t<list<Card.t>> = external 0 ```
-    shuffle() ->
+  val shuffle_impl : fun() -> {list<Card.t>, list<Card.t>, list<Card.t>, list<Card.t>} = external 0 ```
+    shuffle_impl() ->
         %% RandomlyIndexedCards :: [{float(), card()}]
         RandomlyIndexedCards =
             lists:map(
@@ -93,6 +93,9 @@ end = struct
         {Hand3, []}      = lists:split(8, Sorted3),
         {Hand0, Hand1, Hand2, Hand3}.
   ```
+
+  val shuffle() =
+    Quad.make(shuffle_impl())
 
   val start(seat : Quad.seat) : t =
     let hand_quad = shuffle() in
@@ -128,7 +131,7 @@ end = struct
     end
 
   val count_gained(players) =
-    let {n0, n1, n2, n3} = Quad.map(fun(p) -> List.length(p.gained) end, players) in
+    let {n0, n1, n2, n3} = Quad.decompose(Quad.map(fun(p) -> List.length(p.gained) end, players)) in
     n0 + n1 + n2 + n3
 
   val separate_submitted_cards : fun(list<Card.t>, list<Card.t>) -> option<list<Card.t>> = external 2 ```

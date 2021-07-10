@@ -1,3 +1,5 @@
+import Models
+
 module Quad = struct
 
   type seat =
@@ -27,14 +29,21 @@ module Quad = struct
       in
       advance_seat(s, n - 1)
 
-  type t<$a> = {$a, $a, $a, $a}
+  type t<$a> = Models.per_seat<$a>
+
+  val decompose(quad) =
+    {quad.east, quad.south, quad.west, quad.north}
+
+  val make(x) =
+    let {x0, x1, x2, x3} = x in
+    { east = x0, south = x1, west = x2, north = x3 }
 
   val to_list<$a>(quad : t<$a>) : list<$a> =
-    let {x0, x1, x2, x3} = quad in
+    let {x0, x1, x2, x3} = decompose(quad) in
     [x0, x1, x2, x3]
 
   val access<$a>(seat : seat, quad : t<$a>) : $a =
-    let {x0, x1, x2, x3} = quad in
+    let {x0, x1, x2, x3} = decompose(quad) in
     case seat of
     | Seat0 -> x0
     | Seat1 -> x1
@@ -43,20 +52,23 @@ module Quad = struct
     end
 
   val update<$a>(seat : seat, x_new : $a, quad : t<$a>) : t<$a> =
-    let {x0, x1, x2, x3} = quad in
-    case seat of
-    | Seat0 -> {x_new, x1, x2, x3}
-    | Seat1 -> {x0, x_new, x2, x3}
-    | Seat2 -> {x0, x1, x_new, x3}
-    | Seat3 -> {x0, x1, x2, x_new}
-    end
+    let {x0, x1, x2, x3} = decompose(quad) in
+    let x =
+      case seat of
+      | Seat0 -> {x_new, x1, x2, x3}
+      | Seat1 -> {x0, x_new, x2, x3}
+      | Seat2 -> {x0, x1, x_new, x3}
+      | Seat3 -> {x0, x1, x2, x_new}
+      end
+    in
+    make(x)
 
   val map<$a, $b>(f : fun($a) -> $b, quad : t<$a>) : t<$b> =
-    let {x0, x1, x2, x3} = quad in
-    {f(x0), f(x1), f(x2), f(x3)}
+    let {x0, x1, x2, x3} = decompose(quad) in
+    make({f(x0), f(x1), f(x2), f(x3)})
 
   val find<$a>(f : fun($a) -> bool, quad : t<$a>) : option<{seat, $a}> =
-    let {x0, x1, x2, x3} = quad in
+    let {x0, x1, x2, x3} = decompose(quad) in
     case {f(x0), f(x1), f(x2), f(x3)} of
     | {true, _, _, _} -> Some({Seat0, x0})
     | {_, true, _, _} -> Some({Seat1, x1})

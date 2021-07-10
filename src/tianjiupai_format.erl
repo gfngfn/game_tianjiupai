@@ -495,7 +495,7 @@ make_game_meta_object(GameMeta) ->
     F :: fun((X) -> encodable()),
     X :: term().
 make_quad_object(F, Quad) ->
-    {X0, X1, X2, X3} = Quad,
+    #{ east := X0, south := X1, west := X2, north := X3 } = Quad,
     #{
         east  => F(X0),
         south => F(X1),

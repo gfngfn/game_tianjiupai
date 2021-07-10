@@ -25,8 +25,8 @@ module QuadTests = #[test] struct
     Testing.it("map", fun() ->
       let f(x) = x + 1 in
       assert Testing.equal(
-        -expect {5, 5, 3, 4},
-        -got Quad.map(f, {4, 4, 2, 3}))
+        -expect Quad.make({5, 5, 3, 4}),
+        -got Quad.map(f, Quad.make({4, 4, 2, 3})))
     end)
 
   type elem =
@@ -39,8 +39,8 @@ module QuadTests = #[test] struct
           let {seat, v, input, expected} = test_case in
           Testing.it("update", fun() ->
             assert Testing.equal(
-              -expect expected,
-              -got Quad.update(seat, v, input))
+              -expect Quad.make(expected),
+              -got Quad.update(seat, v, Quad.make(input)))
           end)
         end,
         [

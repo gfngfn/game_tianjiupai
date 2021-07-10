@@ -152,7 +152,7 @@ end = struct
       end
 
     val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<user_id> =
-      let {u0, u1, u2, u3} = Quad.map(fun(p) -> p.user.user_id end, game_state.meta.players) in
+      let {u0, u1, u2, u3} = Quad.decompose(Quad.map(fun(p) -> p.user.user_id end, game_state.meta.players)) in
       case seat of
       | Quad.Seat0 -> [u1, u2, u3]
       | Quad.Seat1 -> [u2, u3, u0]
@@ -210,8 +210,8 @@ end = struct
           })
       end
 
-    val make_initial_sync() =
-      {false, false, false, false}
+    val make_initial_sync() : Quad.t<bool> =
+      Quad.make({false, false, false, false})
 
     val start_new_inning<$a>(game_meta : game_meta) : [$a]whole_game_state = act
       let next_parent_seat = game_meta.parent_seat in
@@ -274,7 +274,7 @@ end = struct
                   let player1 = { user = u1, score = 0 } in
                   let player2 = { user = u2, score = 0 } in
                   let player3 = { user = user, score = 0 } in
-                  {player0, player1, player2, player3}
+                  Quad.make({player0, player1, player2, player3})
                 in
                 let parent_seat = Quad.Seat0 in
                 let game_meta =
@@ -533,7 +533,7 @@ end = struct
                           {snapshot_id, sync_quad}
                         )
                       in
-                      case sync_quad of
+                      case Quad.decompose(sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
                           let user_ids = the_other_players(game_state, seat) in
@@ -595,7 +595,7 @@ end = struct
                           {snapshot_id, inning_sync_quad}
                         )
                       in
-                      case inning_sync_quad of
+                      case Quad.decompose(inning_sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
                           do game_state <- start_new_inning(game_state.meta) in
@@ -641,7 +641,7 @@ end = struct
 
               | WaitingSync(sync_quad) ->
                   let sync_quad = Quad.update(seat, true, sync_quad) in
-                  case sync_quad of
+                  case Quad.decompose(sync_quad) of
                   | {true, true, true, true} ->
                     /* If all the players are ready for the next step: */
                       let user_ids = the_other_players(game_state, seat) in

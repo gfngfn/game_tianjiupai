@@ -23,7 +23,7 @@ module InningTests = #[test] struct
     Testing.it("Every generated hand consists of eight cards.", fun() ->
       let quad = Inning.shuffle() in
       assert Testing.equal(
-        -expect {8, 8, 8, 8},
+        -expect Quad.make({8, 8, 8, 8}),
         -got Quad.map(List.length, quad))
     end)
 
