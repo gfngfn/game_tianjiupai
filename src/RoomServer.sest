@@ -174,8 +174,8 @@ end = struct
           in
           let observable_inning =
             case game_state.inning of
-            | DuringInning(inning)     -> ObservableDuringInning(Inning.observe(seat, inning))
-            | InningEnd(gains_quad, _) -> ObservableInningEnd(gains_quad)
+            | DuringInning(inning)     -> Models.ObservableDuringInning(Inning.observe(seat, inning))
+            | InningEnd(gains_quad, _) -> Models.ObservableInningEnd(gains_quad)
             end
           in
           Some({

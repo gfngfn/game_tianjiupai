@@ -31,41 +31,19 @@ module Types = struct
 
   type log = Models.log
 
+  type game_meta = Models.game_meta
+
+  type observable_inning_state = Models.observable_inning_state
+
+  type observable_inning = Models.observable_inning
+
+  type observable_game_state = Models.observable_game_state
+
+  type submission = Models.submission
+
   type user_state = {
     user_name  : user_name,
     belongs_to : option<room_id>,
-  }
-
-  type game_meta = {
-    inning_index     : int,
-    num_consecutives : int,
-    parent_seat      : Quad.seat,
-    players          : Quad.t<game_player>
-  }
-
-  type observable_inning_state = {
-    starts_at : Quad.seat,
-    your_hand : list<Card.t>,
-    gains     : Quad.t<list<Card.t>>,
-    table     : table_state
-  }
-
-  type observable_inning =
-    | ObservableDuringInning(observable_inning_state)
-    | ObservableInningEnd(Quad.t<list<Card.t>>)
-
-  type observable_game_state = {
-    meta              : game_meta,
-    observable_inning : observable_inning,
-    synchronizing     : bool,
-    snapshot_id       : snapshot_id,
-  }
-
-  type submission = {
-    seat       : Quad.seat,
-    submitted  : list<option<Card.t>>,
-    new_state  : observable_game_state,
-    trick_last : option<table_state>,
   }
 
   type notification =
