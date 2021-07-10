@@ -246,11 +246,11 @@ end = struct
 
     val handle_send_chat(user : user, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
+      let comment = { from = user, text = text } in
       do dummy <-
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
-        notify_for_each(user_ids, [NotifyComment(user, text)])
+        notify_for_each(user_ids, [Models.NotifyComment(comment)])
       in
-      let comment = { from = user, text = text } in
       GenServer.reply(ChatSent, { state | reversed_logs = Models.LogComment(comment) :: state.reversed_logs })
 
     val handle_attend(user : user, state : state) = act
@@ -266,7 +266,7 @@ end = struct
             GenServer.reply(Attended(Some(personal_state)), state)
           else
             let log_enter = Models.LogEntered(user) in
-            let notif_enter = NotifyEntered(user) in
+            let notif_enter = Models.NotifyEntered(user) in
             case members of
             | u0 :: u1 :: u2 :: _ ->
                 let player_quad =
@@ -290,7 +290,7 @@ end = struct
                   List.for_each(
                     fun(u) -> act
                       let Some(obs) = make_observable_game_state(game_state, u) in
-                      notify(u, [notif_enter, NotifyGameStart(obs)])
+                      notify(u, [notif_enter, Models.NotifyGameStart(obs)])
                     end,
                     [u0.user_id, u1.user_id, u2.user_id]
                   )
@@ -488,7 +488,7 @@ end = struct
                                   trick_last = last_table_opt,
                                 }
                               in
-                              notify(u, [NotifySubmission(submission)])
+                              notify(u, [Models.NotifySubmission(submission)])
                             end,
                             the_other_players(game_state, seat)
                           )
@@ -537,7 +537,7 @@ end = struct
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
                           let user_ids = the_other_players(game_state, seat) in
-                          do dummy <- notify_for_each(user_id :: user_ids, [NotifyNextStep]) in
+                          do dummy <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
                           return(Some(game_state))
 
@@ -604,7 +604,7 @@ end = struct
                             List.for_each(
                               fun(u) -> act
                                 let Some(obs) = make_observable_game_state(game_state, u) in
-                                notify(u, [NotifyGameStart(obs)])
+                                notify(u, [Models.NotifyGameStart(obs)])
                               end,
                               user_id :: user_ids)
                           in
@@ -645,7 +645,7 @@ end = struct
                   | {true, true, true, true} ->
                     /* If all the players are ready for the next step: */
                       let user_ids = the_other_players(game_state, seat) in
-                      do dummy <- notify_for_each(user_ids, [NotifyNextStep]) in
+                      do dummy <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
                       let game_state = { game_state | sync = WaitingInput } in
                       return({ state | room_state = InternalPlaying(game_state) })
 

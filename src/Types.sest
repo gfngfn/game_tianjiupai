@@ -41,18 +41,12 @@ module Types = struct
 
   type submission = Models.submission
 
+  type notification = Models.notification
+
   type user_state = {
     user_name  : user_name,
     belongs_to : option<room_id>,
   }
-
-  type notification =
-    | NotifyComment(user, binary)
-    | NotifyEntered(user)
-    | NotifyExited(user)
-    | NotifyGameStart(observable_game_state)
-    | NotifyNextStep
-    | NotifySubmission(submission)
 
   type observable_room_state =
     | Waiting(list<user>)
