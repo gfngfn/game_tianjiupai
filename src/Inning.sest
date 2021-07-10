@@ -145,6 +145,7 @@ end = struct
       { first = e.first, subsequent = List.append(e.subsequent, [Models.Closed]) }
     in
     case table of
+    | Starting      -> None
     | Wuzun(e)      -> Some(Wuzun(f(e)))
     | Wenzun(e)     -> Some(Wenzun(f(e)))
     | SingleWen(e)  -> Some(SingleWen(f(e)))
@@ -155,7 +156,6 @@ end = struct
     | TripleWen(e)  -> Some(TripleWen(f(e)))
     | TripleWu(e)   -> Some(TripleWu(f(e)))
     | Quadruple(e)  -> Some(Quadruple(f(e)))
-    | _             -> None
     end
 
   val zip_with_indices<$a> : fun(list<$a>) -> list<{int, $a}> = external 1 ```
