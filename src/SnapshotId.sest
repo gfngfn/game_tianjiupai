@@ -2,16 +2,15 @@ import Models
 
 module SnapshotId = struct
   open Stdlib
+  open Models
 
-  type t = Models.snapshot_id
-
-  val generate<$a> : fun() -> [$a]t = external 0 ```
+  val generate<$a> : fun() -> [$a]snapshot_id = external 0 ```
     generate() ->
         Uuid = uuid:get_v4(),
         list_to_binary(uuid:uuid_to_string(Uuid)).
   ```
 
-  val equal(s1 : t, s2 : t) : bool =
+  val equal(s1 : snapshot_id, s2 : snapshot_id) : bool =
     Binary.equal(s1, s2)
 
 end
