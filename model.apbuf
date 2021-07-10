@@ -168,7 +168,7 @@ unit :=
   | Unit
 
 table :=
-  | Starting
+  | TrickStarting
   | TrickWuzun      : exposed(unit)
   | TrickWenzun     : exposed(bool)
   | TrickSingleWen  : exposed(card_wen)

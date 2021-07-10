@@ -99,7 +99,7 @@ end = struct
     {
       starts_at = seat,
       players   = Quad.map(fun(hand) -> { hand = hand, gained = [] } end, hand_quad),
-      table     = Types.Starting,
+      table     = Starting,
     }
 
   val observe(seat : Quad.seat, inning : t) : Types.observable_inning_state =
@@ -288,7 +288,7 @@ end = struct
 
   val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
     case table of
-    | Types.Starting ->
+    | Starting ->
         make_starting_table(submitted_cards)
     | Wuzun(exposed_ok) ->
         case submitted_cards of
@@ -601,7 +601,7 @@ end = struct
                     let inning1 =
                       {
                         starts_at = winner_seat,
-                        table     = Types.Starting,
+                        table     = Starting,
                         players   = players2,
                       }
                     in

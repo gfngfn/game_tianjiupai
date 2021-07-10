@@ -50,7 +50,7 @@ isWaitingLastSubmission ostate =
 getTableSize : Table -> Int
 getTableSize table =
   case table of
-    Starting          -> 0
+    TrickStarting     -> 0
     TrickWuzun e      -> getExposedSize e
     TrickWenzun e     -> getExposedSize e
     TrickSingleWen e  -> getExposedSize e
@@ -71,7 +71,7 @@ getExposedSize exposed =
 isSubmittable : Table -> List Card -> Bool
 isSubmittable table cards =
   case table of
-    Starting          -> isStartable cards
+    TrickStarting     -> isStartable cards
     TrickWuzun e      -> List.length cards == 2
     TrickWenzun e     -> List.length cards == 2
     TrickSingleWen e  -> List.length cards == 1
@@ -100,7 +100,7 @@ isStartable cards =
 tableToCards : Table -> List (List (ClosedOr Card))
 tableToCards table =
   case table of
-    Starting ->
+    TrickStarting ->
       []
 
     TrickWuzun e ->

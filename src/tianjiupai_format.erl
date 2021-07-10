@@ -368,7 +368,7 @@ make_observable_inning_state_object(ObservableInningStateMap) ->
 make_table_object(Table) ->
     case Table of
         starting ->
-            ?LABEL_ONLY(<<"Starting">>);
+            ?LABEL_ONLY(<<"TrickStarting">>);
         {wuzun, Exposed} ->
             ?LABELED(<<"TrickWuzun">>, make_exposed_object(fun make_ok_object/1, Exposed));
         {wenzun, Exposed} ->
