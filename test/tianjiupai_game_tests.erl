@@ -100,17 +100,17 @@ update_table_success_test_() ->
 
             %% Submits two cards to `wenzun'.
             {[wen(2), wen(2)],
-                {wenzun, Exposed(minor, [])},
-                {wenzun, Exposed(minor, [{open, major}])}},
+                {wenzun, Exposed(wenzun_minor, [])},
+                {wenzun, Exposed(wenzun_minor, [{open, wenzun_major}])}},
             {[wen(2), wen(2)],
-                {wenzun, Exposed(minor, [closed])},
-                {wenzun, Exposed(minor, [closed, {open, major}])}},
+                {wenzun, Exposed(wenzun_minor, [closed])},
+                {wenzun, Exposed(wenzun_minor, [closed, {open, wenzun_major}])}},
             {[wen(3), wen(3)],
-                {wenzun, Exposed(minor, [])},
-                {wenzun, Exposed(minor, [closed])}},
+                {wenzun, Exposed(wenzun_minor, [])},
+                {wenzun, Exposed(wenzun_minor, [closed])}},
             {[wen(3), wuF(5)],
-                {wenzun, Exposed(minor, [])},
-                {wenzun, Exposed(minor, [closed])}},
+                {wenzun, Exposed(wenzun_minor, [])},
+                {wenzun, Exposed(wenzun_minor, [closed])}},
 
             %% Submits one wen to `single_wen'.
             {[wen(5)],
@@ -319,9 +319,9 @@ get_winner_test_() ->
               {0, [wuT(3), wuT(6)]}},
 
           %% Results of `wenzun'.
-          {{wenzun, Exposed(minor, [closed, closed, closed])},
+          {{wenzun, Exposed(wenzun_minor, [closed, closed, closed])},
               {0, [wen(1), wen(1)]}},
-          {{wenzun, Exposed(minor, [closed, {open, major}, closed])},
+          {{wenzun, Exposed(wenzun_minor, [closed, {open, wenzun_major}, closed])},
               {2, [wen(2), wen(2)]}},
 
           %% Results of `single_wen'.

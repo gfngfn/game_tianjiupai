@@ -25,14 +25,12 @@ module Types = struct
 
   type big_with_design = Models.big_with_design
 
+  type wenzun = Models.wenzun_element
+
   type user_state = {
     user_name  : user_name,
     belongs_to : option<room_id>,
   }
-
-  type wenzun =
-    | Minor
-    | Major
 
   type exposed<$a> =
     {$a, list<closed_or<$a>>}

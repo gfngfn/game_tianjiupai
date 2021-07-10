@@ -416,13 +416,13 @@ make_card_wu_object(Wu) ->
 make_card_wu_number_object(Wunum) ->
     Wunum.
 
--spec make_ok_object(ok) -> encodable().
-make_ok_object(ok) ->
-    ?LABEL_ONLY(<<"Unit">>).
+-spec make_ok_object(wuzun_unit) -> encodable().
+make_ok_object(wuzun_unit) ->
+    ?LABEL_ONLY(<<"WuzunUnit">>).
 
--spec make_wenzun_object(major | minor) -> encodable().
-make_wenzun_object(major) -> true;
-make_wenzun_object(minor) -> false.
+-spec make_wenzun_object(wenzun_major | wenzun_minor) -> encodable().
+make_wenzun_object(wenzun_major) -> ?LABEL_ONLY(<<"WenzunMajor">>);
+make_wenzun_object(wenzun_minor) -> ?LABEL_ONLY(<<"WenzunMinor">>).
 
 %% `F : fun($a) -> json'
 %% `Exposed : exposed($a)'

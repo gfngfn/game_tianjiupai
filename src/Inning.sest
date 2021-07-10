@@ -224,7 +224,7 @@ end = struct
   val make_starting_table(submitted_cards) =
     case Card.sort(submitted_cards) of
     | [Models.Wen(1), Models.Wen(1)] ->
-        Some(Wenzun(first_exposed(Minor)))
+        Some(Wenzun(first_exposed(WenzunMinor)))
     | [Models.Wen(wen)] ->
         Some(SingleWen(first_exposed(wen)))
     | [Models.Wu(wu)] ->
@@ -300,7 +300,7 @@ end = struct
     | Wenzun(exposed) ->
         case submitted_cards of
         | [Models.Wen(2), Models.Wen(2)] ->
-            Some(Wenzun(expose(exposed, Open(Major))))
+            Some(Wenzun(expose(exposed, Open(WenzunMajor))))
         | [_, _] ->
             Some(Wenzun(expose(exposed, Closed)))
         | _ ->
@@ -455,13 +455,13 @@ end = struct
     case table of
     | Wuzun({_, Closed :: Closed :: Closed :: []}) ->
         {0, [Models.Wu({ design = true, number = 3 }), Models.Wu({ design = true, number = 6 })]}
-    | Wenzun({Minor, major_or_closeds}) ->
+    | Wenzun({WenzunMinor, major_or_closeds}) ->
         let ns =
           List.map(
             fun(x) ->
               case x of
-              | Open(Major) -> 2
-              | Closed      -> 1
+              | Open(WenzunMajor) -> 2
+              | Closed            -> 1
               end
             end,
             major_or_closeds)

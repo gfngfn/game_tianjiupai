@@ -164,13 +164,17 @@ exposed($a) := {
   subsequent : list(closed_or($a)),
 }
 
-unit :=
-  | Unit
+wuzun_element :=
+  | WuzunUnit
+
+wenzun_element :=
+  | WenzunMajor
+  | WenzunMinor
 
 table :=
   | TrickStarting
-  | TrickWuzun      : exposed(unit)
-  | TrickWenzun     : exposed(bool)
+  | TrickWuzun      : exposed(wuzun_element)
+  | TrickWenzun     : exposed(wenzun_element)
   | TrickSingleWen  : exposed(card_wen)
   | TrickSingleWu   : exposed(card_wu)
   | TrickDoubleWen  : exposed(card_wen)

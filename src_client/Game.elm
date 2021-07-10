@@ -105,15 +105,15 @@ tableToCards table =
 
     TrickWuzun e ->
       e |> exposedToList 2 (\u ->
-        let Unit = u in
+        let WuzunUnit = u in
         [Wu { design = True, number = 3 }, Wu { design = True, number = 6 }]
       )
 
     TrickWenzun e ->
-      e |> exposedToList 2 (\b ->
-        case b of
-          False -> [Wen 1, Wen 1]
-          True  -> [Wen 2, Wen 2]
+      e |> exposedToList 2 (\elem ->
+        case elem of
+          WenzunMinor -> [Wen 1, Wen 1]
+          WenzunMajor -> [Wen 2, Wen 2]
       )
 
     TrickSingleWen e ->
