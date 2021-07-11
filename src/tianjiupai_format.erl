@@ -3,41 +3,15 @@
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
--export_type([
-    command/0
-]).
 -export([
-    %% HTTP:
     encode_flags_object/1,
-    decode_create_user_request/1,
-    encode_create_user_response/1,
-    decode_create_room_request/1,
-    encode_create_room_response/1,
-    decode_room_request/1,
-    encode_enter_room_response/1,
-    encode_submit_cards_response/2,
-    encode_get_personal_room_response/1,
-    encode_get_all_rooms_response/1,
     encode_failure_response/1,
-
-    %% WebSocket:
-    decode_command/1,
     encode_notification/1
 ]).
 
 %%====================================================================================================
 %% Macros & Types
 %%====================================================================================================
--type command() ::
-    {comment, Text :: binary()}
-  | {ack, tianjiupai:snapshot_id()}
-  | {next_inning, tianjiupai:snapshot_id()}
-  | heartbeat.
-
--type room_request() ::
-    {enter_room, tianjiupai:user_id()}
-  | {submit, tianjiupai:user_id(), [tianjiupai:card()]}.
-
 -type flags() :: #{
     user_id    := tianjiupai:user_id(),
     user_name  := binary(),
@@ -52,8 +26,6 @@
 -define(LABELED_PATTERN(_Label_, _Pat_), #{<<"_label">> := _Label_, <<"_arg">> := _Pat_}).
 -define(LABEL_ONLY_PATTERN(_Label_), #{<<"_label">> := _Label_}).
 
--define(USER_FRONT, 'Tianjiupai.User').
-
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
@@ -62,104 +34,6 @@ encode_flags_object(MaybeFlags) ->
     FlagUserObj = make_flag_user_object(MaybeFlags),
     jsone:encode(FlagUserObj).
 
--spec decode_create_user_request(iodata()) ->
-    {ok, UserName :: binary()}
-  | {error, Reason :: term()}.
-decode_create_user_request(ReqBody) ->
-    try
-        jsone:decode(ReqBody)
-    of
-        #{
-            <<"user_name">> := UserName
-        } when is_binary(UserName) ->
-            {ok, UserName};
-        _ ->
-            {error, {invalid_request_body, ReqBody}}
-    catch
-        Class:Reason ->
-            {error, {exception, Class, Reason}}
-    end.
-
--spec encode_create_user_response(tianjiupai:user_id()) -> binary().
-encode_create_user_response(UserId) ->
-    jsone:encode(#{user_id => UserId}).
-
--spec decode_create_room_request(iodata()) ->
-    {ok, {tianjiupai:user_id(), RoomName :: binary()}}
-  | {error, Reason :: term()}.
-decode_create_room_request(ReqBody) ->
-    try
-        jsone:decode(ReqBody)
-    of
-        #{
-            <<"user_id">>   := UserId,
-            <<"room_name">> := RoomName
-        } when is_binary(RoomName) andalso is_binary(UserId) ->
-            {ok, {UserId, RoomName}};
-        _ ->
-            {error, {invalid_request_body, ReqBody}}
-    catch
-        Class:Reason ->
-            {error, {exception, Class, Reason}}
-    end.
-
--spec encode_create_room_response(tianjiupai:room_id()) -> binary().
-encode_create_room_response(RoomId) ->
-    jsone:encode(#{room_id => RoomId}).
-
--spec decode_room_request(iodata()) -> {ok, room_request()} | {error, Reason :: term()}.
-decode_room_request(ReqBody) ->
-    try
-        jsone:decode(ReqBody)
-    of
-        ?LABELED_PATTERN(<<"RoomRequestToEnterRoom">>, #{
-          <<"user_id">> := UserId
-        }) when is_binary(UserId) ->
-            {ok, {enter_room, UserId}};
-        ?LABELED_PATTERN(<<"RoomRequestToSubmitCards">>, #{
-          <<"user_id">> := UserId,
-          <<"cards">>   := CardObjs
-        }) when is_binary(UserId) ->
-            try lists:map(fun decode_card/1, CardObjs) of
-                Cards ->
-                    {ok, {submit, UserId, Cards}}
-            catch
-                Class:Reason ->
-                    {error, {exception, Class, Reason}}
-            end;
-        _ ->
-            {error, {invalid_request_body, ReqBody}}
-    catch
-        Class:Reason ->
-            {error, {exception, Class, Reason}}
-    end.
-
-%% May raise exceptions.
--spec decode_card(term()) -> tianjiupai:card().
-decode_card(CardObj) ->
-    case CardObj of
-        ?LABELED_PATTERN(<<"Wen">>, Wen)
-        when is_integer(Wen) ->
-            {wen, Wen};
-        ?LABELED_PATTERN(<<"Wu">>, #{<<"number">> := Wunum, <<"design">> := B})
-        when is_integer(Wunum) andalso is_boolean(B) ->
-            {wu, #{number => Wunum, design => B}}
-    end.
-
--spec encode_enter_room_response(tianjiupai:personal_room_state()) -> binary().
-encode_enter_room_response(PersonalStateMap) ->
-    encode_personal_state(PersonalStateMap).
-
--spec encode_submit_cards_response(tianjiupai:observable_game_state(), TrickLastOpt) -> binary() when
-    TrickLastOpt :: {ok, tianjiupai:table_state()} | error.
-encode_submit_cards_response(ObservableGameStateMap, TrickLastOpt) ->
-    ObservableGameStateObj = make_observable_game_state_object(ObservableGameStateMap),
-    TrickLastObj = make_trick_last_opt_object(TrickLastOpt),
-    jsone:encode(#{
-        new_state  => ObservableGameStateObj,
-        trick_last => TrickLastObj
-    }).
-
 -spec make_trick_last_opt_object({ok, tianjiupai:table_state()} | error) -> encodable().
 make_trick_last_opt_object(TrickLastOpt) ->
     case TrickLastOpt of
@@ -167,43 +41,9 @@ make_trick_last_opt_object(TrickLastOpt) ->
         error           -> ?LABEL_ONLY(<<"None">>)
     end.
 
--spec encode_get_personal_room_response(tianjiupai:personal_room_state()) -> binary().
-encode_get_personal_room_response(PersonalStateMap) ->
-    encode_personal_state(PersonalStateMap).
-
--spec encode_get_all_rooms_response([tianjiupai:whole_room_state()]) -> binary().
-encode_get_all_rooms_response(WholeStateMaps) ->
-    WholeStateObjs = lists:map(fun make_room_summary_object/1, WholeStateMaps),
-    jsone:encode(#{rooms => WholeStateObjs}).
-
--spec encode_personal_state(tianjiupai:personal_room_state()) -> binary().
-encode_personal_state(PersonalStateMap) ->
-    PersonalStateObj = make_personal_state_object(PersonalStateMap),
-    jsone:encode(PersonalStateObj).
-
 -spec encode_failure_response(Reason :: term()) -> binary().
 encode_failure_response(Reason) ->
     erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))).
-
--spec decode_command(iodata()) -> {ok, command()} | {error, Reason :: term()}.
-decode_command(Data) ->
-    try
-        jsone:decode(Data)
-    of
-        ?LABELED_PATTERN(<<"CommandComment">>, Text) when erlang:is_binary(Text) ->
-            {ok, {comment, Text}};
-        ?LABELED_PATTERN(<<"CommandAck">>, SnapshotId) when erlang:is_binary(SnapshotId) ->
-            {ok, {ack, SnapshotId}};
-        ?LABELED_PATTERN(<<"CommandNextInning">>, SnapshotId) when erlang:is_binary(SnapshotId) ->
-            {ok, {next_inning, SnapshotId}};
-        ?LABEL_ONLY_PATTERN(<<"CommandHeartbeat">>) ->
-            {ok, heartbeat};
-        _ ->
-            {error, {invalid_command, Data}}
-    catch
-        Class:Reason ->
-            {error, {exception, Class, Reason}}
-    end.
 
 -spec encode_notification(tianjiupai:notification()) -> binary().
 encode_notification(Notification) ->
@@ -229,19 +69,6 @@ make_flag_user_object(MaybeFlags) ->
                 name       => UserName,
                 belongs_to => MaybeRoomObj
             })
-    end.
-
--spec make_log_object(tianjiupai:log()) -> encodable().
-make_log_object(Log) ->
-    case Log of
-        {log_comment, #{from := From, text := Text}} ->
-            ?LABELED(<<"LogComment">>, #{from => make_user_object(From), text => Text});
-        {log_entered, User} ->
-            ?LABELED(<<"LogEntered">>, make_user_object(User));
-        {log_exited, User} ->
-            ?LABELED(<<"LogExited">>, make_user_object(User));
-        log_game_start ->
-            ?LABEL_ONLY(<<"LogGameStart">>)
     end.
 
 -spec make_notification_object(tianjiupai:notification()) -> encodable().
@@ -274,49 +101,6 @@ make_notification_object(Notification) ->
                 new_state  => ObservableGameStateObj,
                 trick_last => make_trick_last_opt_object(TrickLastOpt)
             })
-    end.
-
--spec make_room_object(tianjiupai:room_id(), binary()) -> encodable().
-make_room_object(RoomId, RoomName) ->
-    #{
-        room_id    => RoomId,
-        room_name  => RoomName
-    }.
-
--spec make_room_summary_object(tianjiupai:whole_room_state()) -> encodable().
-make_room_summary_object(WholeStateMap) ->
-    #{
-        room       := #{ room_id := RoomId, room_name := RoomName },
-        members    := Members,
-        is_playing := IsPlaying
-    } = WholeStateMap,
-    #{
-        room       => make_room_object(RoomId, RoomName),
-        is_playing => IsPlaying,
-        members    => lists:map(fun make_user_object/1, Members)
-    }.
-
--spec make_personal_state_object(tianjiupai:personal_room_state()) -> encodable().
-make_personal_state_object(PersonalStateMap) ->
-    #{
-        room := #{ room_id := RoomId, room_name := RoomName },
-        logs := Logs,
-        game := Observable
-    } = PersonalStateMap,
-    case Observable of
-        {waiting_start, Members} ->
-            #{
-                room => make_room_object(RoomId, RoomName),
-                logs => lists:map(fun make_log_object/1, Logs),
-                game => ?LABELED(<<"WaitingStart">>, lists:map(fun make_user_object/1, Members))
-            };
-        {playing_game, ObservableGameState} ->
-            ObservableGameStateObj = make_observable_game_state_object(ObservableGameState),
-            #{
-                room => make_room_object(RoomId, RoomName),
-                logs => lists:map(fun make_log_object/1, Logs),
-                game => ?LABELED(<<"PlayingGame">>, ObservableGameStateObj)
-            }
     end.
 
 -spec make_observable_game_state_object(tianjiupai:observable_game_state()) -> encodable().
