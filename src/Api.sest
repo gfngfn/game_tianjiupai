@@ -7,8 +7,28 @@ import Room
 module Api = struct
   open Types
 
-  val create_user(user_name : user_name) = act
-    User.create(user_name)
+  val create_user(req_body : binary) = act
+    case Json.Decode.run(Models.decode_create_user_request(), req_body) of
+    | Ok(create_user_request) ->
+        let user_name = create_user_request.user_name in
+        do res <- User.create(user_name) in
+        case res of
+        | Ok(user_id) ->
+            let _ =
+              assert Logger.info(
+                f'user created (user_name: ~p, user_id: ~p)',
+                {user_name, user_id}
+              )
+            in
+            let enc = Models.encode_create_user_response() in
+            let resp_body = Json.Encode.run(enc({ user_id = user_id })) in
+            return(Some({user_id, resp_body}))
+        | Error(_) ->
+            return(None)
+        end
+    | Error(_) ->
+        return(None)
+    end
 
   val get_all_rooms() = act
     do room_summaries <- Room.get_all_rooms() in

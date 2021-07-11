@@ -49,7 +49,6 @@
 }).
 
 -define(FRONT, 'Tianjiupai.Api').
--define(ROOM_FRONT, 'Tianjiupai.Room').
 -define(USER_FRONT, 'Tianjiupai.User').
 -define(LOGGER, 'Tianjiupai.Logger').
 
@@ -226,21 +225,13 @@ handle_user_creation(Req0, MaybeInfo) ->
                 {true, Req1};
         undefined ->
             {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-            case tianjiupai_format:decode_create_user_request(ReqBody) of
-                {ok, UserName} ->
-                    case ?FRONT:create_user(UserName) of
-                        {ok, UserId} ->
-                            Req2 = tianjiupai_session:set(#{user_id => UserId}, Req1),
-                            RespBody = tianjiupai_format:encode_create_user_response(UserId),
-                            Req3 = cowboy_req:set_resp_body(RespBody, Req2),
-                            (?LOGGER:info({"user created (user_id: ~p)", 1}, {UserId}))(?MODULE, ?LINE),
-                            {true, Req3};
-                        {error, Reason} ->
-                            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
-                            {false, Req2}
-                    end;
-                {error, Reason} ->
-                    Req2 = set_failure_reason_to_resp_body(Reason, Req1),
+            case ?FRONT:create_user(ReqBody) of
+                {ok, {UserId, RespBody}} ->
+                    Req2 = tianjiupai_session:set(#{user_id => UserId}, Req1),
+                    Req3 = cowboy_req:set_resp_body(RespBody, Req2),
+                    {true, Req3};
+                error ->
+                    Req2 = set_failure_reason_to_resp_body(user_creation_failed, Req1),
                     {false, Req2}
             end
     end.
