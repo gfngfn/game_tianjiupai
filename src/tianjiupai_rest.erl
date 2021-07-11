@@ -173,7 +173,7 @@ provide_json(Req0, State) ->
                     {ok, RespBody0} ->
                         RespBody0;
                     error ->
-                        tianjiupai_format:encode_failure_response(failed_to_get_whole_state)
+                        encode_failure_response(failed_to_get_whole_state)
                         %% TODO: error
                 end;
             _ ->
@@ -269,7 +269,7 @@ handle_room_update(Req0, MaybeInfo, RoomId) ->
 
 -spec set_failure_reason_to_resp_body(Reason :: term(), cowboy_req:req()) -> cowboy_req:req().
 set_failure_reason_to_resp_body(Reason, Req) ->
-    ReasonBin = tianjiupai_format:encode_failure_response(Reason),
+    ReasonBin = encode_failure_response(Reason),
     RespBody = jsone:encode(#{reason => ReasonBin}),
     cowboy_req:set_resp_body(RespBody, Req).
 
@@ -297,3 +297,7 @@ make_flags_from_cookie(MaybeInfo) ->
         end,
     JsonBin = ?FRONT:make_flag_user(MaybeUserId),
     <<"'", JsonBin/binary, "'">>. %% FIXME; escape single quotes in `JsonBin'
+
+-spec encode_failure_response(Reason :: term()) -> binary().
+encode_failure_response(Reason) ->
+    erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Reason]))).
