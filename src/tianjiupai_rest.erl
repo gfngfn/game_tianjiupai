@@ -248,14 +248,12 @@ handle_room_creation(Req0, MaybeInfo) ->
         {ok, {UserId, RoomName}} ->
             case validate_cookie(MaybeInfo, UserId) of
                 true ->
-                    case ?FRONT:create_room(RoomName) of
-                        {ok, RoomId} ->
-                            RespBody = tianjiupai_format:encode_create_room_response(RoomId),
+                    case ?FRONT:create_room(RoomName, UserId) of
+                        {ok, {RoomId, RespBody}} ->
                             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-                            (?LOGGER:info({"room created (room_id: ~p, name: ~p, by: ~p)", 3}, {RoomId, RoomName, UserId}))(?MODULE, ?LINE),
                             {true, Req2};
-                        {error, Reason} ->
-                            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
+                        error ->
+                            Req2 = set_failure_reason_to_resp_body(room_creation_failed, Req1),
                             {false, Req2}
                     end;
                 false ->
@@ -351,7 +349,7 @@ validate_cookie(MaybeInfo, UserId) ->
         #{user_id := UserId} ->
         %% Note that here `UserId' has already been bound.
         %% That is, this pattern includes equality testing.
-            ?USER_FRONT:exists(UserId);
+            ?FRONT:is_existent_user(UserId);
         _ ->
             false
     end.
@@ -361,7 +359,7 @@ make_flags_from_cookie(MaybeInfo) ->
     MaybeFlags =
         case MaybeInfo of
             #{user_id := UserId} ->
-                Result = ?USER_FRONT:get_info(UserId),
+                Result = ?FRONT:get_user_info(UserId),
                 case Result of
                     {ok, Info} ->
                         #{user_name := UserName, belongs_to := MaybeRoomId} = Info,

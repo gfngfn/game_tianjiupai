@@ -30,6 +30,12 @@ module Api = struct
         return(None)
     end
 
+  val is_existent_user(user_id : user_id) = act
+    User.exists(user_id)
+
+  val get_user_info(user_id : user_id) = act
+    User.get_info(user_id)
+
   val get_all_rooms() = act
     do room_summaries <- Room.get_all_rooms() in
     let enc = Models.encode_get_all_rooms_response() in
@@ -67,8 +73,22 @@ module Api = struct
         return(None)
     end
 
-  val create_room(room_name : room_name) = act
-    Room.create(room_name)
+  val create_room(room_name : room_name, -created_by user_id : user_id) = act
+    do res <- Room.create(room_name) in
+    case res of
+    | Ok(room_id) ->
+        let _ =
+          assert Logger.info(
+            f'room created (room_name: ~p, room_id: ~p, created_by: ~p)',
+            {room_name, room_id, user_id}
+          )
+        in
+        let enc = Models.encode_create_room_response() in
+        let resp_body = Json.Encode.run(enc({ room_id = room_id })) in
+        return(Some({room_id, resp_body}))
+    | Error(_) ->
+        return(None)
+    end
 
   val enter_room(user_id : user_id, room_id : room_id) = act
     do res <- User.set_room(user_id, room_id) in
