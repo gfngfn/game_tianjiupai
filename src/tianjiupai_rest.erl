@@ -263,62 +263,13 @@ handle_room_creation(Req0, MaybeInfo) ->
     {boolean(), cowboy_req:req()}.
 handle_room_update(Req0, MaybeInfo, RoomId) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-    case tianjiupai_format:decode_room_request(ReqBody) of
-        {ok, RoomRequest} ->
-            case RoomRequest of
-                {enter_room, UserId} ->
-                    case validate_cookie(MaybeInfo, UserId) of
-                        true ->
-                            handle_enter_room(Req1, RoomId, UserId);
-                        false ->
-                            Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
-                            {false, Req2}
-                    end;
-                {submit, UserId, Cards} ->
-                    case validate_cookie(MaybeInfo, UserId) of
-                        true ->
-                            handle_submission(Req1, RoomId, UserId, Cards);
-                        false ->
-                            Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
-                            {false, Req2}
-                    end
-            end;
-        {error, Reason} ->
-            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
-            {false, Req2}
-    end.
-
--spec handle_enter_room(
-    Req1      :: cowboy_req:req(),
-    RoomId    :: tianjiupai:room_id(),
-    UserId    :: tianjiupai:user_id()
-) ->
-    {boolean(), cowboy_req:req()}.
-handle_enter_room(Req1, RoomId, UserId) ->
-    case ?FRONT:enter_room(UserId, RoomId) of
+    Validator = fun(UserId) -> validate_cookie(MaybeInfo, UserId) end,
+    case ?FRONT:update_room(RoomId, ReqBody, Validator) of
         {ok, RespBody} ->
             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
             {true, Req2};
         error ->
-            Req2 = set_failure_reason_to_resp_body(enter_room_failed, Req1),
-            {false, Req2}
-    end.
-
--spec handle_submission(
-    Req1      :: cowboy_req:req(),
-    RoomId    :: tianjiupai:room_id(),
-    UserId    :: tianjiupai:user_id(),
-    Cards     :: [tianjiupai:card()]
-) ->
-    {boolean(), cowboy_req:req()}.
-handle_submission(Req1, RoomId, UserId, Cards) ->
-    Result = ?FRONT:submit(RoomId, UserId, Cards),
-    case Result of
-        {ok, RespBody} ->
-            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-            {true, Req2};
-        error ->
-            Req2 = set_failure_reason_to_resp_body(submit_failed, Req1),
+            Req2 = set_failure_reason_to_resp_body(room_update_failed, Req1),
             {false, Req2}
     end.
 
@@ -364,4 +315,4 @@ make_flags_from_cookie(MaybeInfo) ->
                 error
         end,
     JsonBin = tianjiupai_format:encode_flags_object(MaybeFlags),
-    <<"'", JsonBin/binary, "'">>.
+    <<"'", JsonBin/binary, "'">>. %% FIXME; escape single quotes in `JsonBin'

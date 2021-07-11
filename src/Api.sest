@@ -131,4 +131,26 @@ module Api = struct
         return(None)
     end
 
+  val update_room(room_id : room_id, req_body : binary, validator : fun(user_id) -> bool) = act
+    case Json.Decode.run(Models.decode_room_request(), req_body) of
+    | Ok(room_request) ->
+        case room_request of
+        | Models.RoomRequestToEnterRoom(enter_room_request) ->
+            let user_id = enter_room_request.user_id in
+            if validator(user_id) then
+              enter_room(user_id, room_id)
+            else
+              return(None)
+        | Models.RoomRequestToSubmitCards(submit_cards_request) ->
+            let user_id = submit_cards_request.user_id in
+            let cards = submit_cards_request.cards in
+            if validator(user_id) then
+              submit(room_id, user_id, cards)
+            else
+              return(None)
+        end
+    | Error(_) ->
+        return(None)
+    end
+
 end
