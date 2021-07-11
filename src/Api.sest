@@ -206,4 +206,26 @@ module Api = struct
     let enc = Models.encode_notification() in
     Json.Encode.run(enc(notification))
 
+  val make_flag_user(user_id_opt) = act
+    let enc = Models.encode_flag_user_option() in
+    do opt <-
+      case user_id_opt of
+      | None ->
+          return(None)
+      | Some(user_id) ->
+          do res <- get_user_info(user_id) in
+          case res of
+          | Some(info) ->
+              return(Some({
+                id         = user_id,
+                name       = info.user_name,
+                belongs_to = info.belongs_to
+              }))
+          | None ->
+              return(None)
+          end
+      end
+    in
+    return(Json.Encode.run(enc(opt)))
+
 end

@@ -168,7 +168,7 @@ provide_json(Req0, State) ->
                 endpoint     = {specific_room_and_user, RoomId, UserId},
                 session_info = MaybeInfo
             } ->
-                Validator = fun(UserId) -> validate_cookie(MaybeInfo, UserId) end,
+                Validator = fun(UserId0) -> validate_cookie(MaybeInfo, UserId0) end,
                 case ?FRONT:get_personal_state(RoomId, UserId, Validator) of
                     {ok, RespBody0} ->
                         RespBody0;
@@ -240,7 +240,7 @@ handle_room_creation(Req0, MaybeInfo) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
     Validator = fun(UserId) -> validate_cookie(MaybeInfo, UserId) end,
     case ?FRONT:create_room(ReqBody, Validator) of
-        {ok, {RoomId, RespBody}} ->
+        {ok, {_RoomId, RespBody}} ->
             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
             {true, Req2};
         error ->
@@ -290,23 +290,10 @@ validate_cookie(MaybeInfo, UserId) ->
 
 -spec make_flags_from_cookie(undefined | tianjiupai_session:info()) -> binary().
 make_flags_from_cookie(MaybeInfo) ->
-    MaybeFlags =
+    MaybeUserId =
         case MaybeInfo of
-            #{user_id := UserId} ->
-                Result = ?FRONT:get_user_info(UserId),
-                case Result of
-                    {ok, Info} ->
-                        #{user_name := UserName, belongs_to := MaybeRoomId} = Info,
-                        {ok, #{
-                            user_id    => UserId,
-                            user_name  => UserName,
-                            belongs_to => MaybeRoomId
-                        }};
-                    error ->
-                        error
-                end;
-            undefined ->
-                error
+            #{user_id := UserId} -> {ok, UserId};
+            undefined            -> error
         end,
-    JsonBin = tianjiupai_format:encode_flags_object(MaybeFlags),
+    JsonBin = ?FRONT:make_flag_user(MaybeUserId),
     <<"'", JsonBin/binary, "'">>. %% FIXME; escape single quotes in `JsonBin'

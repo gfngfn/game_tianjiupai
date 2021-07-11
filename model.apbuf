@@ -34,6 +34,8 @@ flag_user := {
   belongs_to : option(room_id),
 }
 
+flag_user_option := option(flag_user)
+
 create_user_request := {
   user_name : user_name,
 }
