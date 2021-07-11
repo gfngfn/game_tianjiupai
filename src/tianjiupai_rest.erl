@@ -173,9 +173,9 @@ provide_json(Req0, State) ->
             } ->
                 case validate_cookie(MaybeInfo, UserId) of
                     true ->
-                        case ?ROOM_FRONT:get_personal_state(RoomId, UserId) of
-                            {ok, PersonalStateMap} ->
-                                tianjiupai_format:encode_get_personal_room_response(PersonalStateMap);
+                        case ?FRONT:get_personal_state(RoomId, UserId) of
+                            {ok, RespBody0} ->
+                                RespBody0;
                             error ->
                                 tianjiupai_format:encode_failure_response(failed_to_get_whole_state)
                                 %% TODO: error
@@ -334,19 +334,9 @@ handle_enter_room(Req1, RoomId, UserId) ->
 ) ->
     {boolean(), cowboy_req:req()}.
 handle_submission(Req1, RoomId, UserId, Cards) ->
-    Result = ?ROOM_FRONT:submit(RoomId, UserId, Cards),
-    IsSuccess =
-        case Result of
-            {ok, _} -> true;
-            error   -> false
-        end,
-    (?LOGGER:info(
-        {"submit (room_id: ~p, user_id: ~p, cards: ~p, success: ~p)", 4},
-        {RoomId, UserId, Cards, IsSuccess}
-    ))(?MODULE, ?LINE),
+    Result = ?FRONT:submit(RoomId, UserId, Cards),
     case Result of
-        {ok, {ObservableGameState, TrickLastOpt}} ->
-            RespBody = tianjiupai_format:encode_submit_cards_response(ObservableGameState, TrickLastOpt),
+        {ok, RespBody} ->
             Req2 = cowboy_req:set_resp_body(RespBody, Req1),
             {true, Req2};
         error ->

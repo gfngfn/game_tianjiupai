@@ -15,6 +15,38 @@ module Api = struct
     let enc = Models.encode_get_all_rooms_response() in
     return(Json.Encode.run(enc({rooms = room_summaries})))
 
+  val get_personal_state(room_id : room_id, user_id : user_id) = act
+    do res <- Room.get_personal_state(room_id, user_id) in
+    case res of
+    | Some(personal_state) ->
+        let enc = Models.encode_personal_state() in
+        return(Some(Json.Encode.run(enc(personal_state))))
+    | None ->
+        return(None)
+    end
+
+  val submit(room_id, user_id, cards) = act
+    do res <- Room.submit(room_id, user_id, cards) in
+    let is_success =
+      case res of
+      | Some(_) -> true
+      | None    -> false
+      end
+    in
+    let _ =
+      assert Logger.info(
+        f'submit (room_id: ~p, user_id: ~p, cards: ~p, success: ~p)',
+        {user_id, room_id, cards, is_success}
+      )
+    in
+    case res of
+    | Some({obs, trick_last_opt}) ->
+        let enc = Models.encode_submit_cards_response() in
+        return(Some(Json.Encode.run(enc({ new_state = obs, trick_last = trick_last_opt }))))
+    | None ->
+        return(None)
+    end
+
   val create_room(room_name : room_name) = act
     Room.create(room_name)
 
