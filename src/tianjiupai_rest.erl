@@ -170,17 +170,13 @@ provide_json(Req0, State) ->
                 endpoint     = {specific_room_and_user, RoomId, UserId},
                 session_info = MaybeInfo
             } ->
-                case validate_cookie(MaybeInfo, UserId) of
-                    true ->
-                        case ?FRONT:get_personal_state(RoomId, UserId) of
-                            {ok, RespBody0} ->
-                                RespBody0;
-                            error ->
-                                tianjiupai_format:encode_failure_response(failed_to_get_whole_state)
-                                %% TODO: error
-                        end;
-                    false ->
-                        <<"">> % TODO: error
+                Validator = fun(UserId) -> validate_cookie(MaybeInfo, UserId) end,
+                case ?FRONT:get_personal_state(RoomId, UserId, Validator) of
+                    {ok, RespBody0} ->
+                        RespBody0;
+                    error ->
+                        tianjiupai_format:encode_failure_response(failed_to_get_whole_state)
+                        %% TODO: error
                 end;
             _ ->
                 <<"">> % TODO: error

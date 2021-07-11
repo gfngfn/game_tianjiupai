@@ -41,15 +41,18 @@ module Api = struct
     let enc = Models.encode_get_all_rooms_response() in
     return(Json.Encode.run(enc({rooms = room_summaries})))
 
-  val get_personal_state(room_id : room_id, user_id : user_id) = act
-    do res <- Room.get_personal_state(room_id, user_id) in
-    case res of
-    | Some(personal_state) ->
-        let enc = Models.encode_personal_state() in
-        return(Some(Json.Encode.run(enc(personal_state))))
-    | None ->
-        return(None)
-    end
+  val get_personal_state(room_id : room_id, user_id : user_id, validator : fun(user_id) -> bool) = act
+    if validator(user_id) then
+      do res <- Room.get_personal_state(room_id, user_id) in
+      case res of
+      | Some(personal_state) ->
+          let enc = Models.encode_personal_state() in
+          return(Some(Json.Encode.run(enc(personal_state))))
+      | None ->
+          return(None)
+      end
+    else
+      return(None)
 
   val submit(room_id, user_id, cards) = act
     do res <- Room.submit(room_id, user_id, cards) in
