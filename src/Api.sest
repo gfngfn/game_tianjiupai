@@ -199,4 +199,7 @@ module Api = struct
         return({})
     end
 
+  val set_websocket_connection(user_id : user_id, ws_pid) = act
+    User.set_websocket_connection(user_id, ws_pid)
+
 end

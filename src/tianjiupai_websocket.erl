@@ -35,7 +35,6 @@
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
 -define(FRONT, 'Tianjiupai.Api').
--define(USER_FRONT, 'Tianjiupai.User').
 -define(LOGGER, 'Tianjiupai.Logger').
 -define(IDLE_TIMEOUT_MILLISECONDS, 60000).
 
@@ -76,8 +75,12 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
 
 websocket_handle(MsgFromClient, State) ->
     case MsgFromClient of
-        {text, Data} -> handle_command(Data, State);
-        _            -> {ok, State}
+        {text, Data} ->
+            UserId = get_user_id(State),
+            ok = ?FRONT:perform_command(UserId, erlang:iolist_to_binary(Data)),
+            {ok, State};
+        _ ->
+            {ok, State}
     end.
 
 -spec websocket_info(message(), #state{}) -> {reply, [cow_ws:frame()], #state{}} | {ok, #state{}}.
@@ -139,7 +142,7 @@ register_name(UserId) ->
             end)
     of
         yes ->
-            case ?USER_FRONT:set_websocket_connection(UserId, Self) of
+            case ?FRONT:set_websocket_connection(UserId, Self) of
                 {ok, ok} -> ok;
                 error    -> {error, set_websocket_connection_failed}
             end;
@@ -154,9 +157,3 @@ name(UserId) ->
 get_user_id(State) ->
     #state{session_info = #{user_id := UserId}} = State,
     UserId.
-
--spec handle_command(iodata(), #state{}) -> {ok, #state{}}.
-handle_command(Data, State) ->
-    UserId = get_user_id(State),
-    ok = ?FRONT:perform_command(UserId, Data),
-    {ok, State}.
