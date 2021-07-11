@@ -1,9 +1,9 @@
-import Types
+import Models
 import UserServer
 
 module UserServerSup :> sig
   open Stdlib
-  open Types
+  open Models
 
   type info :: o
   type proc :: o
@@ -13,7 +13,7 @@ module UserServerSup :> sig
 
 end = struct
   open Stdlib
-  open Types
+  open Models
 
   module SD = Supervisor.Dynamic
 

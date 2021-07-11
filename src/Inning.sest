@@ -1,10 +1,9 @@
 import Models
 import Quad
 import Card
-import Types
 
 module Inning :> sig
-  open Types
+  open Models
 
   type t :: o
 
@@ -30,7 +29,6 @@ module Inning :> sig
 
 end = struct
   open Stdlib
-  open Types
   open Models
 
   type player = {
@@ -105,7 +103,7 @@ end = struct
       table     = Starting,
     }
 
-  val observe(seat : Quad.seat, inning : t) : Types.observable_inning_state =
+  val observe(seat : Quad.seat, inning : t) : observable_inning_state =
     let player_quad = inning.players in
     let you = Quad.access(seat, player_quad) in
     {
@@ -220,7 +218,7 @@ end = struct
     in
     {trick_index, big}
 
-  val big_with_design_max(bigd_exposed : Types.exposed<big_with_design>) =
+  val big_with_design_max(bigd_exposed : exposed<big_with_design>) =
     let bigd0 = bigd_exposed.first in
     let bigd_or_closeds = bigd_exposed.subsequent in
     let {trick_index, Open(bigd)} =

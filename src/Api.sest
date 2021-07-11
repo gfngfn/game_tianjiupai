@@ -1,11 +1,10 @@
 import Logger
 import Models
-import Types
 import User
 import Room
 
 module Api = struct
-  open Types
+  open Models
 
   val create_user(req_body : binary) = act
     case Json.Decode.run(Models.decode_create_user_request(), req_body) of

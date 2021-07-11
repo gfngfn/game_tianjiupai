@@ -1,11 +1,11 @@
-import Types
+import Models
+import Card
 import RoomServerSup
 import RoomServer
-import Card
 
 module Room :> sig
   open Stdlib
-  open Types
+  open Models
 
   val create<$a> : fun(room_name) -> [$a]result<room_id, GenServer.start_link_error>
   val get_all_rooms<$a> : fun() -> [$a]list<room_summary>
@@ -21,7 +21,7 @@ module Room :> sig
   val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
 end = struct
   open Stdlib
-  open Types
+  open Models
 
   val generate_room_id<$a> : fun() -> [$a]room_id = external 0 ```
     generate_room_id() ->

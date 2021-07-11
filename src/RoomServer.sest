@@ -3,12 +3,11 @@ import Models
 import Quad
 import Card
 import SnapshotId
-import Types
 import Inning
 
 module RoomServer :> sig
   open Stdlib
-  open Types
+  open Models
 
   type info :: o
   type proc :: o
@@ -30,7 +29,7 @@ module RoomServer :> sig
 
 end = struct
   open Stdlib
-  open Types
+  open Models
 
   val todo<$a, $b> : fun($a) -> $b = external 1 ```
     todo(X) ->

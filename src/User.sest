@@ -1,3 +1,4 @@
+import Models
 import Types
 import UserServerSup
 import UserServer
@@ -5,7 +6,7 @@ import Room
 
 module User :> sig
   open Stdlib
-  open Types
+  open Models
 
   val create<$a> : fun(binary) -> [$a]result<user_id, GenServer.start_link_error>
 
@@ -13,7 +14,7 @@ module User :> sig
 
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
-  val get_info<$a> : fun(user_id) -> [$a]option<user_state>
+  val get_info<$a> : fun(user_id) -> [$a]option<Types.user_state>
 
   val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
 
@@ -29,7 +30,7 @@ module User :> sig
 
 end = struct
   open Stdlib
-  open Types
+  open Models
 
   val generate_user_id<$a> : fun() -> [$a]user_id = external 0 ```
     generate_user_id() ->
