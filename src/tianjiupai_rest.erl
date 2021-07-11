@@ -49,8 +49,6 @@
 }).
 
 -define(FRONT, 'Tianjiupai.Api').
--define(USER_FRONT, 'Tianjiupai.User').
--define(LOGGER, 'Tianjiupai.Logger').
 
 %%====================================================================================================
 %% `cowboy_rest' Callback Functions

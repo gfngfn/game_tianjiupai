@@ -34,6 +34,7 @@
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
+-define(FRONT, 'Tianjiupai.Api').
 -define(USER_FRONT, 'Tianjiupai.User').
 -define(LOGGER, 'Tianjiupai.Logger').
 -define(IDLE_TIMEOUT_MILLISECONDS, 60000).
@@ -157,42 +158,5 @@ get_user_id(State) ->
 -spec handle_command(iodata(), #state{}) -> {ok, #state{}}.
 handle_command(Data, State) ->
     UserId = get_user_id(State),
-    case tianjiupai_format:decode_command(Data) of
-        {ok, Command} ->
-            case Command of
-                {comment, Text} ->
-                    case ?USER_FRONT:send_chat(UserId, Text) of
-                        {ok, ok} ->
-                            ok;
-                        error ->
-                            (?LOGGER:warning(
-                                {"failed to send a chat comment (user_id: ~p, text: ~p)", 2},
-                                {UserId, Text}
-                            ))(?MODULE, ?LINE),
-                            ok
-                    end,
-                    {ok, State};
-                {ack, SnapshotId} ->
-                    (?LOGGER:info(
-                        {"ack (user_id: ~p, snapshot_id: ~p)", 2},
-                        {UserId, SnapshotId}
-                    ))(?MODULE, ?LINE),
-                    ok = ?USER_FRONT:ack(UserId, SnapshotId),
-                    {ok, State};
-                {next_inning, SnapshotId} ->
-                    (?LOGGER:info(
-                        {"next inning (user_id: ~p, snapshot_id: ~p)", 2},
-                        {UserId, SnapshotId}
-                    ))(?MODULE, ?LINE),
-                    ok = ?USER_FRONT:require_next_inning(UserId, SnapshotId),
-                    {ok, State};
-                heartbeat ->
-                    {ok, State}
-            end;
-        {error, Reason} ->
-            (?LOGGER:warning(
-                {"unknown command (reason: ~p)", 1},
-                {Reason}
-            ))(?MODULE, ?LINE),
-            {ok, State}
-    end.
+    ok = ?FRONT:perform_command(UserId, Data),
+    {ok, State}.

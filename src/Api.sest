@@ -156,4 +156,47 @@ module Api = struct
         return(None)
     end
 
+  val perform_command(user_id : user_id, data : binary) = act
+    case Json.Decode.run(Models.decode_command(), data) of
+    | Ok(command) ->
+        case command of
+        | Models.CommandComment(text) ->
+            do res <- User.send_chat(user_id, text) in
+            let _ =
+              case res of
+              | Some({}) ->
+                  {}
+              | None ->
+                  assert Logger.warning(
+                    f'failed to send a chat comment (user_id: ~p, text: ~p)',
+                    {user_id, text}
+                  )
+              end
+            in
+            return({})
+        | Models.CommandAck(snapshot_id) ->
+            do res <- User.ack(user_id, snapshot_id) in
+            let _ =
+              assert Logger.info(
+                f'ack (user_id: ~p, snapshot_id: ~p)',
+                {user_id, snapshot_id}
+              )
+            in
+            return({})
+        | Models.CommandHeartbeat ->
+            return({})
+        | Models.CommandNextInning(snapshot_id) ->
+            do res <- User.require_next_inning(user_id, snapshot_id) in
+            let _ =
+              assert Logger.info(
+                f'next inning (user_id: ~p, snapshot_id: ~p)',
+                {user_id, snapshot_id}
+              )
+            in
+            return({})
+        end
+    | Error(_) ->
+        return({})
+    end
+
 end
