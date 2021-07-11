@@ -34,7 +34,7 @@
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
--define(USER_FRONT, 'Tianjiupai.User').
+-define(FRONT, 'Tianjiupai.Api').
 -define(LOGGER, 'Tianjiupai.Logger').
 -define(IDLE_TIMEOUT_MILLISECONDS, 60000).
 
@@ -75,8 +75,12 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
 
 websocket_handle(MsgFromClient, State) ->
     case MsgFromClient of
-        {text, Data} -> handle_command(Data, State);
-        _            -> {ok, State}
+        {text, Data} ->
+            UserId = get_user_id(State),
+            ok = ?FRONT:perform_command(UserId, erlang:iolist_to_binary(Data)),
+            {ok, State};
+        _ ->
+            {ok, State}
     end.
 
 -spec websocket_info(message(), #state{}) -> {reply, [cow_ws:frame()], #state{}} | {ok, #state{}}.
@@ -86,7 +90,7 @@ websocket_info(Msg, State) ->
             Chunks =
                 lists:map(
                     fun(Notification) ->
-                        Bin = tianjiupai_format:encode_notification(Notification),
+                        Bin = ?FRONT:encode_notification(Notification),
                         {text, Bin}
                     end,
                     Notifications),
@@ -101,13 +105,13 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 -spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok | {error, error_reason()}.
 notify(UserId, Notifications) ->
-    Message = {notifications, Notifications},
+    Msg = {notifications, Notifications},
     try
-        _ = global:send(name(UserId), Message),
+        _ = global:send(name(UserId), Msg),
         ok
     catch
         _:_ ->
-            {error, {failed_to_notify, UserId, Message}}
+            {error, {failed_to_notify, UserId, Msg}}
     end.
 
 %%====================================================================================================
@@ -138,7 +142,7 @@ register_name(UserId) ->
             end)
     of
         yes ->
-            case ?USER_FRONT:set_websocket_connection(UserId, Self) of
+            case ?FRONT:set_websocket_connection(UserId, Self) of
                 {ok, ok} -> ok;
                 error    -> {error, set_websocket_connection_failed}
             end;
@@ -153,46 +157,3 @@ name(UserId) ->
 get_user_id(State) ->
     #state{session_info = #{user_id := UserId}} = State,
     UserId.
-
--spec handle_command(iodata(), #state{}) -> {ok, #state{}}.
-handle_command(Data, State) ->
-    UserId = get_user_id(State),
-    case tianjiupai_format:decode_command(Data) of
-        {ok, Command} ->
-            case Command of
-                {comment, Text} ->
-                    case ?USER_FRONT:send_chat(UserId, Text) of
-                        {ok, ok} ->
-                            ok;
-                        error ->
-                            (?LOGGER:warning(
-                                {"failed to send a chat comment (user_id: ~p, text: ~p)", 2},
-                                {UserId, Text}
-                            ))(?MODULE, ?LINE),
-                            ok
-                    end,
-                    {ok, State};
-                {ack, SnapshotId} ->
-                    (?LOGGER:info(
-                        {"ack (user_id: ~p, snapshot_id: ~p)", 2},
-                        {UserId, SnapshotId}
-                    ))(?MODULE, ?LINE),
-                    ok = ?USER_FRONT:ack(UserId, SnapshotId),
-                    {ok, State};
-                {next_inning, SnapshotId} ->
-                    (?LOGGER:info(
-                        {"next inning (user_id: ~p, snapshot_id: ~p)", 2},
-                        {UserId, SnapshotId}
-                    ))(?MODULE, ?LINE),
-                    ok = ?USER_FRONT:require_next_inning(UserId, SnapshotId),
-                    {ok, State};
-                heartbeat ->
-                    {ok, State}
-            end;
-        {error, Reason} ->
-            (?LOGGER:warning(
-                {"unknown command (reason: ~p)", 1},
-                {Reason}
-            ))(?MODULE, ?LINE),
-            {ok, State}
-    end.

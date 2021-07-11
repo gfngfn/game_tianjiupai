@@ -14,6 +14,7 @@ client: model public-assets
 .PHONY: model
 model:
 	mkdir -p src_client/_generated
+	mkdir -p src/_generated
 	apbuf model.apbuf
 
 .PHONY: public-assets

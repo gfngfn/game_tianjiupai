@@ -9,10 +9,10 @@
 -define(CARD_MODULE, 'Tianjiupai.Card').
 -define(QUAD_MODULE, 'Tianjiupai.Quad').
 
--define(SEAT0, seat0).
--define(SEAT1, seat1).
--define(SEAT2, seat2).
--define(SEAT3, seat3).
+-define(SEAT0, seat_a).
+-define(SEAT1, seat_b).
+-define(SEAT2, seat_c).
+-define(SEAT3, seat_d).
 
 -define(OK(_X_), {ok, _X_}).
 -define(ERROR, error).
@@ -71,8 +71,8 @@ max_with_index_test_() ->
     ].
 
 update_table_success_test_() ->
-    First = fun(X) -> {X, []} end,
-    Exposed = fun(X, XOrCloseds) -> {X, XOrCloseds} end,
+    Exposed = fun(X, XOrCloseds) -> #{first => X, subsequent => XOrCloseds} end,
+    First = fun(X) -> Exposed(X, []) end,
     [
      {"Succeeds in updating table states.",
       fun() ->
@@ -100,17 +100,17 @@ update_table_success_test_() ->
 
             %% Submits two cards to `wenzun'.
             {[wen(2), wen(2)],
-                {wenzun, Exposed(minor, [])},
-                {wenzun, Exposed(minor, [{open, major}])}},
+                {wenzun, Exposed(wenzun_minor, [])},
+                {wenzun, Exposed(wenzun_minor, [{open, wenzun_major}])}},
             {[wen(2), wen(2)],
-                {wenzun, Exposed(minor, [closed])},
-                {wenzun, Exposed(minor, [closed, {open, major}])}},
+                {wenzun, Exposed(wenzun_minor, [closed])},
+                {wenzun, Exposed(wenzun_minor, [closed, {open, wenzun_major}])}},
             {[wen(3), wen(3)],
-                {wenzun, Exposed(minor, [])},
-                {wenzun, Exposed(minor, [closed])}},
+                {wenzun, Exposed(wenzun_minor, [])},
+                {wenzun, Exposed(wenzun_minor, [closed])}},
             {[wen(3), wuF(5)],
-                {wenzun, Exposed(minor, [])},
-                {wenzun, Exposed(minor, [closed])}},
+                {wenzun, Exposed(wenzun_minor, [])},
+                {wenzun, Exposed(wenzun_minor, [closed])}},
 
             %% Submits one wen to `single_wen'.
             {[wen(5)],
@@ -235,77 +235,77 @@ update_table_success_test_() ->
 
             %% Submits an effective triple to `triple_wen'.
             {[wen(11), wuT(9), wen(11)],
-                {triple_wen, Exposed(bigF(big3), [])},
-                {triple_wen, Exposed(bigF(big3), [{open, bigT(big4)}])}},
+                {triple_wen, Exposed(bigF(big_c), [])},
+                {triple_wen, Exposed(bigF(big_c), [{open, bigT(big_d)}])}},
             {[wuT(9), wen(11), wen(11)],
-                {triple_wen, Exposed(bigF(big2), [{open, bigT(big3)}])},
-                {triple_wen, Exposed(bigF(big2), [{open, bigT(big3)}, {open, bigT(big4)}])}},
+                {triple_wen, Exposed(bigF(big_b), [{open, bigT(big_c)}])},
+                {triple_wen, Exposed(bigF(big_b), [{open, bigT(big_c)}, {open, bigT(big_d)}])}},
             {[wen(10), wuT(8), wen(10)],
-                {triple_wen, Exposed(bigF(big2), [])},
-                {triple_wen, Exposed(bigF(big2), [{open, bigT(big3)}])}},
+                {triple_wen, Exposed(bigF(big_b), [])},
+                {triple_wen, Exposed(bigF(big_b), [{open, bigT(big_c)}])}},
             {[wuT(5), wen(8), wen(8)],
-                {triple_wen, Exposed(bigF(big2), [])},
-                {triple_wen, Exposed(bigF(big2), [closed])}},
+                {triple_wen, Exposed(bigF(big_b), [])},
+                {triple_wen, Exposed(bigF(big_b), [closed])}},
 
             %% Submits an ineffective triple to `triple_wen'.
             {[wen(11), wuT(9), wuF(9)],
-                {triple_wen, Exposed(bigT(big3), [])},
-                {triple_wen, Exposed(bigT(big3), [closed])}},
+                {triple_wen, Exposed(bigT(big_c), [])},
+                {triple_wen, Exposed(bigT(big_c), [closed])}},
             {[wen(5), wen(4), wen(3)],
-                {triple_wen, Exposed(bigT(big1), [])},
-                {triple_wen, Exposed(bigT(big1), [closed])}},
+                {triple_wen, Exposed(bigT(big_a), [])},
+                {triple_wen, Exposed(bigT(big_a), [closed])}},
             {[wuF(5), wuT(5), wuF(7)],
-                {triple_wen, Exposed(bigT(big1), [])},
-                {triple_wen, Exposed(bigT(big1), [closed])}},
+                {triple_wen, Exposed(bigT(big_a), [])},
+                {triple_wen, Exposed(bigT(big_a), [closed])}},
 
             %% Submits an effective triple to `triple_wu'.
             {[wen(11), wuT(9), wuF(9)],
-                {triple_wu, Exposed(big3, [])},
-                {triple_wu, Exposed(big3, [{open, big4}])}},
+                {triple_wu, Exposed(big_c, [])},
+                {triple_wu, Exposed(big_c, [{open, big_d}])}},
             {[wuT(9), wen(11), wuF(9)],
-                {triple_wu, Exposed(big2, [{open, big3}])},
-                {triple_wu, Exposed(big2, [{open, big3}, {open, big4}])}},
+                {triple_wu, Exposed(big_b, [{open, big_c}])},
+                {triple_wu, Exposed(big_b, [{open, big_c}, {open, big_d}])}},
             {[wen(10), wuT(8), wuF(8)],
-                {triple_wu, Exposed(big2, [])},
-                {triple_wu, Exposed(big2, [{open, big3}])}},
+                {triple_wu, Exposed(big_b, [])},
+                {triple_wu, Exposed(big_b, [{open, big_c}])}},
             {[wuT(5), wen(8), wuF(5)],
-                {triple_wu, Exposed(big2, [])},
-                {triple_wu, Exposed(big2, [closed])}},
+                {triple_wu, Exposed(big_b, [])},
+                {triple_wu, Exposed(big_b, [closed])}},
 
             %% Submits an ineffective triple to `triple_wu'.
             {[wen(11), wen(11), wuT(9)],
-                {triple_wu, Exposed(big3, [])},
-                {triple_wu, Exposed(big3, [closed])}},
+                {triple_wu, Exposed(big_c, [])},
+                {triple_wu, Exposed(big_c, [closed])}},
             {[wen(5), wen(4), wen(3)],
-                {triple_wu, Exposed(big1, [])},
-                {triple_wu, Exposed(big1, [closed])}},
+                {triple_wu, Exposed(big_a, [])},
+                {triple_wu, Exposed(big_a, [closed])}},
             {[wen(11), wen(11), wen(10)],
-                {triple_wu, Exposed(big3, [])},
-                {triple_wu, Exposed(big3, [closed])}},
+                {triple_wu, Exposed(big_c, [])},
+                {triple_wu, Exposed(big_c, [closed])}},
 
             %% Submits an effective quadruple to `quadruple'.
             {[wen(11), wuT(9), wuF(9), wen(11)],
-                {quadruple, Exposed(big3, [])},
-                {quadruple, Exposed(big3, [{open, big4}])}},
+                {quadruple, Exposed(big_c, [])},
+                {quadruple, Exposed(big_c, [{open, big_d}])}},
             {[wen(11), wuT(9), wuF(9), wen(11)],
-                {quadruple, Exposed(big1, [{open, big2}])},
-                {quadruple, Exposed(big1, [{open, big2}, {open, big4}])}},
+                {quadruple, Exposed(big_a, [{open, big_b}])},
+                {quadruple, Exposed(big_a, [{open, big_b}, {open, big_d}])}},
             {[wen(9), wuF(7), wuT(7), wen(9)],
-                {quadruple, Exposed(big1, [{open, big3}])},
-                {quadruple, Exposed(big1, [{open, big3}, closed])}},
+                {quadruple, Exposed(big_a, [{open, big_c}])},
+                {quadruple, Exposed(big_a, [{open, big_c}, closed])}},
 
             %% Submits an ineffective quadruple to `quadruple'.
             {[wen(10), wuT(9), wuF(9), wen(11)],
-                {quadruple, Exposed(big1, [])},
-                {quadruple, Exposed(big1, [closed])}},
+                {quadruple, Exposed(big_a, [])},
+                {quadruple, Exposed(big_a, [closed])}},
             {[wen(4), wuF(9), wuT(9), wen(4)],
-                {quadruple, Exposed(big1, [])},
-                {quadruple, Exposed(big1, [closed])}}
+                {quadruple, Exposed(big_a, [])},
+                {quadruple, Exposed(big_a, [closed])}}
         ]
     ].
 
 get_winner_test_() ->
-    Exposed = fun(X, Xs) -> {X, Xs} end,
+    Exposed = fun(X, XOrCloseds) -> #{first => X, subsequent => XOrCloseds} end,
     [
      {"Judge the winner.",
       fun() ->
@@ -315,13 +315,13 @@ get_winner_test_() ->
     ||
       {Table, Expected} <- [
           %% Results of `wuzun'.
-          {{wuzun, Exposed(ok, [closed, closed, closed])},
+          {{wuzun, Exposed(wuzun_unit, [closed, closed, closed])},
               {0, [wuT(3), wuT(6)]}},
 
           %% Results of `wenzun'.
-          {{wenzun, Exposed(minor, [closed, closed, closed])},
+          {{wenzun, Exposed(wenzun_minor, [closed, closed, closed])},
               {0, [wen(1), wen(1)]}},
-          {{wenzun, Exposed(minor, [closed, {open, major}, closed])},
+          {{wenzun, Exposed(wenzun_minor, [closed, {open, wenzun_major}, closed])},
               {2, [wen(2), wen(2)]}},
 
           %% Results of `single_wen'.
@@ -357,39 +357,39 @@ get_winner_test_() ->
               {2, [wuF(9), wuT(9)]}},
 
           %% Results of `triple_wen'.
-          {{triple_wen, Exposed(bigT(big2), [closed, closed, closed])},
+          {{triple_wen, Exposed(bigT(big_b), [closed, closed, closed])},
               {0, [wen(9), wen(9), wuT(7)]}},
-          {{triple_wen, Exposed(bigF(big1), [{open, bigF(big2)}, {open, bigT(big4)}, closed])},
+          {{triple_wen, Exposed(bigF(big_a), [{open, bigF(big_b)}, {open, bigT(big_d)}, closed])},
               {2, [wen(11), wen(11), wuT(9)]}},
-          {{triple_wen, Exposed(bigF(big1), [{open, bigF(big2)}, closed, {open, bigT(big4)}])},
+          {{triple_wen, Exposed(bigF(big_a), [{open, bigF(big_b)}, closed, {open, bigT(big_d)}])},
               {3, [wen(11), wen(11), wuT(9)]}},
-          {{triple_wen, Exposed(bigT(big2), [closed, closed, {open, bigF(big3)}])},
+          {{triple_wen, Exposed(bigT(big_b), [closed, closed, {open, bigF(big_c)}])},
               {3, [wen(10), wen(10), wuF(8)]}},
 
           %% Results of `triple_wu'.
-          {{triple_wu, Exposed(big2, [closed, closed, closed])},
+          {{triple_wu, Exposed(big_b, [closed, closed, closed])},
               {0, [wen(9), wuF(7), wuT(7)]}},
-          {{triple_wu, Exposed(big1, [{open, big2}, {open, big4}, closed])},
+          {{triple_wu, Exposed(big_a, [{open, big_b}, {open, big_d}, closed])},
               {2, [wen(11), wuF(9), wuT(9)]}},
-          {{triple_wu, Exposed(big1, [{open, big2}, closed, {open, big4}])},
+          {{triple_wu, Exposed(big_a, [{open, big_b}, closed, {open, big_d}])},
               {3, [wen(11), wuF(9), wuT(9)]}},
-          {{triple_wu, Exposed(big2, [closed, closed, {open, big3}])},
+          {{triple_wu, Exposed(big_b, [closed, closed, {open, big_c}])},
               {3, [wen(10), wuF(8), wuT(8)]}},
 
           %% Results of `quadruple'.
-          {{quadruple, Exposed(big1, [closed, closed, closed])},
+          {{quadruple, Exposed(big_a, [closed, closed, closed])},
               {0, [wen(8), wen(8), wuF(5), wuT(5)]}},
-          {{quadruple, Exposed(big1, [{open, big2}, {open, big4}, closed])},
+          {{quadruple, Exposed(big_a, [{open, big_b}, {open, big_d}, closed])},
               {2, [wen(11), wen(11), wuF(9), wuT(9)]}},
-          {{quadruple, Exposed(big1, [{open, big2}, closed, {open, big4}])},
+          {{quadruple, Exposed(big_a, [{open, big_b}, closed, {open, big_d}])},
               {3, [wen(11), wen(11), wuF(9), wuT(9)]}},
-          {{quadruple, Exposed(big2, [closed, closed, {open, big3}])},
+          {{quadruple, Exposed(big_b, [closed, closed, {open, big_c}])},
               {3, [wen(10), wen(10), wuF(8), wuT(8)]}}
       ]
     ].
 
 submit_success_test_() ->
-    Exposed = fun(X, XOrCloseds) -> {X, XOrCloseds} end,
+    Exposed = fun(X, XOrCloseds) -> #{first => X, subsequent => XOrCloseds} end,
     [
      {"submit (" ++ Subtitle ++ ")",
       fun() ->
@@ -589,7 +589,7 @@ submit_success_test_() ->
                       player1 => {?MOCKED_HAND12, []}, % MOCKED_HAND12 == MOCKED_HAND1 - wuT(3), wuT(6)
                       player2 => {?MOCKED_HAND2, []},
                       player3 => {?MOCKED_HAND3, []},
-                      table => {wuzun, Exposed(ok, [])}
+                      table => {wuzun, Exposed(wuzun_unit, [])}
                   })}
           },
           #submit_test_case{
@@ -677,11 +677,11 @@ submit_success_test_() ->
               expected =
                   {wins_inning, ?SEAT2,
                       {single_wu, Exposed(wunumT(7), [closed, closed, {open, wunumT(9)}])},
-                      {
-                         [wuT(3), wuT(6)],
-                         [],
-                         [wen(10), wuF(8), wuT(9)],
-                         [wen(11), wen(7), wen(7)]
+                      #{
+                         east  => [wuT(3), wuT(6)],
+                         south => [],
+                         west  => [wen(10), wuF(8), wuT(9)],
+                         north => [wen(11), wen(7), wen(7)]
                       }}
           }
       ]
@@ -706,11 +706,11 @@ inning_state(#{
     player3   := {Hand3, Gaineds3},
     table     := TableState
 }) ->
-    PlayerQuad = {
-        #{hand => Hand0, gained => Gaineds0},
-        #{hand => Hand1, gained => Gaineds1},
-        #{hand => Hand2, gained => Gaineds2},
-        #{hand => Hand3, gained => Gaineds3}
+    PlayerQuad = #{
+        east  => #{hand => Hand0, gained => Gaineds0},
+        south => #{hand => Hand1, gained => Gaineds1},
+        west  => #{hand => Hand2, gained => Gaineds2},
+        north => #{hand => Hand3, gained => Gaineds3}
     },
     #{
         starts_at => StartSeat,

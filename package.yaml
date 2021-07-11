@@ -2,6 +2,7 @@ package: "tianjiupai"
 
 source_directories:
   - "./src"
+  - "./src/_generated"
 
 test_directories:
   - "./test"
@@ -16,6 +17,14 @@ dependencies:
       spec:
         type: "tag"
         value: "v0.2.1"
+
+  - name: "sesterl_json"
+    source:
+      type: "git"
+      repository: "https://github.com/gfngfn/sesterl_json"
+      spec:
+        type: "branch"
+        value: "master"
 
 test_dependencies:
   - name: "sesterl_testing"

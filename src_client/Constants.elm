@@ -142,7 +142,11 @@ stringifyCard card =
 
 stringifyBig : CardBig -> String
 stringifyBig big =
-  "big" ++ String.fromInt big
+  case big of
+    BigA -> "big1"
+    BigB -> "big2"
+    BigC -> "big3"
+    BigD -> "big4"
 
 
 stringifyWen : CardWen -> String

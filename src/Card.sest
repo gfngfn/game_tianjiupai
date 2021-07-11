@@ -1,25 +1,18 @@
+import Models
+
 module Card = struct
 
-  type wen = int
+  type wen = Models.card_wen
 
-  type design = bool
+  type design = Models.design
 
-  type wu_number = int
+  type wu_number = Models.card_wu_number
 
-  type wu = {
-    design : design,
-    number : wu_number,
-  }
+  type wu = Models.card_wu
 
-  type t =
-    | Wen(wen)
-    | Wu(wu)
+  type t = Models.card
 
-  type big =
-    | Big1
-    | Big2
-    | Big3
-    | Big4
+  type big = Models.card_big
 
   val wen_greater(wen1, wen2) =
     wen1 > wen2
@@ -65,18 +58,18 @@ module Card = struct
 
   val big_to_wen_and_wu(big : big) : {wen, wu_number} =
     case big of
-    | Big1 -> {8, 5}
-    | Big2 -> {9, 7}
-    | Big3 -> {10, 8}
-    | Big4 -> {11, 9}
+    | Models.BigA -> {8, 5}
+    | Models.BigB -> {9, 7}
+    | Models.BigC -> {10, 8}
+    | Models.BigD -> {11, 9}
     end
 
   val wen_and_wu_to_big(wen : wen, wunum : wu_number) : option<big> =
     case {wen, wunum} of
-    | {8, 5}  -> Some(Big1)
-    | {9, 7}  -> Some(Big2)
-    | {10, 8} -> Some(Big3)
-    | {11, 9} -> Some(Big4)
+    | {8, 5}  -> Some(Models.BigA)
+    | {9, 7}  -> Some(Models.BigB)
+    | {10, 8} -> Some(Models.BigC)
+    | {11, 9} -> Some(Models.BigD)
     | _       -> None
     end
 

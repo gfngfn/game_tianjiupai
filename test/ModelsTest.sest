@@ -1,0 +1,16 @@
+import Models
+
+module ModelsTest = #[test] struct
+  open Models
+
+  #[test]
+  val encode_card_test() =
+    Testing.it("encode_card", fun() ->
+      let enc = Models.encode_card() in
+      assert Testing.equal(
+        -expect "{\"_arg\":3,\"_label\":\"Wen\"}",
+        -got Json.Encode.run(enc(Wen(3))),
+      )
+    end)
+
+end

@@ -1,4 +1,5 @@
 import Logger
+import Models
 import Quad
 import Card
 import SnapshotId
@@ -16,12 +17,12 @@ module RoomServer :> sig
   val from_pid : fun(pid<info>) -> proc
   val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
 
-  val get_whole_state<$a> : fun(room_id) -> [$a]option<whole_room_state>
-  val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<whole_room_state>
-  val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_room_state>
+  val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
+  val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<room_summary>
+  val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
 
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
-  val attend<$a> : fun(room_id, user) -> [$a]option<personal_room_state>
+  val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
@@ -73,10 +74,10 @@ end = struct
     | Submit(user_id, list<Card.t>)
 
   type response_impl =
-    | WholeState(whole_room_state)
-    | PersonalState(option<personal_room_state>)
+    | WholeState(room_summary)
+    | PersonalState(option<personal_state>)
     | ChatSent
-    | Attended(option<personal_room_state>)
+    | Attended(option<personal_state>)
     | Exited(bool)
     | SubmissionDone(option<{observable_game_state, option<table_state>}>)
 
@@ -124,12 +125,11 @@ end = struct
           {true, members}
       end
 
-    val make_whole_room_state(state : state) : whole_room_state =
+    val make_whole_room_state(state : state) : room_summary =
       let settings = state.settings in
       let {is_playing, members} = get_members_from_state(state.room_state) in
       {
-        room_id    = settings.room_id,
-        room_name  = settings.room_name,
+        room       = { room_id = settings.room_id, room_name = settings.room_name },
         is_playing = is_playing,
         members    = members,
       }
@@ -145,19 +145,19 @@ end = struct
 
     val the_other_seats(seat) =
       case seat of
-      | Quad.Seat0 -> [Quad.Seat1, Quad.Seat2, Quad.Seat3]
-      | Quad.Seat1 -> [Quad.Seat2, Quad.Seat3, Quad.Seat0]
-      | Quad.Seat2 -> [Quad.Seat3, Quad.Seat0, Quad.Seat1]
-      | Quad.Seat3 -> [Quad.Seat0, Quad.Seat1, Quad.Seat2]
+      | Models.SeatA -> [Models.SeatB, Models.SeatC, Models.SeatD]
+      | Models.SeatB -> [Models.SeatC, Models.SeatD, Models.SeatA]
+      | Models.SeatC -> [Models.SeatD, Models.SeatA, Models.SeatB]
+      | Models.SeatD -> [Models.SeatA, Models.SeatB, Models.SeatC]
       end
 
     val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<user_id> =
-      let {u0, u1, u2, u3} = Quad.map(fun(p) -> p.user.user_id end, game_state.meta.players) in
+      let {u0, u1, u2, u3} = Quad.decompose(Quad.map(fun(p) -> p.user.user_id end, game_state.meta.players)) in
       case seat of
-      | Quad.Seat0 -> [u1, u2, u3]
-      | Quad.Seat1 -> [u2, u3, u0]
-      | Quad.Seat2 -> [u3, u0, u1]
-      | Quad.Seat3 -> [u0, u1, u2]
+      | Models.SeatA -> [u1, u2, u3]
+      | Models.SeatB -> [u2, u3, u0]
+      | Models.SeatC -> [u3, u0, u1]
+      | Models.SeatD -> [u0, u1, u2]
       end
 
     val make_observable_game_state(game_state : whole_game_state, user_id : user_id) : option<observable_game_state> =
@@ -174,8 +174,8 @@ end = struct
           in
           let observable_inning =
             case game_state.inning of
-            | DuringInning(inning)     -> ObservableDuringInning(Inning.observe(seat, inning))
-            | InningEnd(gains_quad, _) -> ObservableInningEnd(gains_quad)
+            | DuringInning(inning)     -> Models.ObservableDuringInning(Inning.observe(seat, inning))
+            | InningEnd(gains_quad, _) -> Models.ObservableInningEnd(gains_quad)
             end
           in
           Some({
@@ -189,13 +189,13 @@ end = struct
     val make_observable(room_state : internal_room_state, user_id : user_id) : option<observable_room_state> =
       case room_state of
       | InternalWaiting(waiting_state) ->
-          Some(Waiting(waiting_state.members))
+          Some(Models.WaitingStart(waiting_state.members))
 
       | InternalPlaying(game_state) ->
-          Option.map(fun(obs) -> Playing(obs) end, make_observable_game_state(game_state, user_id))
+          Option.map(fun(obs) -> Models.PlayingGame(obs) end, make_observable_game_state(game_state, user_id))
       end
 
-    val make_personal_room_state(state : state, user_id : user_id) : option<personal_room_state> =
+    val make_personal_state(state : state, user_id : user_id) : option<personal_state> =
       let settings = state.settings in
       case make_observable(state.room_state, user_id) of
       | None ->
@@ -203,15 +203,14 @@ end = struct
 
       | Some(observable) ->
           Some({
-            room_id    = settings.room_id,
-            room_name  = settings.room_name,
-            logs       = List.reverse(state.reversed_logs),
-            observable = observable,
+            room = { room_id = settings.room_id, room_name = settings.room_name },
+            logs = List.reverse(state.reversed_logs),
+            game = observable,
           })
       end
 
-    val make_initial_sync() =
-      {false, false, false, false}
+    val make_initial_sync() : Quad.t<bool> =
+      Quad.make({false, false, false, false})
 
     val start_new_inning<$a>(game_meta : game_meta) : [$a]whole_game_state = act
       let next_parent_seat = game_meta.parent_seat in
@@ -246,11 +245,12 @@ end = struct
 
     val handle_send_chat(user : user, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
+      let comment = { from = user, text = text } in
       do dummy <-
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
-        notify_for_each(user_ids, [NotifyComment(user, text)])
+        notify_for_each(user_ids, [Models.NotifyComment(comment)])
       in
-      GenServer.reply(ChatSent, { state | reversed_logs = LogComment(user, text) :: state.reversed_logs })
+      GenServer.reply(ChatSent, { state | reversed_logs = Models.LogComment(comment) :: state.reversed_logs })
 
     val handle_attend(user : user, state : state) = act
       let user_id = user.user_id in
@@ -261,11 +261,11 @@ end = struct
       | InternalWaiting(waiting_state) ->
           let members = waiting_state.members in
           if List.any(fun(u) -> Binary.equal(u.user_id, user_id) end, members) then
-            let Some(personal_state) = make_personal_room_state(state, user_id) in
+            let Some(personal_state) = make_personal_state(state, user_id) in
             GenServer.reply(Attended(Some(personal_state)), state)
           else
-            let log_enter = LogEntered(user) in
-            let notif_enter = NotifyEntered(user) in
+            let log_enter = Models.LogEntered(user) in
+            let notif_enter = Models.NotifyEntered(user) in
             case members of
             | u0 :: u1 :: u2 :: _ ->
                 let player_quad =
@@ -273,9 +273,9 @@ end = struct
                   let player1 = { user = u1, score = 0 } in
                   let player2 = { user = u2, score = 0 } in
                   let player3 = { user = user, score = 0 } in
-                  {player0, player1, player2, player3}
+                  Quad.make({player0, player1, player2, player3})
                 in
-                let parent_seat = Quad.Seat0 in
+                let parent_seat = Models.SeatA in
                 let game_meta =
                   {
                     inning_index     = 0,
@@ -289,7 +289,7 @@ end = struct
                   List.for_each(
                     fun(u) -> act
                       let Some(obs) = make_observable_game_state(game_state, u) in
-                      notify(u, [notif_enter, NotifyGameStart(obs)])
+                      notify(u, [notif_enter, Models.NotifyGameStart(obs)])
                     end,
                     [u0.user_id, u1.user_id, u2.user_id]
                   )
@@ -297,10 +297,10 @@ end = struct
                 let state =
                   { state |
                     room_state    = InternalPlaying(game_state),
-                    reversed_logs = LogGameStart :: log_enter :: state.reversed_logs,
+                    reversed_logs = Models.LogGameStart :: log_enter :: state.reversed_logs,
                   }
                 in
-                let Some(personal_state) = make_personal_room_state(state, user_id) in
+                let Some(personal_state) = make_personal_state(state, user_id) in
                 GenServer.reply(Attended(Some(personal_state)), state)
 
             | _ ->
@@ -312,7 +312,7 @@ end = struct
                     reversed_logs = log_enter :: state.reversed_logs,
                   }
                 in
-                let Some(personal_state) = make_personal_room_state(state, user_id) in
+                let Some(personal_state) = make_personal_state(state, user_id) in
                 GenServer.reply(Attended(Some(personal_state)), state)
             end
       end
@@ -487,7 +487,7 @@ end = struct
                                   trick_last = last_table_opt,
                                 }
                               in
-                              notify(u, [NotifySubmission(submission)])
+                              notify(u, [Models.NotifySubmission(submission)])
                             end,
                             the_other_players(game_state, seat)
                           )
@@ -532,11 +532,11 @@ end = struct
                           {snapshot_id, sync_quad}
                         )
                       in
-                      case sync_quad of
+                      case Quad.decompose(sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
                           let user_ids = the_other_players(game_state, seat) in
-                          do dummy <- notify_for_each(user_id :: user_ids, [NotifyNextStep]) in
+                          do dummy <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
                           return(Some(game_state))
 
@@ -594,7 +594,7 @@ end = struct
                           {snapshot_id, inning_sync_quad}
                         )
                       in
-                      case inning_sync_quad of
+                      case Quad.decompose(inning_sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
                           do game_state <- start_new_inning(game_state.meta) in
@@ -603,7 +603,7 @@ end = struct
                             List.for_each(
                               fun(u) -> act
                                 let Some(obs) = make_observable_game_state(game_state, u) in
-                                notify(u, [NotifyGameStart(obs)])
+                                notify(u, [Models.NotifyGameStart(obs)])
                               end,
                               user_id :: user_ids)
                           in
@@ -640,11 +640,11 @@ end = struct
 
               | WaitingSync(sync_quad) ->
                   let sync_quad = Quad.update(seat, true, sync_quad) in
-                  case sync_quad of
+                  case Quad.decompose(sync_quad) of
                   | {true, true, true, true} ->
                     /* If all the players are ready for the next step: */
                       let user_ids = the_other_players(game_state, seat) in
-                      do dummy <- notify_for_each(user_ids, [NotifyNextStep]) in
+                      do dummy <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
                       let game_state = { game_state | sync = WaitingInput } in
                       return({ state | room_state = InternalPlaying(game_state) })
 
@@ -663,7 +663,7 @@ end = struct
           GenServer.reply(WholeState(whole_state), state)
       | GetPersonalState(user_id) ->
           do state <- update_sync(user_id, state) in
-          let personal_state_opt = make_personal_room_state(state, user_id) in
+          let personal_state_opt = make_personal_state(state, user_id) in
           GenServer.reply(PersonalState(personal_state_opt), state)
       | SendChat(user, text) ->
           handle_send_chat(user, text, state)
@@ -734,20 +734,20 @@ end = struct
         f(resp)
     end
 
-  val get_whole_state<$a>(room_id : room_id) : [$a]option<whole_room_state> = act
+  val get_whole_state<$a>(room_id : room_id) : [$a]option<room_summary> = act
     call(room_id, GetWholeState, fun(resp) -> act
       case resp of
       | WholeState(whole_state) -> return(Some(whole_state))
       end
     end)
 
-  val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<whole_room_state> = act
+  val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<room_summary> = act
     do resp <- Impl.call(proc, GetWholeState) in
     case resp of
     | WholeState(whole_state) -> return(Some(whole_state))
     end
 
-  val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_room_state> = act
+  val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_state> = act
     call(room_id, GetPersonalState(user_id), fun(resp) -> act
       case resp of
       | PersonalState(personal_state_opt) -> return(personal_state_opt)
@@ -761,7 +761,7 @@ end = struct
       end
     end)
 
-  val attend<$a>(room_id : room_id, user : user) : [$a]option<personal_room_state> = act
+  val attend<$a>(room_id : room_id, user : user) : [$a]option<personal_state> = act
     call(room_id, Attend(user), fun(resp) -> act
       case resp of
       | Attended(game_state_opt) -> return(game_state_opt)
