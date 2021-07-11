@@ -244,24 +244,13 @@ handle_user_creation(Req0, MaybeInfo) ->
     {boolean(), cowboy_req:req()}.
 handle_room_creation(Req0, MaybeInfo) ->
     {ok, ReqBody, Req1} = cowboy_req:read_body(Req0),
-    case tianjiupai_format:decode_create_room_request(ReqBody) of
-        {ok, {UserId, RoomName}} ->
-            case validate_cookie(MaybeInfo, UserId) of
-                true ->
-                    case ?FRONT:create_room(RoomName, UserId) of
-                        {ok, {RoomId, RespBody}} ->
-                            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-                            {true, Req2};
-                        error ->
-                            Req2 = set_failure_reason_to_resp_body(room_creation_failed, Req1),
-                            {false, Req2}
-                    end;
-                false ->
-                    Req2 = set_failure_reason_to_resp_body(invalid_cookie, Req1),
-                    {false, Req2}
-            end;
-        {error, Reason} ->
-            Req2 = set_failure_reason_to_resp_body(Reason, Req1),
+    Validator = fun(UserId) -> validate_cookie(MaybeInfo, UserId) end,
+    case ?FRONT:create_room(ReqBody, Validator) of
+        {ok, {RoomId, RespBody}} ->
+            Req2 = cowboy_req:set_resp_body(RespBody, Req1),
+            {true, Req2};
+        error ->
+            Req2 = set_failure_reason_to_resp_body(room_creation_failed, Req1),
             {false, Req2}
     end.
 
