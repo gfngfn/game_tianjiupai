@@ -1,6 +1,5 @@
 import Logger
 import Models
-import Types
 import Room
 
 module UserServer :> sig
@@ -11,9 +10,17 @@ module UserServer :> sig
 
   type proc :: o
 
+  type user_state = {
+    user_name  : user_name,
+    belongs_to : option<room_id>,
+  }
+
+  type websocket_proc = RawValue.t
+    /* For external use; corresponds to `pid()` */
+
   val start_link<$a> : fun(user_id, binary) -> [$a]result<proc, GenServer.start_link_error>
 
-  val get_user_state<$a> : fun(user_id) -> [$a]option<Types.user_state>
+  val get_user_state<$a> : fun(user_id) -> [$a]option<user_state>
 
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
@@ -27,9 +34,6 @@ module UserServer :> sig
 
   val from_pid : fun(pid<info>) -> proc
 
-  type websocket_proc = RawValue.t
-    /* For external use; corresponds to `pid()` */
-
   val set_websocket_connection<$a> : fun(user_id, websocket_proc) -> [$a]option<unit>
 
 end = struct
@@ -37,6 +41,11 @@ end = struct
   open Models
 
   type websocket_proc = RawValue.t
+
+  type user_state = {
+    user_name  : user_name,
+    belongs_to : option<room_id>,
+  }
 
   module Callback = struct
 
@@ -63,7 +72,7 @@ end = struct
     type response =
       | RoomSet(bool)
       | WebsocketConnectionSet
-      | UserStateGot(Types.user_state)
+      | UserStateGot(user_state)
 
     type cast_message =
       | DummyCastMessage

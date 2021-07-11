@@ -1,5 +1,4 @@
 import Models
-import Types
 import UserServerSup
 import UserServer
 import Room
@@ -14,7 +13,7 @@ module User :> sig
 
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
-  val get_info<$a> : fun(user_id) -> [$a]option<Types.user_state>
+  val get_info<$a> : fun(user_id) -> [$a]option<UserServer.user_state>
 
   val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
 

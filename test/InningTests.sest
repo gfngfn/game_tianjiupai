@@ -1,13 +1,11 @@
 import Models
 import Quad
 import Card
-import Types
 import Inning
 
 module InningTests = #[test] struct
   open Stdlib
   open Models
-  open Types
 
   #[test]
   val all_cards_test() =
