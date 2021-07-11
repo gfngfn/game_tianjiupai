@@ -90,7 +90,7 @@ websocket_info(Msg, State) ->
             Chunks =
                 lists:map(
                     fun(Notification) ->
-                        Bin = tianjiupai_format:encode_notification(Notification),
+                        Bin = ?FRONT:encode_notification(Notification),
                         {text, Bin}
                     end,
                     Notifications),
@@ -105,13 +105,13 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 -spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok | {error, error_reason()}.
 notify(UserId, Notifications) ->
-    Message = {notifications, Notifications},
+    Msg = {notifications, Notifications},
     try
-        _ = global:send(name(UserId), Message),
+        _ = global:send(name(UserId), Msg),
         ok
     catch
         _:_ ->
-            {error, {failed_to_notify, UserId, Message}}
+            {error, {failed_to_notify, UserId, Msg}}
     end.
 
 %%====================================================================================================

@@ -202,4 +202,8 @@ module Api = struct
   val set_websocket_connection(user_id : user_id, ws_pid) = act
     User.set_websocket_connection(user_id, ws_pid)
 
+  val encode_notification(notification) =
+    let enc = Models.encode_notification() in
+    Json.Encode.run(enc(notification))
+
 end
