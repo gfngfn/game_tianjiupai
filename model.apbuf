@@ -1,4 +1,4 @@
-@language_version "0.0.2"
+@language_version "0.0.3"
 @output "elm": {
   dir     = "./src_client/_generated",
   module  = "Models",
