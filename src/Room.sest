@@ -14,7 +14,7 @@ module Room :> sig
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
   val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
-  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
+  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
 

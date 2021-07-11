@@ -24,7 +24,7 @@ module RoomServer :> sig
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
   val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
-  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table_state>}>
+  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
 
@@ -79,7 +79,7 @@ end = struct
     | ChatSent
     | Attended(option<personal_state>)
     | Exited(bool)
-    | SubmissionDone(option<{observable_game_state, option<table_state>}>)
+    | SubmissionDone(option<{observable_game_state, option<table>}>)
 
   module Callback = struct
     type init_arg = {room_id, binary}
@@ -776,7 +776,7 @@ end = struct
       end
     end)
 
-  val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<table_state>}> = act
+  val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<table>}> = act
     call(room_id, Submit(user_id, cards), fun(resp) -> act
       case resp of
       | SubmissionDone(v) -> return(v)

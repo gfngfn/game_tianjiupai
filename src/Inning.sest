@@ -10,8 +10,8 @@ module Inning :> sig
 
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, table_state, t)
-    | WinsInning(Quad.seat, table_state, Quad.t<list<Card.t>>)
+    | WinsTrick(Quad.seat, table, t)
+    | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
 
   /* exported for tests */
   val all_cards : fun() -> list<Card.t>
@@ -20,7 +20,7 @@ module Inning :> sig
   val shuffle : fun() -> Quad.t<list<Card.t>>
 
   /* exported for tests */
-  val make_starting_table : fun(list<Card.t>) -> option<table_state>
+  val make_starting_table : fun(list<Card.t>) -> option<table>
 
   val start : fun(Quad.seat) -> t
 
@@ -41,13 +41,13 @@ end = struct
   type t = {
     starts_at : Quad.seat,
     players   : Quad.t<player>,
-    table     : table_state,
+    table     : table,
   }
 
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, table_state, t)
-    | WinsInning(Quad.seat, table_state, Quad.t<list<Card.t>>)
+    | WinsTrick(Quad.seat, table, t)
+    | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
 
   val all_cards : fun() -> list<Card.t> = external 0 ```
     all_cards() ->
@@ -115,7 +115,7 @@ end = struct
       table     = inning.table,
     }
 
-  val table_length(table : table_state) : int =
+  val table_length(table : table) : int =
     case table of
     | Starting      -> 0
     | Wuzun(e)      -> 1 + List.length(e.subsequent)
@@ -143,7 +143,7 @@ end = struct
         end.
   ```
 
-  val append_closed_to_table(table : table_state) : option<table_state> =
+  val append_closed_to_table(table : table) : option<table> =
     let f(e) =
       { first = e.first, subsequent = List.append(e.subsequent, [Models.Closed]) }
     in
@@ -306,7 +306,7 @@ end = struct
       subsequent = List.append(x_exposed.subsequent, [x_new]),
     }
 
-  val update_table(submitted_cards : list<Card.t>, table : table_state) : option<table_state> =
+  val update_table(submitted_cards : list<Card.t>, table : table) : option<table> =
     case table of
     | Starting ->
         make_starting_table(submitted_cards)
@@ -471,7 +471,7 @@ end = struct
         end
     end
 
-  val get_winner(table : table_state) : {int, list<Card.t>} =
+  val get_winner(table : table) : {int, list<Card.t>} =
     case table of
     | Wuzun(exposed) ->
         let Models.WuzunUnit = exposed.first in
@@ -548,7 +548,7 @@ end = struct
         ]}
     end
 
-  val check_last_submission_is_open(table : table_state) : bool =
+  val check_last_submission_is_open(table : table) : bool =
     let f(exposed) =
       case List.reverse(exposed.subsequent) of
       | []           -> true

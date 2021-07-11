@@ -29,7 +29,7 @@ module Types = struct
 
   type exposed<$a> = Models.exposed<$a>
 
-  type table_state = Models.table
+  type table = Models.table
 
   type log = Models.log
 
