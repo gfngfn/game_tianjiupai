@@ -22,6 +22,9 @@ $standard-text-color: #444444;
 
 $button-stroke-width: 2px;
 $button-radius: 4px;
+$button-shadow-shift: 1px;
+$button-shadow-diffuse: 2px;
+$button-shadow-color: #bbbbbb;
 $button-padding-vertical: 6px;
 $button-padding-horizontal: 6px;
 $button-enabled-background-color: #ee6622;
@@ -30,6 +33,7 @@ $button-hovered-background-color: #ff8855;
 $button-hovered-text-color: #ffffff;
 $button-clicked-background-color: #cc4400;
 $button-clicked-text-color: #cccccc;
+$button-clicked-shift: 1px;
 
 $hover-highlight: #ffffff44;
 
@@ -195,17 +199,18 @@ body {
 .button-scheme {
   display: inline;
   border-radius: $button-radius;
-  box-shadow: 0px 1px 2px #bbbbbb;
   padding: {
     top: $button-padding-vertical;
     left: $button-padding-horizontal;
     right: $button-padding-horizontal;
     bottom: $button-padding-vertical;
   }
+  user-select: none;
 }
 
 .enabled-button {
   @extend .button-scheme;
+  box-shadow: 0px $button-shadow-shift $button-shadow-diffuse $button-shadow-color;
   background-color: $button-enabled-background-color;
   color: $button-enabled-text-color;
   font-size: 14px;
@@ -213,12 +218,15 @@ body {
 
 .enabled-button:hover {
   @extend .button-scheme;
+  box-shadow: 0px $button-shadow-shift $button-shadow-diffuse $button-shadow-color;
   background-color: $button-hovered-background-color;
   color: $button-hovered-text-color;
 }
 
 .enabled-button:active {
   @extend .button-scheme;
+  position: relative;
+  top: $button-clicked-shift;
   background-color: $button-clicked-background-color;
   color: $button-clicked-text-color;
 }
