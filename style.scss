@@ -9,16 +9,28 @@ $footer-height: 30px;
 $side-width-ratio: 20vw;
 $side-width-max: 250px;
 
-body {
-  margin-top: 0px;
-  margin-left: 0px;
-  margin-right: 0px;
-  margin-bottom: 0px;
+$text-frame-padding-horizontal: 8px;
+$text-frame-padding-vertical: 8px;
 
-  padding-top: 0px;
-  padding-left: 0px;
-  padding-right: 0px;
-  padding-bottom: 0px;
+$standard-text-color: #444444;
+
+$button-stroke-width: 2px;
+
+$hover-highlight: #ffffff44;
+
+body {
+  margin: {
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+  }
+  padding: {
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+  }
 }
 
 .grid-container {
@@ -28,15 +40,17 @@ body {
   right: 0px;
 
   display: grid;
-  grid-template-columns: min(#{$side-width-max}, #{$side-width-ratio}) auto min(#{$side-width-max}, #{$side-width-ratio});
-  grid-template-rows: $header-height calc(100vh - #{$header-height + $footer-height}) $footer-height;
+  grid-template: {
+    columns: min(#{$side-width-max}, #{$side-width-ratio}) auto min(#{$side-width-max}, #{$side-width-ratio});
+    rows: $header-height calc(100vh - #{$header-height + $footer-height}) $footer-height;
+  }
 }
 
 .grid-element-header {
-  grid-column-start: 1;
-  grid-column-end: 4;
-  grid-row-start: 1;
-  grid-row-end: 2;
+  grid: {
+    column: { start: 1; end: 4; }
+    row: { start: 1; end: 2; }
+  }
   height: $header-height;
 
   background-color: $header-background-color;
@@ -44,47 +58,49 @@ body {
 }
 
 .grid-element-left {
-  grid-column-start: 1;
-  grid-column-end: 2;
-  grid-row-start: 2;
-  grid-row-end: 3;
-
-  border-style: solid;
-  border-width: 1px;
-  border-color: gray;
-
-  padding-top: 8px;
-  padding-left: 8px;
-  padding-right: 8px;
-  padding-bottom: 8px;
+  grid: {
+    column: { start: 1; end: 2; }
+    row: { start: 2; end: 3; }
+  }
+  border: {
+    style: solid;
+    width: 1px;
+    color: gray;
+  }
+  padding: {
+    top: $text-frame-padding-vertical;
+    left: $text-frame-padding-horizontal;
+    right: $text-frame-padding-horizontal;
+    bottom: $text-frame-padding-vertical;
+  }
 }
 
 .grid-element-center {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 2;
-  grid-row-end: 3;
-
+  grid: {
+    column: { start: 2; end: 3; }
+    row: { start: 2; end: 3; }
+  }
   background-color: #226622;
   color: #eeeeee;
 }
 
 .grid-element-right {
-  grid-column-start: 3;
-  grid-column-end: 4;
-  grid-row-start: 2;
-  grid-row-end: 3;
-
-  border-style: solid;
-  border-width: 1px;
-  border-color: gray;
+  grid: {
+    column: { start: 3; end: 4; }
+    row: { start: 2; end: 3; }
+  }
+  border: {
+    style: solid;
+    width: 1px;
+    color: gray;
+  }
 }
 
 .grid-element-footer {
-  grid-column-start: 1;
-  grid-column-end: 4;
-  grid-row-start: 3;
-  grid-row-end: 4;
+  grid: {
+    column: { start: 1; end: 4; }
+    row: { start: 3; end: 4; }
+  }
   height: $footer-height;
 }
 
@@ -101,7 +117,7 @@ body {
 .svg-button-enabled {
   fill: #ee6622;
   stroke: #aa4400;
-  stroke-width: 2px;
+  stroke-width: $button-stroke-width;
 }
 
 .svg-button-front {
@@ -109,15 +125,15 @@ body {
 }
 
 .svg-button-front:hover {
-  fill: #ffffff44;
-  stroke: #ffffff44;
-  stroke-width: 2px;
+  fill: $hover-highlight;
+  stroke: $hover-highlight;
+  stroke-width: $button-stroke-width;
 }
 
 .svg-button-disabled {
   fill: #aaaaaa;
   stroke: #888888;
-  stroke-width: 2px;
+  stroke-width: $button-stroke-width;
 }
 
 .svg-button-text-enabled {
@@ -129,30 +145,37 @@ body {
 }
 
 .room-name {
-  color: #444444;
-  font-style: sans-serif;
-  font-size: 24px;
+  color: $standard-text-color;
+  font: {
+    style: sans-serif;
+    size: 24px;
+  }
 }
 
 .player-frame {
-  margin-top: 4px;
-  margin-bottom: 4px;
-
-  border-style: solid;
-  border-width: 3px;
-  border-color: #888888;
-
-  padding-top: 8px;
-  padding-left: 8px;
-  padding-right: 8px;
-  padding-bottom: 8px;
-
+  margin: {
+    top: 4px;
+    bottom: 4px;
+  }
+  border: {
+    style: solid;
+    width: 3px;
+    color: #888888;
+  }
+  padding: {
+    top: $text-frame-padding-vertical;
+    left: $text-frame-padding-horizontal;
+    right: $text-frame-padding-horizontal;
+    bottom: $text-frame-padding-vertical;
+  }
   background-color: #cccccc;
-  color: #444444;
+  color: $standard-text-color;
 }
 
 .player-name {
-  color: #444444;
-  font-style: sans-serif;
-  font-size: 20px;
+  color: $standard-text-color;
+  font: {
+    style: sans-serif;
+    size: 20px;
+  }
 }
