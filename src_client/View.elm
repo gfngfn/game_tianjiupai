@@ -264,7 +264,7 @@ viewGridScheme gridScheme =
 
 viewPlayer : String -> GamePlayer -> Html Msg
 viewPlayer direction player =
-  div [ class "player-frame" ]
+  div [ class "panel" ]
     [ div [ class "player-name" ] [ text (direction ++ " " ++ player.user.userName) ]
     , div [] [ text ("得点： " ++ String.fromInt player.score) ]
     ]
