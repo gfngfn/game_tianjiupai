@@ -60,7 +60,6 @@ viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
       [ div [ sty ] [ text message ] ]
   , div []
       [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
-  , viewRoomList maybeRoomSummaries
   , div []
       [ input
           [ type_ "text"
@@ -72,32 +71,45 @@ viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
           [ onClick (SendRequest CreateRoom) ]
           [ text "作成" ]
       ]
-  ]
+  ] ++ viewRoomList maybeRoomSummaries
 
 
-viewRoomList : Maybe (List RoomSummary) -> Html Msg
+viewRoomList : Maybe (List RoomSummary) -> List (Html Msg)
 viewRoomList maybeRoomSummaries =
   case maybeRoomSummaries of
     Nothing ->
-      div [] [ text "(Rooms will be displayed here)" ]
+      [ div [] [ text "部屋一覧取得中……" ] ]
 
     Just roomSummaries ->
-      let
-        elems =
-          roomSummaries |> List.map (\roomSummary ->
-            let
-              room = roomSummary.room
-              members = String.join ", " (roomSummary.members |> List.map (\u -> u.userName))
-            in
-            li []
-            [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")")
-            , button
-                [ onClick (SendRequest (EnterRoom room.roomId)) ]
-                [ text "参加" ]
-            ]
-          )
-      in
-      ul [] elems
+      roomSummaries |> List.map (\roomSummary ->
+        let
+          room = roomSummary.room
+          members = String.join ", " (roomSummary.members |> List.map (\u -> u.userName))
+
+          statusText =
+            if roomSummary.isPlaying then
+              "対局中"
+            else
+              "待機中"
+        in
+        div [ class "plaza-panel" ]
+          [ div [ class "plaza-panel-left" ]
+              [ div []
+                  [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
+              , div []
+                  [ text ("参加者: " ++ members) ]
+              ]
+          , div [ class "plaza-panel-right" ]
+              [ div []
+                  [ text statusText ]
+              , div []
+                  [ button
+                      [ onClick (SendRequest (EnterRoom room.roomId)) ]
+                      [ text "参加" ]
+                  ]
+              ]
+          ]
+      )
 
 
 viewRoom : ( MessageLevel, String ) -> User -> PersonalState -> Set Int -> String -> List (Html Msg)
