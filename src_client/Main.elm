@@ -179,8 +179,7 @@ update msg model =
                       }
 
                     roomSummaries1 : List RoomSummary
-                    roomSummaries1 =
-                      roomSummaries0 ++ [roomSummary]
+                    roomSummaries1 = roomSummary :: roomSummaries0
                   in
                   ( { model | state = AtPlaza ws user roomNameInput0 (Just roomSummaries1) }, Cmd.none )
 
