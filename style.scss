@@ -1,7 +1,11 @@
 @charset "UTF-8";
 
+$text-frame-padding-horizontal: 8px;
+$text-frame-padding-vertical: 8px;
+
 $plaza-panel-left-width: 600px;
 $plaza-panel-right-width: 50px;
+$plaza-width: ($plaza-panel-left-width + $plaza-panel-right-width + $text-frame-padding-horizontal * 2);
 
 $header-height: 30px;
 $header-background-color: #444444;
@@ -11,9 +15,6 @@ $footer-height: 30px;
 
 $side-width-ratio: 20vw;
 $side-width-max: 250px;
-
-$text-frame-padding-horizontal: 8px;
-$text-frame-padding-vertical: 8px;
 
 $standard-text-color: #444444;
 
@@ -155,6 +156,14 @@ body {
   }
 }
 
+.player-name {
+  color: $standard-text-color;
+  font: {
+    style: sans-serif;
+    size: 20px;
+  }
+}
+
 .panel {
   margin: {
     top: 4px;
@@ -172,17 +181,9 @@ body {
   color: $standard-text-color;
 }
 
-.player-name {
-  color: $standard-text-color;
-  font: {
-    style: sans-serif;
-    size: 20px;
-  }
-}
-
 .plaza-panel {
   @extend .panel;
-  width: ($plaza-panel-left-width + $plaza-panel-right-width + $text-frame-padding-horizontal * 2);
+  width: $plaza-width;
 }
 
 .plaza-panel-left {
@@ -193,4 +194,12 @@ body {
 .plaza-panel-right {
   display: inline-block;
   width: $plaza-panel-right-width;
+}
+
+.plaza-container {
+  width: $plaza-width;
+  margin: {
+    right: auto;
+    left: auto;
+  }
 }

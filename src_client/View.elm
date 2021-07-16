@@ -56,22 +56,24 @@ viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
         Information -> style "color" "gray"
         Warning     -> style "color" "red"
   in
-  [ div []
-      [ div [ sty ] [ text message ] ]
-  , div []
-      [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
-  , div []
-      [ input
-          [ type_ "text"
-          , placeholder "部屋名"
-          , value roomNameInput
-          , onInput (UpdateInput << RoomNameInput)
-          ] []
-      , button
-          [ onClick (SendRequest CreateRoom) ]
-          [ text "作成" ]
-      ]
-  ] ++ viewRoomList maybeRoomSummaries
+  [ div [ class "plaza-container" ]
+      ([ div []
+          [ div [ sty ] [ text message ] ]
+      , div []
+          [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
+      , div []
+          [ input
+              [ type_ "text"
+              , placeholder "部屋名"
+              , value roomNameInput
+              , onInput (UpdateInput << RoomNameInput)
+              ] []
+          , button
+              [ onClick (SendRequest CreateRoom) ]
+              [ text "作成" ]
+          ]
+      ] ++ viewRoomList maybeRoomSummaries)
+  ]
 
 
 viewRoomList : Maybe (List RoomSummary) -> List (Html Msg)
