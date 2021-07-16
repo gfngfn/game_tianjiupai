@@ -3,6 +3,8 @@
 $text-frame-padding-horizontal: 8px;
 $text-frame-padding-vertical: 8px;
 
+$panel-radius: 6px;
+
 $plaza-panel-left-width: 600px;
 $plaza-panel-right-width: 50px;
 $plaza-width: ($plaza-panel-left-width + $plaza-panel-right-width + $text-frame-padding-horizontal * 2);
@@ -19,6 +21,15 @@ $side-width-max: 250px;
 $standard-text-color: #444444;
 
 $button-stroke-width: 2px;
+$button-radius: 4px;
+$button-padding-vertical: 6px;
+$button-padding-horizontal: 6px;
+$button-enabled-background-color: #ee6622;
+$button-enabled-text-color: #eeeeee;
+$button-hovered-background-color: #ff8855;
+$button-hovered-text-color: #ffffff;
+$button-clicked-background-color: #cc4400;
+$button-clicked-text-color: #cccccc;
 
 $hover-highlight: #ffffff44;
 
@@ -119,7 +130,7 @@ body {
 }
 
 .svg-button-enabled {
-  fill: #ee6622;
+  fill: $button-enabled-background-color;
   stroke: #aa4400;
   stroke-width: $button-stroke-width;
 }
@@ -141,7 +152,7 @@ body {
 }
 
 .svg-button-text-enabled {
-  fill: #eeeeee;
+  fill: $button-enabled-text-color;
 }
 
 .svg-button-text-disabled {
@@ -169,7 +180,7 @@ body {
     top: 4px;
     bottom: 4px;
   }
-  border-radius: 6px;
+  border-radius: $panel-radius;
   box-shadow: 0px 1px 2px #dddddd;
   padding: {
     top: $text-frame-padding-vertical;
@@ -179,6 +190,37 @@ body {
   }
   background-color: #ffffee;
   color: $standard-text-color;
+}
+
+.button-scheme {
+  display: inline;
+  border-radius: $button-radius;
+  box-shadow: 0px 1px 2px #bbbbbb;
+  padding: {
+    top: $button-padding-vertical;
+    left: $button-padding-horizontal;
+    right: $button-padding-horizontal;
+    bottom: $button-padding-vertical;
+  }
+}
+
+.enabled-button {
+  @extend .button-scheme;
+  background-color: $button-enabled-background-color;
+  color: $button-enabled-text-color;
+  font-size: 14px;
+}
+
+.enabled-button:hover {
+  @extend .button-scheme;
+  background-color: $button-hovered-background-color;
+  color: $button-hovered-text-color;
+}
+
+.enabled-button:active {
+  @extend .button-scheme;
+  background-color: $button-clicked-background-color;
+  color: $button-clicked-text-color;
 }
 
 .plaza-panel {

@@ -12,6 +12,12 @@ import PerSeat
 import ViewTable exposing (HandInfo)
 
 
+enabledButton : String -> Request -> Html Msg
+enabledButton buttonText req =
+  span [ class "enabled-button", onClick (SendRequest req) ]
+    [ text buttonText ]
+
+
 viewBody : Model -> List (Html Msg)
 viewBody model =
   let message = model.message in
@@ -36,15 +42,15 @@ viewEntrance ( level, message ) userNameInput =
   in
   [ div []
       [ div [ sty ] [ text message ] ]
-  , input
-      [ type_ "text"
-      , placeholder "ユーザ名"
-      , value userNameInput
-      , onInput (UpdateInput << UserNameInput)
-      ] []
-  , button
-      [ onClick (SendRequest CreateUser) ]
-      [ text "開始" ]
+  , div []
+      [ input
+          [ type_ "text"
+          , placeholder "ユーザ名"
+          , value userNameInput
+          , onInput (UpdateInput << UserNameInput)
+          ] []
+      , enabledButton "開始" CreateUser
+      ]
   ]
 
 
@@ -68,9 +74,7 @@ viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
               , value roomNameInput
               , onInput (UpdateInput << RoomNameInput)
               ] []
-          , button
-              [ onClick (SendRequest CreateRoom) ]
-              [ text "作成" ]
+          , enabledButton "作成" CreateRoom
           ]
       ] ++ viewRoomList maybeRoomSummaries)
   ]
@@ -105,10 +109,7 @@ viewRoomList maybeRoomSummaries =
               [ div []
                   [ text statusText ]
               , div []
-                  [ button
-                      [ onClick (SendRequest (EnterRoom room.roomId)) ]
-                      [ text "参加" ]
-                  ]
+                  [ enabledButton "参加" (EnterRoom room.roomId) ]
               ]
           ]
       )
