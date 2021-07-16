@@ -1,5 +1,14 @@
 @charset "UTF-8";
 
+$header-height: 30px;
+$header-background-color: #444444;
+$header-text-color: #eeeeee;
+
+$footer-height: 30px;
+
+$side-width-ratio: 20vw;
+$side-width-max: 250px;
+
 body {
   margin-top: 0px;
   margin-left: 0px;
@@ -19,8 +28,8 @@ body {
   right: 0px;
 
   display: grid;
-  grid-template-columns: min(250px, 20vw) auto min(250px, 20vw);
-  grid-template-rows: 30px calc(100vh - 30px - 30px) 30px;
+  grid-template-columns: min(#{$side-width-max}, #{$side-width-ratio}) auto min(#{$side-width-max}, #{$side-width-ratio});
+  grid-template-rows: $header-height calc(100vh - #{$header-height + $footer-height}) $footer-height;
 }
 
 .grid-element-header {
@@ -28,10 +37,10 @@ body {
   grid-column-end: 4;
   grid-row-start: 1;
   grid-row-end: 2;
-  height: 30px;
+  height: $header-height;
 
-  background-color: #444444;
-  color: #eeeeee;
+  background-color: $header-background-color;
+  color: $header-text-color;
 }
 
 .grid-element-left {
@@ -76,7 +85,7 @@ body {
   grid-column-end: 4;
   grid-row-start: 3;
   grid-row-end: 4;
-  height: 30px;
+  height: $footer-height;
 }
 
 .footer-style-normal {

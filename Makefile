@@ -20,6 +20,7 @@ model:
 .PHONY: public-assets
 public-assets:
 	mkdir -p $(ASSETS_TARGET_DIR)
+	sass style.scss:$(ASSETS_TARGET_DIR)/style.css
 	cp assets_client/* $(ASSETS_TARGET_DIR)
 
 .PHONY: test
