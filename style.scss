@@ -206,19 +206,22 @@ body {
     bottom: $button-padding-vertical;
   }
   user-select: none;
-}
-
-.enabled-button {
-  @extend .button-scheme;
-  box-shadow: 0px $button-shadow-shift $button-shadow-diffuse $button-shadow-color;
-  background-color: $button-enabled-background-color;
-  color: $button-enabled-text-color;
   font-size: 14px;
 }
 
-.enabled-button:hover {
+.untouched-button-scheme {
   @extend .button-scheme;
   box-shadow: 0px $button-shadow-shift $button-shadow-diffuse $button-shadow-color;
+}
+
+.enabled-button {
+  @extend .untouched-button-scheme;
+  background-color: $button-enabled-background-color;
+  color: $button-enabled-text-color;
+}
+
+.enabled-button:hover {
+  @extend .untouched-button-scheme;
   background-color: $button-hovered-background-color;
   color: $button-hovered-text-color;
 }
