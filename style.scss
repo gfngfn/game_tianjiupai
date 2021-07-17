@@ -58,6 +58,14 @@ body {
   }
 }
 
+.background-table {
+  background: {
+    color: $table-color;
+    image: url("./background.png");
+    size: 100% 100%;
+  }
+}
+
 .simple-grid-container {
   position: fixed;
   top: 0px;
@@ -94,7 +102,7 @@ body {
 }
 
 .entrance-middle {
-  background-color: $table-color;
+  @extend .background-table;
   color: #eeeeee;
 }
 
@@ -130,7 +138,6 @@ body {
     column: { start: 1; end: 4; }
     row: { start: 1; end: 2; }
   }
-  height: $header-height;
   background-color: $header-background-color;
   color: $header-text-color;
 }
@@ -154,11 +161,11 @@ body {
 }
 
 .room-grid-element-center {
+  @extend .background-table;
   grid: {
     column: { start: 2; end: 3; }
     row: { start: 2; end: 3; }
   }
-  background-color: $table-color;
   color: #eeeeee;
 }
 
@@ -179,7 +186,6 @@ body {
     column: { start: 1; end: 4; }
     row: { start: 3; end: 4; }
   }
-  height: $footer-height;
 }
 
 .footer-style-normal {

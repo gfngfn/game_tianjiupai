@@ -33,7 +33,7 @@ viewBody model =
 
 
 viewEntrance : ( MessageLevel, String ) -> UserName -> List (Html Msg)
-viewEntrance ( level, message ) userNameInput =
+viewEntrance message userNameInput =
   let
     middle =
       [ div [ class "entrance-container" ]
@@ -55,12 +55,12 @@ viewEntrance ( level, message ) userNameInput =
     { header = [ text "header" ]
     , middle = middle
     , style  = "entrance-middle"
-    , footer = viewFooter level message
+    , footer = message
     }
 
 
 viewPlaza : ( MessageLevel, String ) -> User -> RoomName -> Maybe (List RoomSummary) -> List (Html Msg)
-viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
+viewPlaza message user roomNameInput maybeRoomSummaries =
   let
     middle =
       [ div [ class "plaza-container" ]
@@ -82,7 +82,7 @@ viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
     { header = [ text "header" ]
     , middle = middle
     , style  = "plaza-middle"
-    , footer = viewFooter level message
+    , footer = message
     }
 
 
@@ -122,7 +122,7 @@ viewRoomList maybeRoomSummaries =
 
 
 viewRoom : ( MessageLevel, String ) -> User -> PersonalState -> Set Int -> String -> List (Html Msg)
-viewRoom ( level, message ) user pstate indices chatTextInput =
+viewRoom message user pstate indices chatTextInput =
   let
     room : Room
     room = pstate.room
@@ -174,7 +174,7 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
         , left   = elemsDebug
         , center = []
         , right  = elemsChat
-        , footer = viewFooter level message
+        , footer = message
         }
 
     PlayingGame ostate ->
@@ -240,7 +240,7 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
             , left   = elemsLeft
             , center = [ ViewTable.view userId seat handInfo ostate.observableInning ]
             , right  = elemsChat
-            , footer = viewFooter level message
+            , footer = message
             }
 
 
@@ -248,16 +248,17 @@ type alias SimpleGridScheme =
   { header : List (Html Msg)
   , middle : List (Html Msg)
   , style  : String
-  , footer : List (Html Msg)
+  , footer : ( MessageLevel, String )
   }
 
 
 viewSimpleGridScheme : SimpleGridScheme -> List (Html Msg)
 viewSimpleGridScheme gridScheme =
+  let ( level, messageText ) = gridScheme.footer in
   [ div [ class "simple-grid-container" ]
       [ div [ class "simple-grid-element-header" ] gridScheme.header
       , div [ class "simple-grid-element-middle", class gridScheme.style ] gridScheme.middle
-      , div [ class "simple-grid-element-footer" ] gridScheme.footer
+      , div [ class "simple-grid-element-footer", class (footerStyleFromLevel level) ] [ text messageText ]
       ]
   ]
 
@@ -267,31 +268,28 @@ type alias RoomGridScheme =
   , left   : List (Html Msg)
   , center : List (Html Msg)
   , right  : List (Html Msg)
-  , footer : List (Html Msg)
+  , footer : ( MessageLevel, String )
   }
 
 
 viewRoomGridScheme : RoomGridScheme -> List (Html Msg)
 viewRoomGridScheme gridScheme =
+  let ( level, messageText ) = gridScheme.footer in
   [ div [ class "room-grid-container" ]
       [ div [ class "room-grid-element-header" ] gridScheme.header
       , div [ class "room-grid-element-left" ]   gridScheme.left
       , div [ class "room-grid-element-center" ] gridScheme.center
       , div [ class "room-grid-element-right" ]  gridScheme.right
-      , div [ class "room-grid-element-footer" ] gridScheme.footer
+      , div [ class "room-grid-element-footer", class (footerStyleFromLevel level) ] [ text messageText ]
       ]
   ]
 
 
-viewFooter : MessageLevel -> String -> List (Html Msg)
-viewFooter level message =
-  let
-    stys =
-      case level of
-        Information -> [ class "footer-style-normal" ]
-        Warning     -> [ class "footer-style-warning" ]
-  in
-  [ div stys [ text message ] ]
+footerStyleFromLevel : MessageLevel -> String
+footerStyleFromLevel level =
+  case level of
+    Information -> "footer-style-normal"
+    Warning     -> "footer-style-warning"
 
 
 viewPlayer : String -> GamePlayer -> Html Msg
