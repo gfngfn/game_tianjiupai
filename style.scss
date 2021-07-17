@@ -2,6 +2,8 @@
 
 $table-color: #226622;
 
+$svg-width: 700px;
+
 $text-frame-padding-horizontal: 8px;
 $text-frame-padding-vertical: 8px;
 
@@ -63,6 +65,14 @@ body {
     color: $table-color;
     image: url("./background.png");
     size: 100% 100%;
+  }
+}
+
+.table-container {
+  width: min(100%, #{$svg-width});
+  margin: {
+    left: auto;
+    right: auto;
   }
 }
 
@@ -271,6 +281,7 @@ body {
     bottom: $button-padding-vertical;
   }
   user-select: none;
+  cursor: pointer;
   font-size: 14px;
 }
 
