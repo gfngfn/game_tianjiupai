@@ -36,42 +36,47 @@ type alias RelativeQuad =
 
 view : UserId -> Seat -> HandInfo -> ObservableInning -> Html Msg
 view userId selfSeat handInfo observableInning =
-  case observableInning of
-    ObservableDuringInning oinning ->
-      let
-        submittedQuad = makeSubmittedQuad oinning.startsAt oinning.table
-        relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
-        yourHand = oinning.yourHand
-      in
-      Svg.svg
-        [ SvgA.width (String.fromInt C.svgWidth)
-        , SvgA.height (String.fromInt C.svgHeight)
-        , SvgA.viewBox ("0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight)
-        ]
-        (List.concat
-          [ displayGains relQuad
-          , displayTable relQuad
-          , displayHand handInfo yourHand
-          ])
+  let
+    widthText = "min(100%, " ++ (String.fromInt C.svgWidth) ++ "px)"
+    viewBoxText = "0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight
 
-    ObservableInningEnd gainsQuad ->
-      let
-        submittedQuad = { east = [], south = [], west = [], north = [] }
-        relQuad = makeRelativeQuad selfSeat gainsQuad submittedQuad
-      in
-      Svg.svg
-        [ SvgA.width (String.fromInt C.svgWidth)
-        , SvgA.height (String.fromInt C.svgHeight)
-        , SvgA.viewBox ("0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight)
-        ]
-        (displayGains relQuad ++
-          [ displayButton
-              (not handInfo.synchronizing)
-              (SendRequest RequireNextInning)
-              "次へ"
-              C.goToNextButtonX
-              C.goToNextButtonY
-          ])
+    mainElem =
+      case observableInning of
+        ObservableDuringInning oinning ->
+          let
+            submittedQuad = makeSubmittedQuad oinning.startsAt oinning.table
+            relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
+            yourHand = oinning.yourHand
+          in
+          Svg.svg
+            [ SvgA.width widthText
+            , SvgA.viewBox viewBoxText
+            ]
+            (List.concat
+              [ displayGains relQuad
+              , displayTable relQuad
+              , displayHand handInfo yourHand
+              ])
+
+        ObservableInningEnd gainsQuad ->
+          let
+            submittedQuad = { east = [], south = [], west = [], north = [] }
+            relQuad = makeRelativeQuad selfSeat gainsQuad submittedQuad
+          in
+          Svg.svg
+            [ SvgA.width widthText
+            , SvgA.viewBox viewBoxText
+            ]
+            (displayGains relQuad ++
+              [ displayButton
+                  (not handInfo.synchronizing)
+                  (SendRequest RequireNextInning)
+                  "次へ"
+                  C.goToNextButtonX
+                  C.goToNextButtonY
+              ])
+  in
+  div [ class "table-container" ] [ mainElem ]
 
 
 displayTable : RelativeQuad -> List (Svg Msg)

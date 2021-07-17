@@ -12,6 +12,12 @@ import PerSeat
 import ViewTable exposing (HandInfo)
 
 
+enabledButton : String -> Request -> Html Msg
+enabledButton buttonText req =
+  span [ class "enabled-button", onClick (SendRequest req) ]
+    [ text buttonText ]
+
+
 viewBody : Model -> List (Html Msg)
 viewBody model =
   let message = model.message in
@@ -27,81 +33,96 @@ viewBody model =
 
 
 viewEntrance : ( MessageLevel, String ) -> UserName -> List (Html Msg)
-viewEntrance ( level, message ) userNameInput =
+viewEntrance message userNameInput =
   let
-    sty =
-      case level of
-        Information -> style "color" "gray"
-        Warning     -> style "color" "red"
+    middle =
+      [ div [ class "entrance-container" ]
+          [ div []
+              [
+                input
+                [ type_ "text"
+                , placeholder "ユーザ名"
+                , value userNameInput
+                , onInput (UpdateInput << UserNameInput)
+                ] []
+              , enabledButton "開始" CreateUser
+              ]
+          , div [] [ text "※ユーザはcookieによって識別されるため，アカウント登録等は不要です．" ]
+          ]
+      ]
   in
-  [ div []
-      [ div [ sty ] [ text message ] ]
-  , input
-      [ type_ "text"
-      , placeholder "ユーザ名"
-      , value userNameInput
-      , onInput (UpdateInput << UserNameInput)
-      ] []
-  , button
-      [ onClick (SendRequest CreateUser) ]
-      [ text "開始" ]
-  ]
+  viewSimpleGridScheme
+    { header = [ text "header" ]
+    , middle = middle
+    , style  = "entrance-middle"
+    , footer = message
+    }
 
 
 viewPlaza : ( MessageLevel, String ) -> User -> RoomName -> Maybe (List RoomSummary) -> List (Html Msg)
-viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
+viewPlaza message user roomNameInput maybeRoomSummaries =
   let
-    sty =
-      case level of
-        Information -> style "color" "gray"
-        Warning     -> style "color" "red"
-  in
-  [ div []
-      [ div [ sty ] [ text message ] ]
-  , div []
-      [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
-  , viewRoomList maybeRoomSummaries
-  , div []
-      [ input
-          [ type_ "text"
-          , placeholder "部屋名"
-          , value roomNameInput
-          , onInput (UpdateInput << RoomNameInput)
-          ] []
-      , button
-          [ onClick (SendRequest CreateRoom) ]
-          [ text "作成" ]
+    middle =
+      [ div [ class "plaza-container" ]
+          ([ div []
+              [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
+          , div []
+              [ input
+                  [ type_ "text"
+                  , placeholder "部屋名"
+                  , value roomNameInput
+                  , onInput (UpdateInput << RoomNameInput)
+                  ] []
+              , enabledButton "作成" CreateRoom
+              ]
+          ] ++ viewRoomList maybeRoomSummaries)
       ]
-  ]
+  in
+  viewSimpleGridScheme
+    { header = [ text "header" ]
+    , middle = middle
+    , style  = "plaza-middle"
+    , footer = message
+    }
 
 
-viewRoomList : Maybe (List RoomSummary) -> Html Msg
+viewRoomList : Maybe (List RoomSummary) -> List (Html Msg)
 viewRoomList maybeRoomSummaries =
   case maybeRoomSummaries of
     Nothing ->
-      div [] [ text "(Rooms will be displayed here)" ]
+      [ div [] [ text "部屋一覧取得中……" ] ]
 
     Just roomSummaries ->
-      let
-        elems =
-          roomSummaries |> List.map (\roomSummary ->
-            let
-              room = roomSummary.room
-              members = String.join ", " (roomSummary.members |> List.map (\u -> u.userName))
-            in
-            li []
-            [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")")
-            , button
-                [ onClick (SendRequest (EnterRoom room.roomId)) ]
-                [ text "参加" ]
-            ]
-          )
-      in
-      ul [] elems
+      roomSummaries |> List.map (\roomSummary ->
+        let
+          room = roomSummary.room
+          members = String.join ", " (roomSummary.members |> List.map (\u -> u.userName))
+
+          statusText =
+            if roomSummary.isPlaying then
+              "対局中"
+            else
+              "待機中"
+        in
+        div [ class "plaza-panel" ]
+          [ div [ class "plaza-panel-left" ]
+              [ div []
+                  [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
+              , div []
+                  [ text ("参加者: " ++ members) ]
+              ]
+          , div [ class "plaza-panel-right" ]
+              [ div []
+                  [ text statusText ]
+              , div []
+                  [ enabledButton "参加" (EnterRoom room.roomId) ]
+              ]
+          ]
+      )
 
 
 viewRoom : ( MessageLevel, String ) -> User -> PersonalState -> Set Int -> String -> List (Html Msg)
-viewRoom ( level, message ) user pstate indices chatTextInput =
+viewRoom message user pstate indices chatTextInput =
   let
     room : Room
     room = pstate.room
@@ -139,12 +160,6 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
           ]
       ]
   in
-  let
-    stys =
-      case level of
-        Information -> [ class "grid-element-footer", class "footer-style-normal" ]
-        Warning     -> [ class "grid-element-footer", class "footer-style-warning" ]
-  in
   case pstate.game of
     WaitingStart users ->
       let members = String.join ", " (users |> List.map (\u -> u.userName)) in
@@ -154,12 +169,12 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
               [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
           ]
       in
-      viewGridScheme
+      viewRoomGridScheme
         { header = [ text "header" ]
         , left   = elemsDebug
         , center = []
         , right  = elemsChat
-        , footer = [ div stys [ text message ] ]
+        , footer = message
         }
 
     PlayingGame ostate ->
@@ -220,39 +235,66 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
                   elemsDebug
               ]
           in
-          viewGridScheme
+          viewRoomGridScheme
             { header = [ text "header" ]
             , left   = elemsLeft
             , center = [ ViewTable.view userId seat handInfo ostate.observableInning ]
             , right  = elemsChat
-            , footer = [ div stys [ text message ] ]
+            , footer = message
             }
 
 
-type alias GridScheme =
+type alias SimpleGridScheme =
   { header : List (Html Msg)
-  , left   : List (Html Msg)
-  , center : List (Html Msg)
-  , right  : List (Html Msg)
-  , footer : List (Html Msg)
+  , middle : List (Html Msg)
+  , style  : String
+  , footer : ( MessageLevel, String )
   }
 
 
-viewGridScheme : GridScheme -> List (Html Msg)
-viewGridScheme gridScheme =
-  [ div [ class "grid-container" ]
-      [ div [ class "grid-element-header" ] gridScheme.header
-      , div [ class "grid-element-left" ]   gridScheme.left
-      , div [ class "grid-element-center" ] gridScheme.center
-      , div [ class "grid-element-right" ]  gridScheme.right
-      , div [ class "grid-element-footer" ] gridScheme.footer
+viewSimpleGridScheme : SimpleGridScheme -> List (Html Msg)
+viewSimpleGridScheme gridScheme =
+  let ( level, messageText ) = gridScheme.footer in
+  [ div [ class "simple-grid-container" ]
+      [ div [ class "simple-grid-element-header" ] gridScheme.header
+      , div [ class "simple-grid-element-middle", class gridScheme.style ] gridScheme.middle
+      , div [ class "simple-grid-element-footer", class (footerStyleFromLevel level) ] [ text messageText ]
       ]
   ]
 
 
+type alias RoomGridScheme =
+  { header : List (Html Msg)
+  , left   : List (Html Msg)
+  , center : List (Html Msg)
+  , right  : List (Html Msg)
+  , footer : ( MessageLevel, String )
+  }
+
+
+viewRoomGridScheme : RoomGridScheme -> List (Html Msg)
+viewRoomGridScheme gridScheme =
+  let ( level, messageText ) = gridScheme.footer in
+  [ div [ class "room-grid-container" ]
+      [ div [ class "room-grid-element-header" ] gridScheme.header
+      , div [ class "room-grid-element-left" ]   gridScheme.left
+      , div [ class "room-grid-element-center" ] gridScheme.center
+      , div [ class "room-grid-element-right" ]  gridScheme.right
+      , div [ class "room-grid-element-footer", class (footerStyleFromLevel level) ] [ text messageText ]
+      ]
+  ]
+
+
+footerStyleFromLevel : MessageLevel -> String
+footerStyleFromLevel level =
+  case level of
+    Information -> "footer-style-normal"
+    Warning     -> "footer-style-warning"
+
+
 viewPlayer : String -> GamePlayer -> Html Msg
 viewPlayer direction player =
-  div [ class "player-frame" ]
+  div [ class "panel" ]
     [ div [ class "player-name" ] [ text (direction ++ " " ++ player.user.userName) ]
     , div [] [ text ("得点： " ++ String.fromInt player.score) ]
     ]
