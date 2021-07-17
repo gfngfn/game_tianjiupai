@@ -78,7 +78,7 @@ submit_cards_request := {
 
 submit_cards_response := {
   new_state  : observable_game_state,
-  trick_last : option(table),
+  trick_last : option(last),
 }
 
 room_summary := {
@@ -105,6 +105,11 @@ notification :=
   | NotifyGameStart  : observable_game_state
   | NotifyNextStep
   | NotifySubmission : submission
+
+last := {
+  table : table,
+  hand  : list(card),
+}
 
 submission := {
     seat       : seat,

@@ -277,10 +277,13 @@ update msg model =
                   -- If this is the last submission within a trick:
                   -- begins to synchronize, and waits `Constants.trickLastTimeMs' milliseconds.
                     let
+                      oinning1 =
+                        { oinning0 | table = lastTable }
+
                       ostate1 =
                         { ostate0
                         | synchronizing    = True
-                        , observableInning = ObservableDuringInning { oinning0 | table = lastTable }
+                        , observableInning = ObservableDuringInning oinning1
                         }
                     in
                     let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
@@ -314,13 +317,19 @@ update msg model =
                 Ok submissionResponse ->
                   let newState = submissionResponse.newState in
                   case ( submissionResponse.trickLast, ostate0.observableInning ) of
-                    ( Just lastTable, ObservableDuringInning oinning0 ) ->
+                    ( Just last, ObservableDuringInning oinning0 ) ->
                     -- If this is the last submission within a trick:
                     -- keeps synchronizing and waits `Constants.trickLastTimeMs' milliseconds.
                       let
+                        oinning1 =
+                          { oinning0
+                          | table    = last.table
+                          , yourHand = last.hand
+                          }
+
                         ostate1 =
                           { ostate0
-                          | observableInning = ObservableDuringInning { oinning0 | table = lastTable }
+                          | observableInning = ObservableDuringInning oinning1
                           }
                       in
                       let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in

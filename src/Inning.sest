@@ -9,7 +9,7 @@ module Inning :> sig
 
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, table, t)
+    | WinsTrick(Quad.seat, table, list<Card.t>, t)
     | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
 
   /* exported for tests */
@@ -44,7 +44,7 @@ end = struct
 
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, table, t)
+    | WinsTrick(Quad.seat, table, list<Card.t>, t)
     | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
 
   val all_cards : fun() -> list<Card.t> = external 0 ```
@@ -626,7 +626,7 @@ end = struct
                         players   = players2,
                       }
                     in
-                    Some({WinsTrick(winner_seat, table1, inning1), is_front})
+                    Some({WinsTrick(winner_seat, table1, submitter_hand1, inning1), is_front})
                 else
                   let inning =
                     {
