@@ -23,7 +23,7 @@ module RoomServer :> sig
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
   val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
-  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<table>}>
+  val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<last>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
 
@@ -78,7 +78,7 @@ end = struct
     | ChatSent
     | Attended(option<personal_state>)
     | Exited(bool)
-    | SubmissionDone(option<{observable_game_state, option<table>}>)
+    | SubmissionDone(option<{observable_game_state, option<last>}>)
 
   module Callback = struct
     type init_arg = {room_id, binary}
@@ -432,7 +432,7 @@ end = struct
                     | Some({submit_result, is_front}) ->
                         do snapshot_id <- SnapshotId.generate() in
                         let game_meta = game_state.meta in
-                        let {game_state, last_table_opt} =
+                        let {game_state, last_opt} =
                           case submit_result of
                           | Inning.Continues(inning) ->
                               {
@@ -445,7 +445,7 @@ end = struct
                                 None
                               }
 
-                          | Inning.WinsTrick(winner_seat, last_table, inning) ->
+                          | Inning.WinsTrick(winner_seat, last_table, submitter_hands, inning) ->
                               {
                                 {
                                   meta        = game_meta,
@@ -453,7 +453,7 @@ end = struct
                                   snapshot_id = snapshot_id,
                                   sync        = WaitingSync(make_initial_sync()),
                                 },
-                                Some(last_table)
+                                Some({table = last_table, hand = submitter_hands})
                               }
 
                           | Inning.WinsInning(winner_seat, last_table, gains_quad) ->
@@ -464,7 +464,7 @@ end = struct
                                   snapshot_id = snapshot_id,
                                   sync        = WaitingSync(make_initial_sync()),
                                 },
-                                Some(last_table)
+                                Some({table = last_table, hand = []})
                               }
                           end
                         in
@@ -483,7 +483,7 @@ end = struct
                                   seat       = seat,
                                   submitted  = card_opts,
                                   new_state  = obs,
-                                  trick_last = last_table_opt,
+                                  trick_last = Option.map(fun(last) -> last.table end, last_opt),
                                 }
                               in
                               notify(u, [Models.NotifySubmission(submission)])
@@ -492,7 +492,7 @@ end = struct
                           )
                         in
                         let Some(obs) = make_observable_game_state(game_state, user_id) in
-                        return(Some({obs, last_table_opt, game_state}))
+                        return(Some({obs, last_opt, game_state}))
                     end
                 end
             end
@@ -502,9 +502,9 @@ end = struct
       | None ->
           GenServer.reply(SubmissionDone(None), state)
 
-      | Some({obs, last_table_opt, game_state}) ->
+      | Some({obs, last_opt, game_state}) ->
           GenServer.reply(
-            SubmissionDone(Some({obs, last_table_opt})),
+            SubmissionDone(Some({obs, last_opt})),
             { state | room_state = InternalPlaying(game_state) },
           )
       end
@@ -775,7 +775,7 @@ end = struct
       end
     end)
 
-  val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<table>}> = act
+  val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<last>}> = act
     call(room_id, Submit(user_id, cards), fun(resp) -> act
       case resp of
       | SubmissionDone(v) -> return(v)
