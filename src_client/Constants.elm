@@ -59,6 +59,12 @@ selfHandX = 190
 selfHandY : Int
 selfHandY = 515
 
+frontHandX : Int
+frontHandX = selfHandX + verticalTileImageWidth * 8
+
+frontHandY : Int
+frontHandY = 50
+
 selfPileX : Int
 selfPileX = 610
 
@@ -131,6 +137,11 @@ verticalOpenCardPath card =
 verticalClosedCardPath : String
 verticalClosedCardPath =
   "assets/closev.png"
+
+
+verticalClosedStandingCardPath : String
+verticalClosedStandingCardPath =
+  "assets/standv.png"
 
 
 stringifyCard : Card -> String

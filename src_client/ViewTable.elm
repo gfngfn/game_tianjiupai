@@ -47,6 +47,7 @@ view userId selfSeat handInfo observableInning =
             submittedQuad = makeSubmittedQuad oinning.startsAt oinning.table
             relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
             yourHand = oinning.yourHand
+            numCardsAtTrickBeginning = List.length yourHand + List.length relQuad.self.submitted
           in
           Svg.svg
             [ SvgA.width widthText
@@ -55,6 +56,7 @@ view userId selfSeat handInfo observableInning =
             (List.concat
               [ displayGains relQuad
               , displayTable relQuad
+              , displayFrontHand (numCardsAtTrickBeginning - List.length relQuad.front.submitted)
               , displayHand handInfo yourHand
               ])
 
@@ -169,6 +171,16 @@ displayHorizontalPile x0 y0 gains =
     , displayHorizontalOpenCard card x0 y
     ]
   ) |> List.concat
+
+
+displayFrontHand : Int -> List (Svg Msg)
+displayFrontHand numCards =
+  let indices = List.range 0 (numCards - 1) in
+  let x0 = C.frontHandX - C.verticalTileImageWidth * numCards in
+  indices |> List.map (\index ->
+    let x = x0 + C.verticalTileImageWidth * index in
+    displayClosedStandingCard x C.frontHandY
+  )
 
 
 displayHand : HandInfo -> List Card -> List (Svg Msg)
@@ -291,6 +303,16 @@ displayCardInHand index cardState card x y =
     , SvgA.y (String.fromInt y)
     , sty
     , SvgA.xlinkHref (C.standingCardPath card)
+    ]
+    []
+
+
+displayClosedStandingCard : Int -> Int -> Svg Msg
+displayClosedStandingCard x y =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.y (String.fromInt y)
+    , SvgA.xlinkHref C.verticalClosedStandingCardPath
     ]
     []
 
