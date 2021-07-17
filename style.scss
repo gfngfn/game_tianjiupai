@@ -30,7 +30,7 @@ $button-stroke-width: 2px;
 $button-radius: 4px;
 $button-shadow-shift: 1px;
 $button-shadow-diffuse: 2px;
-$button-shadow-color: #bbbbbb;
+$button-shadow-color: #44444466;
 $button-padding-vertical: 6px;
 $button-padding-horizontal: 6px;
 $button-enabled-background-color: #ee6622;
@@ -85,14 +85,22 @@ body {
     column: { start: 1; end: 2; }
     row: { start: 2; end: 3; }
   }
-  background-color: $table-color;
-  color: #eeeeee;
   padding: {
     top: $text-frame-padding-vertical;
     left: $text-frame-padding-horizontal;
     right: $text-frame-padding-horizontal;
     bottom: $text-frame-padding-vertical;
   }
+}
+
+.entrance-middle {
+  background-color: $table-color;
+  color: #eeeeee;
+}
+
+.plaza-middle {
+  background-color: #ffffff;
+  color: #444444;
 }
 
 .simple-grid-element-footer {

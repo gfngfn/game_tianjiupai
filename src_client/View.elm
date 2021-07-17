@@ -35,11 +35,6 @@ viewBody model =
 viewEntrance : ( MessageLevel, String ) -> UserName -> List (Html Msg)
 viewEntrance ( level, message ) userNameInput =
   let
-    sty =
-      case level of
-        Information -> style "color" "gray"
-        Warning     -> style "color" "red"
-
     middle =
       [ div [ class "entrance-container" ]
           [ div []
@@ -59,6 +54,7 @@ viewEntrance ( level, message ) userNameInput =
   viewSimpleGridScheme
     { header = [ text "header" ]
     , middle = middle
+    , style  = "entrance-middle"
     , footer = viewFooter level message
     }
 
@@ -66,27 +62,28 @@ viewEntrance ( level, message ) userNameInput =
 viewPlaza : ( MessageLevel, String ) -> User -> RoomName -> Maybe (List RoomSummary) -> List (Html Msg)
 viewPlaza ( level, message ) user roomNameInput maybeRoomSummaries =
   let
-    sty =
-      case level of
-        Information -> style "color" "gray"
-        Warning     -> style "color" "red"
+    middle =
+      [ div [ class "plaza-container" ]
+          ([ div []
+              [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
+          , div []
+              [ input
+                  [ type_ "text"
+                  , placeholder "部屋名"
+                  , value roomNameInput
+                  , onInput (UpdateInput << RoomNameInput)
+                  ] []
+              , enabledButton "作成" CreateRoom
+              ]
+          ] ++ viewRoomList maybeRoomSummaries)
+      ]
   in
-  [ div [ class "plaza-container" ]
-      ([ div []
-          [ div [ sty ] [ text message ] ]
-      , div []
-          [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
-      , div []
-          [ input
-              [ type_ "text"
-              , placeholder "部屋名"
-              , value roomNameInput
-              , onInput (UpdateInput << RoomNameInput)
-              ] []
-          , enabledButton "作成" CreateRoom
-          ]
-      ] ++ viewRoomList maybeRoomSummaries)
-  ]
+  viewSimpleGridScheme
+    { header = [ text "header" ]
+    , middle = middle
+    , style  = "plaza-middle"
+    , footer = viewFooter level message
+    }
 
 
 viewRoomList : Maybe (List RoomSummary) -> List (Html Msg)
@@ -250,6 +247,7 @@ viewRoom ( level, message ) user pstate indices chatTextInput =
 type alias SimpleGridScheme =
   { header : List (Html Msg)
   , middle : List (Html Msg)
+  , style  : String
   , footer : List (Html Msg)
   }
 
@@ -258,7 +256,7 @@ viewSimpleGridScheme : SimpleGridScheme -> List (Html Msg)
 viewSimpleGridScheme gridScheme =
   [ div [ class "simple-grid-container" ]
       [ div [ class "simple-grid-element-header" ] gridScheme.header
-      , div [ class "simple-grid-element-middle" ] gridScheme.middle
+      , div [ class "simple-grid-element-middle", class gridScheme.style ] gridScheme.middle
       , div [ class "simple-grid-element-footer" ] gridScheme.footer
       ]
   ]
