@@ -400,3 +400,19 @@ body {
   box-shadow: 0px 1px 2px #444444 inset;
   background-color: #dddddd;
 }
+
+.debug-info {
+  margin: {
+    top: 8px;
+    bottom: 8px;
+  }
+  border: 1px dashed #dddddd;
+  padding: {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+  color: #bbbbbb;
+  font-size: 10px;
+}

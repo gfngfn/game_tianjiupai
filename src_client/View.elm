@@ -202,12 +202,27 @@ viewRoom message user pstate indices chatTextInput =
       let
         elemsDebug =
           [ div []
-              [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
+              [ text "debug info" ]
+          , ul []
+              [ li []
+                  [ text ("room ID: " ++ room.roomId) ]
+              , li []
+                  [ text ("members: " ++ members) ]
+              ]
+          ]
+
+        elemsLeft =
+          [ div [ class "room-name" ]
+              [ text room.roomName ]
+          , div []
+              [ text "待機中" ]
+          , div [ class "debug-info" ]
+              elemsDebug
           ]
       in
       viewRoomGridScheme
         { header = [ text "header" ]
-        , left   = elemsDebug
+        , left   = elemsLeft
         , center = []
         , right  = elemsChat
         , footer = message
@@ -244,14 +259,17 @@ viewRoom message user pstate indices chatTextInput =
           let
             elemsDebug : List (Html Msg)
             elemsDebug =
-              [ div []
-                  [ text ("room ID: " ++ room.roomId) ]
-              , div []
-                  [ text ("snapshot ID: " ++ ostate.snapshotId) ]
-              , div []
-                  [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
-              , div []
-                  [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
+              [ div [] [ text "debug info" ]
+              , ul []
+                  [ li []
+                      [ text ("room ID: " ++ room.roomId) ]
+                  , li []
+                      [ text ("snapshot ID: " ++ ostate.snapshotId) ]
+                  , li []
+                      [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
+                  , li []
+                      [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
+                  ]
               ]
           in
           let
@@ -267,7 +285,7 @@ viewRoom message user pstate indices chatTextInput =
               , viewPlayer "南" players.south
               , viewPlayer "西" players.west
               , viewPlayer "北" players.north
-              , div []
+              , div [ class "debug-info" ]
                   elemsDebug
               ]
           in
