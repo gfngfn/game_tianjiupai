@@ -9,7 +9,7 @@ $text-frame-padding-vertical: 8px;
 
 $panel-radius: 6px;
 
-$entrance-width: 600px;
+$entrance-width: 700px;
 
 $plaza-panel-left-width: 600px;
 $plaza-panel-right-width: 50px;
@@ -336,7 +336,59 @@ body {
 .entrance-container {
   width: $entrance-width;
   margin: {
-    right: auto;
     left: auto;
+    right: auto;
   }
+}
+
+.entrance-input-group {
+  width: 240px;
+  margin: {
+    top: 16px;
+    left: auto;
+    right: auto;
+    bottom: 16px;
+  }
+}
+
+.entrance-explanation {
+  border-radius: 12px;
+  padding: {
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+  background-color: #115511;
+}
+
+.input-main {
+  width: calc(100% - 8px);
+  border: none;
+  outline: none;
+  padding: {
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+  }
+  background-color: transparent;
+}
+
+.input-container {
+  display: inline-block;
+  width: 150px;
+  border-radius: 4px;
+  margin: {
+    left: 4px;
+    right: 4px;
+  }
+  padding: {
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+  }
+  box-shadow: 0px 1px 2px #444444 inset;
+  background-color: #dddddd;
 }

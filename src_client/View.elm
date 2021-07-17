@@ -18,6 +18,27 @@ enabledButton buttonText req =
     [ text buttonText ]
 
 
+type alias InputData =
+  { value       : String
+  , placeholder : String
+  , update      : String -> InputUpdate
+  }
+
+
+specialInput : InputData -> Html Msg
+specialInput data =
+  span [ class "input-container" ]
+    [ input
+        [ type_ "text"
+        , class "input-main"
+        , placeholder data.placeholder
+        , value data.value
+        , onInput (UpdateInput << data.update)
+        ]
+        []
+    ]
+
+
 viewBody : Model -> List (Html Msg)
 viewBody model =
   let message = model.message in
@@ -37,17 +58,29 @@ viewEntrance message userNameInput =
   let
     middle =
       [ div [ class "entrance-container" ]
-          [ div []
-              [
-                input
-                [ type_ "text"
-                , placeholder "ユーザ名"
-                , value userNameInput
-                , onInput (UpdateInput << UserNameInput)
-                ] []
+          [ div [ class "entrance-input-group" ]
+              [ specialInput
+                  { placeholder = "ユーザ名"
+                  , value       = userNameInput
+                  , update      = UserNameInput
+                  }
               , enabledButton "開始" CreateUser
               ]
-          , div [] [ text "※ユーザはcookieによって識別されるため，アカウント登録等は不要です．" ]
+          , div [ class "entrance-explanation" ]
+              [ ul []
+                  [ li []
+                      [ text "アカウント登録なしで遊べます．"
+                      , ul []
+                          [ li [] [ text "ユーザはcookieによって識別されます．" ]
+                          , li [] [ text "ユーザ名はユーザを一意に識別するIDではなく表示上の文字列です．" ]
+                          ]
+                      ]
+                  , li []
+                      [ text "機能上は対戦データ等を永続化して記録することは特にありません．" ]
+                  , li []
+                      [ text "現時点ではセキュリティ対策が万全とは限りませんのでご了承ください．" ]
+                  ]
+              ]
           ]
       ]
   in
@@ -67,12 +100,11 @@ viewPlaza message user roomNameInput maybeRoomSummaries =
           ([ div []
               [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
           , div []
-              [ input
-                  [ type_ "text"
-                  , placeholder "部屋名"
-                  , value roomNameInput
-                  , onInput (UpdateInput << RoomNameInput)
-                  ] []
+              [ specialInput
+                  { placeholder = "部屋名"
+                  , value       = roomNameInput
+                  , update      = RoomNameInput
+                  }
               , enabledButton "作成" CreateRoom
               ]
           ] ++ viewRoomList maybeRoomSummaries)

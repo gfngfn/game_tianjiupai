@@ -3,7 +3,7 @@ module ViewTable exposing (view, HandInfo)
 import Set exposing (Set)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick)
 
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
