@@ -42,6 +42,8 @@ $button-hovered-text-color: #ffffff;
 $button-clicked-background-color: #cc4400;
 $button-clicked-text-color: #cccccc;
 $button-clicked-shift: 1px;
+$button-disabled-background-color: #aaaaaa;
+$button-disabled-text-color: #888888;
 
 $hover-highlight: #ffffff44;
 
@@ -225,7 +227,7 @@ body {
 }
 
 .svg-button-disabled {
-  fill: #aaaaaa;
+  fill: $button-disabled-background-color;
   stroke: #888888;
   stroke-width: $button-stroke-width;
 }
@@ -235,7 +237,7 @@ body {
 }
 
 .svg-button-text-disabled {
-  fill: #888888;
+  fill: $button-disabled-text-color;
 }
 
 .room-name {
@@ -308,6 +310,12 @@ body {
   top: $button-clicked-shift;
   background-color: $button-clicked-background-color;
   color: $button-clicked-text-color;
+}
+
+.disabled-button {
+  @extend .untouched-button-scheme;
+  background-color: $button-disabled-background-color;
+  color: $button-disabled-text-color;
 }
 
 .plaza-panel {

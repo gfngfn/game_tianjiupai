@@ -12,10 +12,14 @@ import PerSeat
 import ViewTable exposing (HandInfo)
 
 
-enabledButton : String -> Request -> Html Msg
-enabledButton buttonText req =
-  span [ class "enabled-button", onClick (SendRequest req) ]
-    [ text buttonText ]
+specialButton : Bool -> String -> Request -> Html Msg
+specialButton enabled buttonText req =
+  if enabled then
+    span [ class "enabled-button", onClick (SendRequest req) ]
+      [ text buttonText ]
+  else
+    span [ class "disabled-button" ]
+      [ text buttonText ]
 
 
 type alias InputData =
@@ -64,7 +68,7 @@ viewEntrance message userNameInput =
                   , value       = userNameInput
                   , update      = UserNameInput
                   }
-              , enabledButton "開始" CreateUser
+              , specialButton (not (String.isEmpty userNameInput)) "開始" CreateUser
               ]
           , div [ class "entrance-explanation" ]
               [ ul []
@@ -105,7 +109,7 @@ viewPlaza message user roomNameInput maybeRoomSummaries =
                   , value       = roomNameInput
                   , update      = RoomNameInput
                   }
-              , enabledButton "作成" CreateRoom
+              , specialButton (not (String.isEmpty roomNameInput)) "作成" CreateRoom
               ]
           ] ++ viewRoomList maybeRoomSummaries)
       ]
@@ -147,7 +151,7 @@ viewRoomList maybeRoomSummaries =
               [ div []
                   [ text statusText ]
               , div []
-                  [ enabledButton "参加" (EnterRoom room.roomId) ]
+                  [ specialButton True "参加" (EnterRoom room.roomId) ]
               ]
           ]
       )
