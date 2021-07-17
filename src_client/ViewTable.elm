@@ -47,14 +47,18 @@ view userId selfSeat handInfo observableInning =
             submittedQuad = makeSubmittedQuad oinning.startsAt oinning.table
             relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
             yourHand = oinning.yourHand
+            numCardsAtTrickBeginning = List.length yourHand + List.length relQuad.self.submitted
           in
           Svg.svg
             [ SvgA.width widthText
             , SvgA.viewBox viewBoxText
             ]
             (List.concat
-              [ displayGains relQuad
+              [ displayLeftHand (numCardsAtTrickBeginning - List.length relQuad.left.submitted)
+              , displayGains relQuad
               , displayTable relQuad
+              , displayRightHand (numCardsAtTrickBeginning - List.length relQuad.right.submitted)
+              , displayFrontHand (numCardsAtTrickBeginning - List.length relQuad.front.submitted)
               , displayHand handInfo yourHand
               ])
 
@@ -169,6 +173,35 @@ displayHorizontalPile x0 y0 gains =
     , displayHorizontalOpenCard card x0 y
     ]
   ) |> List.concat
+
+
+displayFrontHand : Int -> List (Svg Msg)
+displayFrontHand numCards =
+  let indices = List.range 0 (numCards - 1) in
+  let x0 = C.frontHandX - C.verticalTileImageWidth * numCards in
+  indices |> List.map (\index ->
+    let x = x0 + C.verticalTileImageWidth * index in
+    displayClosedStandingCard x C.frontHandY
+  )
+
+
+displayLeftHand : Int -> List (Svg Msg)
+displayLeftHand numCards =
+  let indices = List.range 0 (numCards - 1) in
+  indices |> List.map (\index ->
+    let y = C.leftHandY + C.horizontalTileTopHeight * index in
+    displayHorizontalStandingCard C.leftHandX y
+  )
+
+
+displayRightHand : Int -> List (Svg Msg)
+displayRightHand numCards =
+  let indices = List.range 0 (numCards - 1) in
+  let y0 = C.rightHandY - C.horizontalTileTopHeight * numCards in
+  indices |> List.map (\index ->
+    let y = y0 + C.horizontalTileTopHeight * index in
+    displayHorizontalStandingCard C.rightHandX y
+  )
 
 
 displayHand : HandInfo -> List Card -> List (Svg Msg)
@@ -291,6 +324,26 @@ displayCardInHand index cardState card x y =
     , SvgA.y (String.fromInt y)
     , sty
     , SvgA.xlinkHref (C.standingCardPath card)
+    ]
+    []
+
+
+displayClosedStandingCard : Int -> Int -> Svg Msg
+displayClosedStandingCard x y =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.y (String.fromInt y)
+    , SvgA.xlinkHref C.verticalClosedStandingCardPath
+    ]
+    []
+
+
+displayHorizontalStandingCard : Int -> Int -> Svg Msg
+displayHorizontalStandingCard x y =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.y (String.fromInt y)
+    , SvgA.xlinkHref C.horizontalClosedStandingCardPath
     ]
     []
 

@@ -29,6 +29,10 @@ horizontalTileTopHeight = 34
 tileThickness : Int
 tileThickness = 16
 
+
+horizontalStandingTileThickness : Int
+horizontalStandingTileThickness = 28
+
 selectionShift : Int
 selectionShift = 10
 
@@ -58,6 +62,24 @@ selfHandX = 190
 
 selfHandY : Int
 selfHandY = 515
+
+rightHandX : Int
+rightHandX = svgWidth - leftHandX - horizontalStandingTileThickness
+
+rightHandY : Int
+rightHandY = leftHandY + horizontalTileTopHeight * 8
+
+frontHandX : Int
+frontHandX = selfHandX + verticalTileImageWidth * 8
+
+frontHandY : Int
+frontHandY = 50
+
+leftHandX : Int
+leftHandX = 50
+
+leftHandY : Int
+leftHandY = 170
 
 selfPileX : Int
 selfPileX = 610
@@ -131,6 +153,16 @@ verticalOpenCardPath card =
 verticalClosedCardPath : String
 verticalClosedCardPath =
   "assets/closev.png"
+
+
+verticalClosedStandingCardPath : String
+verticalClosedStandingCardPath =
+  "assets/standv.png"
+
+
+horizontalClosedStandingCardPath : String
+horizontalClosedStandingCardPath =
+  "assets/standh.png"
 
 
 stringifyCard : Card -> String
