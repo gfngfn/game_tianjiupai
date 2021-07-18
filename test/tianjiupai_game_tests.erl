@@ -489,6 +489,7 @@ submit_success_test_() ->
               expected =
                   {wins_trick, ?SEAT3,
                       {single_wen, Exposed(7, [{open, 8}, closed, {open, 9}])},
+                      ?MOCKED_HAND41,
                       inning_state(#{
                           starts_at => ?SEAT3,
                           player0 => {?MOCKED_HAND11, []},
@@ -514,6 +515,7 @@ submit_success_test_() ->
               expected =
                   {wins_trick, ?SEAT1,
                       {single_wen, Exposed(7, [{open, 8}, closed, closed])},
+                      ?MOCKED_HAND42,
                       inning_state(#{
                           starts_at => ?SEAT1,
                           player0 => {?MOCKED_HAND11, []},
@@ -721,9 +723,9 @@ inning_state(#{
 %% `fun(Inning.submit_result) -> Inning.submit_result'
 sort_hands_of_result(Result) ->
     case Result of
-        {continues, Next}                         -> {continues, sort_hands(Next)};
-        {wins_trick, WinnerSeat, LastTable, Next} -> {wins_trick, WinnerSeat, LastTable, sort_hands(Next)};
-        {wins_inning, _, _, _}                    -> Result
+        {continues, Next}                               -> {continues, sort_hands(Next)};
+        {wins_trick, WinnerSeat, LastTable, Hand, Next} -> {wins_trick, WinnerSeat, LastTable, ?CARD_MODULE:sort(Hand), sort_hands(Next)};
+        {wins_inning, _, _, _}                          -> Result
     end.
 
 %% `fun(Inning.t) -> Inning.t'
