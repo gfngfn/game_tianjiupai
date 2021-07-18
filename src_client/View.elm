@@ -166,33 +166,28 @@ viewRoom message user pstate indices chatTextInput =
   let
     elemsChat : List (Html Msg)
     elemsChat =
-      [ ul []
+      [ div [ class "log-area" ]
           (pstate.logs |> List.map (\log ->
             case log of
               LogComment comment ->
-                li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
+                div [ class "log-entry" ] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
 
               LogEntered u ->
-                li [] [ b [] [ text u.userName ], text " さんが参加しました" ]
+                div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが参加しました" ]
 
               LogExited u ->
-                li [] [ b [] [ text u.userName ], text " さんが退出しました" ]
+                div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが退出しました" ]
 
               LogGameStart ->
-                li [] [ b [] [ text "対局開始！" ] ]
+                div [ class "log-entry" ] [ b [] [ text "対局開始！" ] ]
           ))
-      , div []
-          [ div []
-              [ input
-                  [ type_ "text"
-                  , placeholder "コメント"
-                  , value chatTextInput
-                  , onInput (UpdateInput << ChatInput)
-                  ] []
-              , button
-                  [ onClick (SendRequest SendChat) ]
-                  [ text "送信" ]
-              ]
+      , div [ class "chat-input-container" ]
+          [ specialInput
+              { placeholder = "コメント"
+              , value       = chatTextInput
+              , update      = ChatInput
+              }
+          , specialButton (not (String.isEmpty chatTextInput)) "送信" SendChat
           ]
       ]
   in
