@@ -12,10 +12,35 @@ import PerSeat
 import ViewTable exposing (HandInfo)
 
 
-enabledButton : String -> Request -> Html Msg
-enabledButton buttonText req =
-  span [ class "enabled-button", onClick (SendRequest req) ]
-    [ text buttonText ]
+specialButton : Bool -> String -> Request -> Html Msg
+specialButton enabled buttonText req =
+  if enabled then
+    span [ class "enabled-button", onClick (SendRequest req) ]
+      [ text buttonText ]
+  else
+    span [ class "disabled-button" ]
+      [ text buttonText ]
+
+
+type alias InputData =
+  { value       : String
+  , placeholder : String
+  , update      : String -> InputUpdate
+  }
+
+
+specialInput : InputData -> Html Msg
+specialInput data =
+  span [ class "input-container" ]
+    [ input
+        [ type_ "text"
+        , class "input-main"
+        , placeholder data.placeholder
+        , value data.value
+        , onInput (UpdateInput << data.update)
+        ]
+        []
+    ]
 
 
 viewBody : Model -> List (Html Msg)
@@ -37,17 +62,29 @@ viewEntrance message userNameInput =
   let
     middle =
       [ div [ class "entrance-container" ]
-          [ div []
-              [
-                input
-                [ type_ "text"
-                , placeholder "ユーザ名"
-                , value userNameInput
-                , onInput (UpdateInput << UserNameInput)
-                ] []
-              , enabledButton "開始" CreateUser
+          [ div [ class "entrance-input-group" ]
+              [ specialInput
+                  { placeholder = "ユーザ名"
+                  , value       = userNameInput
+                  , update      = UserNameInput
+                  }
+              , specialButton (not (String.isEmpty userNameInput)) "開始" CreateUser
               ]
-          , div [] [ text "※ユーザはcookieによって識別されるため，アカウント登録等は不要です．" ]
+          , div [ class "entrance-explanation" ]
+              [ ul []
+                  [ li []
+                      [ text "アカウント登録なしで遊べます．"
+                      , ul []
+                          [ li [] [ text "ユーザはcookieによって識別されます．" ]
+                          , li [] [ text "ユーザ名はユーザを一意に識別するIDではなく表示上の文字列です．" ]
+                          ]
+                      ]
+                  , li []
+                      [ text "機能上は対戦データ等を永続化して記録することは特にありません．" ]
+                  , li []
+                      [ text "現時点ではセキュリティ対策が万全とは限りませんのでご了承ください．" ]
+                  ]
+              ]
           ]
       ]
   in
@@ -67,13 +104,12 @@ viewPlaza message user roomNameInput maybeRoomSummaries =
           ([ div []
               [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
           , div []
-              [ input
-                  [ type_ "text"
-                  , placeholder "部屋名"
-                  , value roomNameInput
-                  , onInput (UpdateInput << RoomNameInput)
-                  ] []
-              , enabledButton "作成" CreateRoom
+              [ specialInput
+                  { placeholder = "部屋名"
+                  , value       = roomNameInput
+                  , update      = RoomNameInput
+                  }
+              , specialButton (not (String.isEmpty roomNameInput)) "作成" CreateRoom
               ]
           ] ++ viewRoomList maybeRoomSummaries)
       ]
@@ -115,7 +151,7 @@ viewRoomList maybeRoomSummaries =
               [ div []
                   [ text statusText ]
               , div []
-                  [ enabledButton "参加" (EnterRoom room.roomId) ]
+                  [ specialButton True "参加" (EnterRoom room.roomId) ]
               ]
           ]
       )
@@ -130,33 +166,28 @@ viewRoom message user pstate indices chatTextInput =
   let
     elemsChat : List (Html Msg)
     elemsChat =
-      [ ul []
+      [ div [ class "log-area" ]
           (pstate.logs |> List.map (\log ->
             case log of
               LogComment comment ->
-                li [] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
+                div [ class "log-entry" ] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
 
               LogEntered u ->
-                li [] [ b [] [ text u.userName ], text " さんが参加しました" ]
+                div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが参加しました" ]
 
               LogExited u ->
-                li [] [ b [] [ text u.userName ], text " さんが退出しました" ]
+                div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが退出しました" ]
 
               LogGameStart ->
-                li [] [ b [] [ text "対局開始！" ] ]
+                div [ class "log-entry" ] [ b [] [ text "対局開始！" ] ]
           ))
-      , div []
-          [ div []
-              [ input
-                  [ type_ "text"
-                  , placeholder "コメント"
-                  , value chatTextInput
-                  , onInput (UpdateInput << ChatInput)
-                  ] []
-              , button
-                  [ onClick (SendRequest SendChat) ]
-                  [ text "送信" ]
-              ]
+      , div [ class "chat-input-container" ]
+          [ specialInput
+              { placeholder = "コメント"
+              , value       = chatTextInput
+              , update      = ChatInput
+              }
+          , specialButton (not (String.isEmpty chatTextInput)) "送信" SendChat
           ]
       ]
   in
@@ -166,12 +197,27 @@ viewRoom message user pstate indices chatTextInput =
       let
         elemsDebug =
           [ div []
-              [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ", 参加者: " ++ members ++ ")") ]
+              [ text "debug info" ]
+          , ul []
+              [ li []
+                  [ text ("room ID: " ++ room.roomId) ]
+              , li []
+                  [ text ("members: " ++ members) ]
+              ]
+          ]
+
+        elemsLeft =
+          [ div [ class "room-name" ]
+              [ text room.roomName ]
+          , div []
+              [ text "待機中" ]
+          , div [ class "debug-info" ]
+              elemsDebug
           ]
       in
       viewRoomGridScheme
         { header = [ text "header" ]
-        , left   = elemsDebug
+        , left   = elemsLeft
         , center = []
         , right  = elemsChat
         , footer = message
@@ -208,14 +254,17 @@ viewRoom message user pstate indices chatTextInput =
           let
             elemsDebug : List (Html Msg)
             elemsDebug =
-              [ div []
-                  [ text ("room ID: " ++ room.roomId) ]
-              , div []
-                  [ text ("snapshot ID: " ++ ostate.snapshotId) ]
-              , div []
-                  [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
-              , div []
-                  [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
+              [ div [] [ text "debug info" ]
+              , ul []
+                  [ li []
+                      [ text ("room ID: " ++ room.roomId) ]
+                  , li []
+                      [ text ("snapshot ID: " ++ ostate.snapshotId) ]
+                  , li []
+                      [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
+                  , li []
+                      [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
+                  ]
               ]
           in
           let
@@ -231,7 +280,7 @@ viewRoom message user pstate indices chatTextInput =
               , viewPlayer "南" players.south
               , viewPlayer "西" players.west
               , viewPlayer "北" players.north
-              , div []
+              , div [ class "debug-info" ]
                   elemsDebug
               ]
           in

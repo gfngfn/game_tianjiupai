@@ -7,9 +7,11 @@ $svg-width: 700px;
 $text-frame-padding-horizontal: 8px;
 $text-frame-padding-vertical: 8px;
 
+$chat-input-height: 36px;
+
 $panel-radius: 6px;
 
-$entrance-width: 600px;
+$entrance-width: 700px;
 
 $plaza-panel-left-width: 600px;
 $plaza-panel-right-width: 50px;
@@ -29,19 +31,22 @@ $side-width-max: 250px;
 $standard-text-color: #444444;
 
 $button-stroke-width: 2px;
-$button-radius: 4px;
+$button-radius: 6px;
 $button-shadow-shift: 1px;
 $button-shadow-diffuse: 2px;
 $button-shadow-color: #44444466;
-$button-padding-vertical: 6px;
-$button-padding-horizontal: 6px;
+$button-padding-vertical: 8px;
+$button-padding-horizontal: 8px;
 $button-enabled-background-color: #ee6622;
 $button-enabled-text-color: #eeeeee;
 $button-hovered-background-color: #ff8855;
 $button-hovered-text-color: #ffffff;
 $button-clicked-background-color: #cc4400;
 $button-clicked-text-color: #cccccc;
-$button-clicked-shift: 1px;
+$button-clicked-shift: -1px;
+$button-disabled-background-color: #aaaaaa;
+$button-disabled-text-color: #888888;
+$button-untouched-shift: -2px;
 
 $hover-highlight: #ffffff44;
 
@@ -225,7 +230,7 @@ body {
 }
 
 .svg-button-disabled {
-  fill: #aaaaaa;
+  fill: $button-disabled-background-color;
   stroke: #888888;
   stroke-width: $button-stroke-width;
 }
@@ -235,7 +240,7 @@ body {
 }
 
 .svg-button-text-disabled {
-  fill: #888888;
+  fill: $button-disabled-text-color;
 }
 
 .room-name {
@@ -287,6 +292,8 @@ body {
 
 .untouched-button-scheme {
   @extend .button-scheme;
+  position: relative;
+  top: $button-untouched-shift;
   box-shadow: 0px $button-shadow-shift $button-shadow-diffuse $button-shadow-color;
 }
 
@@ -308,6 +315,12 @@ body {
   top: $button-clicked-shift;
   background-color: $button-clicked-background-color;
   color: $button-clicked-text-color;
+}
+
+.disabled-button {
+  @extend .untouched-button-scheme;
+  background-color: $button-disabled-background-color;
+  color: $button-disabled-text-color;
 }
 
 .plaza-panel {
@@ -336,7 +349,88 @@ body {
 .entrance-container {
   width: $entrance-width;
   margin: {
-    right: auto;
     left: auto;
+    right: auto;
   }
+}
+
+.entrance-input-group {
+  width: 240px;
+  margin: {
+    top: 16px;
+    left: auto;
+    right: auto;
+    bottom: 16px;
+  }
+}
+
+.entrance-explanation {
+  border-radius: 12px;
+  padding: {
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+  background-color: #115511;
+}
+
+.input-main {
+  width: 100%;
+  border: none;
+  outline: none;
+  background-color: transparent;
+}
+
+.input-container {
+  display: inline-block;
+  width: 150px;
+  border-radius: 4px;
+  margin: {
+    left: 4px;
+    right: 4px;
+  }
+  padding: {
+    top: 4px;
+    left: 8px;
+    right: 8px;
+    bottom: 4px;
+  }
+  box-shadow: 0px 1px 2px #444444 inset;
+  background-color: #dddddd;
+}
+
+.debug-info {
+  margin: {
+    top: 8px;
+    bottom: 8px;
+  }
+  border: 1px dashed #dddddd;
+  padding: {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+  color: #bbbbbb;
+  font-size: 10px;
+}
+
+.log-area {
+  height: calc(100% - #{$text-frame-padding-vertical * 2 + $chat-input-height});
+  overflow-y: scroll;
+  padding: {
+    top: $text-frame-padding-vertical;
+    left: $text-frame-padding-horizontal;
+    right: $text-frame-padding-horizontal;
+    bottom: $text-frame-padding-vertical;
+  }
+}
+
+.log-entry {
+  font-size: 14px;
+}
+
+.chat-input-container {
+  height: $chat-input-height;
 }
