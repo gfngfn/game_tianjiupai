@@ -97,6 +97,7 @@ log :=
   | LogEntered : user
   | LogExited  : user
   | LogGameStart
+  | LogDiffs   : per_seat(int)
 
 notification :=
   | NotifyComment    : comment
@@ -109,13 +110,19 @@ notification :=
 last := {
   table : table,
   hand  : list(card),
+  diffs : option(per_seat(int)),
+}
+
+observable_last := {
+  table : table,
+  diffs : option(per_seat(int)),
 }
 
 submission := {
     seat       : seat,
     submitted  : list(option(card)),
     new_state  : observable_game_state,
-    trick_last : option(table),
+    trick_last : option(observable_last),
 }
 
 command :=

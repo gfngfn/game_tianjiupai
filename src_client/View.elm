@@ -180,6 +180,14 @@ viewRoom message user pstate indices chatTextInput =
 
               LogGameStart ->
                 div [ class "log-entry" ] [ b [] [ text "対局開始！" ] ]
+
+              LogDiffs diffs ->
+                let
+                  diffText =
+                    String.join ", "
+                      (List.map String.fromInt [ diffs.east, diffs.south, diffs.west, diffs.north ])
+                in
+                div [ class "log-entry" ] [ text diffText ]
           ))
       , div [ class "chat-input-container" ]
           [ specialInput
