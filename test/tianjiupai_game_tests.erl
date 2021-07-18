@@ -316,75 +316,75 @@ get_winner_test_() ->
       {Table, Expected} <- [
           %% Results of `wuzun'.
           {{wuzun, Exposed(wuzun_unit, [closed, closed, closed])},
-              {0, [wuT(3), wuT(6)]}},
+              {0, [wuT(3), wuT(6)], {ok, zhizun}}},
 
           %% Results of `wenzun'.
           {{wenzun, Exposed(wenzun_minor, [closed, closed, closed])},
-              {0, [wen(1), wen(1)]}},
+              {0, [wen(1), wen(1)], {ok, zhizun}}},
           {{wenzun, Exposed(wenzun_minor, [closed, {open, wenzun_major}, closed])},
-              {2, [wen(2), wen(2)]}},
+              {2, [wen(2), wen(2)], {ok, zhizun}}},
 
           %% Results of `single_wen'.
           {{single_wen, Exposed(10, [closed, closed, closed])},
-              {0, [wen(10)]}},
+              {0, [wen(10)], error}},
           {{single_wen, Exposed(6, [{open, 8}, {open, 11}, closed])},
-              {2, [wen(11)]}},
+              {2, [wen(11)], error}},
           {{single_wen, Exposed(6, [{open, 8}, closed, {open, 11}])},
-              {3, [wen(11)]}},
+              {3, [wen(11)], error}},
           {{single_wen, Exposed(8, [closed, closed, {open, 10}])},
-              {3, [wen(10)]}},
+              {3, [wen(10)], error}},
 
           %% Results of `single_wu'.
           {{single_wu, Exposed(wunumT(8), [closed, closed, closed])},
-              {0, [wuT(8)]}},
+              {0, [wuT(8)], error}},
           {{single_wu, Exposed(wunumT(3), [{open, wunumF(7)}, {open, wunumF(9)}, closed])},
-              {2, [wuF(9)]}},
+              {2, [wuF(9)], error}},
 
           %% Results of `double_wen'.
           {{double_wen, Exposed(4, [closed, closed, closed])},
-              {0, [wen(4), wen(4)]}},
+              {0, [wen(4), wen(4)], error}},
           {{double_wen, Exposed(6, [{open, 8}, {open, 11}, closed])},
-              {2, [wen(11), wen(11)]}},
+              {2, [wen(11), wen(11)], error}},
           {{double_wen, Exposed(6, [{open, 8}, closed, {open, 11}])},
-              {3, [wen(11), wen(11)]}},
+              {3, [wen(11), wen(11)], error}},
           {{double_wen, Exposed(8, [closed, closed, {open, 10}])},
-              {3, [wen(10), wen(10)]}},
+              {3, [wen(10), wen(10)], error}},
 
           %% Results of `double_wu'.
           {{double_wu, Exposed(8, [closed, closed, closed])},
-              {0, [wuF(8), wuT(8)]}},
+              {0, [wuF(8), wuT(8)], error}},
           {{double_wu, Exposed(3, [{open, 7}, {open, 9}, closed])},
-              {2, [wuF(9), wuT(9)]}},
+              {2, [wuF(9), wuT(9)], error}},
 
           %% Results of `triple_wen'.
           {{triple_wen, Exposed(bigT(big_b), [closed, closed, closed])},
-              {0, [wen(9), wen(9), wuT(7)]}},
+              {0, [wen(9), wen(9), wuT(7)], error}},
           {{triple_wen, Exposed(bigF(big_a), [{open, bigF(big_b)}, {open, bigT(big_d)}, closed])},
-              {2, [wen(11), wen(11), wuT(9)]}},
+              {2, [wen(11), wen(11), wuT(9)], error}},
           {{triple_wen, Exposed(bigF(big_a), [{open, bigF(big_b)}, closed, {open, bigT(big_d)}])},
-              {3, [wen(11), wen(11), wuT(9)]}},
+              {3, [wen(11), wen(11), wuT(9)], error}},
           {{triple_wen, Exposed(bigT(big_b), [closed, closed, {open, bigF(big_c)}])},
-              {3, [wen(10), wen(10), wuF(8)]}},
+              {3, [wen(10), wen(10), wuF(8)], error}},
 
           %% Results of `triple_wu'.
           {{triple_wu, Exposed(big_b, [closed, closed, closed])},
-              {0, [wen(9), wuF(7), wuT(7)]}},
+              {0, [wen(9), wuF(7), wuT(7)], error}},
           {{triple_wu, Exposed(big_a, [{open, big_b}, {open, big_d}, closed])},
-              {2, [wen(11), wuF(9), wuT(9)]}},
+              {2, [wen(11), wuF(9), wuT(9)], error}},
           {{triple_wu, Exposed(big_a, [{open, big_b}, closed, {open, big_d}])},
-              {3, [wen(11), wuF(9), wuT(9)]}},
+              {3, [wen(11), wuF(9), wuT(9)], error}},
           {{triple_wu, Exposed(big_b, [closed, closed, {open, big_c}])},
-              {3, [wen(10), wuF(8), wuT(8)]}},
+              {3, [wen(10), wuF(8), wuT(8)], error}},
 
           %% Results of `quadruple'.
           {{quadruple, Exposed(big_a, [closed, closed, closed])},
-              {0, [wen(8), wen(8), wuF(5), wuT(5)]}},
+              {0, [wen(8), wen(8), wuF(5), wuT(5)], {ok, sidahe}}},
           {{quadruple, Exposed(big_a, [{open, big_b}, {open, big_d}, closed])},
-              {2, [wen(11), wen(11), wuF(9), wuT(9)]}},
+              {2, [wen(11), wen(11), wuF(9), wuT(9)], {ok, sidahe}}},
           {{quadruple, Exposed(big_a, [{open, big_b}, closed, {open, big_d}])},
-              {3, [wen(11), wen(11), wuF(9), wuT(9)]}},
+              {3, [wen(11), wen(11), wuF(9), wuT(9)], {ok, sidahe}}},
           {{quadruple, Exposed(big_b, [closed, closed, {open, big_c}])},
-              {3, [wen(10), wen(10), wuF(8), wuT(8)]}}
+              {3, [wen(10), wen(10), wuF(8), wuT(8)], {ok, sidahe}}}
       ]
     ].
 
@@ -490,6 +490,7 @@ submit_success_test_() ->
                   {wins_trick, ?SEAT3,
                       {single_wen, Exposed(7, [{open, 8}, closed, {open, 9}])},
                       ?MOCKED_HAND41,
+                      error,
                       inning_state(#{
                           starts_at => ?SEAT3,
                           player0 => {?MOCKED_HAND11, []},
@@ -516,6 +517,7 @@ submit_success_test_() ->
                   {wins_trick, ?SEAT1,
                       {single_wen, Exposed(7, [{open, 8}, closed, closed])},
                       ?MOCKED_HAND42,
+                      error,
                       inning_state(#{
                           starts_at => ?SEAT1,
                           player0 => {?MOCKED_HAND11, []},
@@ -723,9 +725,12 @@ inning_state(#{
 %% `fun(Inning.submit_result) -> Inning.submit_result'
 sort_hands_of_result(Result) ->
     case Result of
-        {continues, Next}                               -> {continues, sort_hands(Next)};
-        {wins_trick, WinnerSeat, LastTable, Hand, Next} -> {wins_trick, WinnerSeat, LastTable, ?CARD_MODULE:sort(Hand), sort_hands(Next)};
-        {wins_inning, _, _, _}                          -> Result
+        {continues, Next} ->
+            {continues, sort_hands(Next)};
+        {wins_trick, WinnerSeat, LastTable, Hand, MaybeDiffs, Next} ->
+            {wins_trick, WinnerSeat, LastTable, ?CARD_MODULE:sort(Hand), MaybeDiffs, sort_hands(Next)};
+        {wins_inning, _, _, _} ->
+            Result
     end.
 
 %% `fun(Inning.t) -> Inning.t'

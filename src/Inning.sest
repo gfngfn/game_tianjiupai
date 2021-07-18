@@ -7,9 +7,13 @@ module Inning :> sig
 
   type t :: o
 
+  type special_trick_end =
+    | Zhizun
+    | Sidahe /* 四大賀 */
+
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, table, list<Card.t>, t)
+    | WinsTrick(Quad.seat, table, list<Card.t>, option<special_trick_end>, t)
     | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
 
   /* exported for tests */
@@ -42,9 +46,13 @@ end = struct
     table     : table,
   }
 
+  type special_trick_end =
+    | Zhizun
+    | Sidahe /* 四大賀 */
+
   type submit_result =
     | Continues(t)
-    | WinsTrick(Quad.seat, table, list<Card.t>, t)
+    | WinsTrick(Quad.seat, table, list<Card.t>, option<special_trick_end>, t)
     | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
 
   val all_cards : fun() -> list<Card.t> = external 0 ```
@@ -469,12 +477,12 @@ end = struct
         end
     end
 
-  val get_winner(table : table) : {int, list<Card.t>} =
+  val get_winner(table : table) : {int, list<Card.t>, option<special_trick_end>} =
     case table of
     | Wuzun(exposed) ->
         let Models.WuzunUnit = exposed.first in
         let [Closed, Closed, Closed] = exposed.subsequent in
-        {0, [Models.Wu({ design = true, number = 3 }), Models.Wu({ design = true, number = 6 })]}
+        {0, [Models.Wu({ design = true, number = 3 }), Models.Wu({ design = true, number = 6 })], Some(Zhizun)}
     | Wenzun(exposed) ->
         let WenzunMinor = exposed.first in
         let major_or_closeds = exposed.subsequent in
@@ -494,31 +502,31 @@ end = struct
             1 :: ns)
         in
         case one_or_two of
-        | 1 -> {0, [Models.Wen(1), Models.Wen(1)]}
-        | 2 -> {trick_index, [Models.Wen(2), Models.Wen(2)]}
+        | 1 -> {0, [Models.Wen(1), Models.Wen(1)], Some(Zhizun)}
+        | 2 -> {trick_index, [Models.Wen(2), Models.Wen(2)], Some(Zhizun)}
         end
     | SingleWen(wen_exposed) ->
         let {trick_index, wen} = wen_max(wen_exposed) in
-        {trick_index, [Models.Wen(wen)]}
+        {trick_index, [Models.Wen(wen)], None}
     | SingleWu(wu_exposed) ->
         let {trick_index, wu} = wu_max(wu_exposed) in
-        {trick_index, [Models.Wu(wu)]}
+        {trick_index, [Models.Wu(wu)], None}
     | DoubleWen(wen_exposed) ->
         let {trick_index, wen} = wen_max(wen_exposed) in
-        {trick_index, [Models.Wen(wen), Models.Wen(wen)]}
+        {trick_index, [Models.Wen(wen), Models.Wen(wen)], None}
     | DoubleWu(wunum_exposed) ->
         let {trick_index, wunum} = wu_number_max(wunum_exposed) in
         {trick_index, [
           Models.Wu({ number = wunum, design = false }),
           Models.Wu({ number = wunum, design = true }),
-        ]}
+        ], None}
     | DoubleBoth(bigd_exposed) ->
         let {trick_index, bigd} = big_with_design_max(bigd_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(bigd.main) in
         {trick_index, [
           Models.Wen(wen),
           Models.Wu({ number = wunum, design = bigd.design }),
-        ]}
+        ], None}
     | TripleWen(bigd_exposed) ->
         let {trick_index, bigd} = big_with_design_max(bigd_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(bigd.main) in
@@ -526,7 +534,7 @@ end = struct
           Models.Wen(wen),
           Models.Wen(wen),
           Models.Wu({ number = wunum, design = bigd.design }),
-        ]}
+        ], None}
     | TripleWu(big_exposed) ->
         let {trick_index, big} = big_max(big_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(big) in
@@ -534,7 +542,7 @@ end = struct
           Models.Wen(wen),
           Models.Wu({ number = wunum, design = false }),
           Models.Wu({ number = wunum, design = true }),
-        ]}
+        ], None}
     | Quadruple(big_exposed) ->
         let {trick_index, big} = big_max(big_exposed) in
         let {wen, wunum} = Card.big_to_wen_and_wu(big) in
@@ -543,7 +551,7 @@ end = struct
           Models.Wen(wen),
           Models.Wu({ number = wunum, design = false }),
           Models.Wu({ number = wunum, design = true }),
-        ]}
+        ], Some(Sidahe)}
     end
 
   val check_last_submission_is_open(table : table) : bool =
@@ -604,7 +612,7 @@ end = struct
                 let num_gained1 = num_gained0 + num_submitted_cards in
                 if n0 == 3 then
                 /* If this is the last submission within a trick: */
-                  let {winner_trick_index, cards} = get_winner(table1) in
+                  let {winner_trick_index, cards, special_opt} = get_winner(table1) in
                   let winner_seat = Quad.advance_seat(start_seat, winner_trick_index) in
                   let winner = Quad.access(winner_seat, players1) in
                   let players2 =
@@ -626,7 +634,7 @@ end = struct
                         players   = players2,
                       }
                     in
-                    Some({WinsTrick(winner_seat, table1, Card.sort(submitter_hand1), inning1), is_front})
+                    Some({WinsTrick(winner_seat, table1, Card.sort(submitter_hand1), special_opt, inning1), is_front})
                 else
                   let inning =
                     {

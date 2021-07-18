@@ -273,20 +273,31 @@ update msg model =
               else
                 -- TODO: extract (possibly hidden) submitted cards and a submitter from `submission` for animation
                 case ( submission.trickLast, ostate0.observableInning ) of
-                  ( Just lastTable, ObservableDuringInning oinning0 ) ->
+                  ( Just observableLast, ObservableDuringInning oinning0 ) ->
                   -- If this is the last submission within a trick:
                   -- begins to synchronize, and waits `Constants.trickLastTimeMs' milliseconds.
                     let
                       oinning1 =
-                        { oinning0 | table = lastTable }
+                        { oinning0 | table = observableLast.table }
 
                       ostate1 =
                         { ostate0
                         | synchronizing    = True
                         , observableInning = ObservableDuringInning oinning1
                         }
+
+                      logs1 =
+                        case observableLast.diffs of
+                          Nothing    -> pstate0.logs
+                          Just diffs -> pstate0.logs ++ [ LogDiffs diffs ]
+
+                      pstate1 =
+                        { pstate0
+                        | game = PlayingGame ostate1
+                        , logs = logs1
+                        }
                     in
-                    let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                    let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
                     let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
                     Just ( { model | state = state1 }, cmd )
 
@@ -331,8 +342,19 @@ update msg model =
                           { ostate0
                           | observableInning = ObservableDuringInning oinning1
                           }
+
+                        logs1 =
+                          case last.diffs of
+                            Nothing    -> pstate0.logs
+                            Just diffs -> pstate0.logs ++ [ LogDiffs diffs ]
+
+                        pstate1 =
+                          { pstate0
+                          | game = PlayingGame ostate1
+                          , logs = logs1
+                          }
                       in
-                      let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                      let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
                       let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
                       let
                         message =

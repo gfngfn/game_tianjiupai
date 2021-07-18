@@ -331,7 +331,7 @@ end = struct
           GenServer.reply(Exited(true), { state | room_state = room_state })
       end
 
-    val make_winner_diff(losers) =
+    val make_winner_diff(losers : list<{Quad.seat, int}>) : int =
       let loser_diff_sum =
         List.foldl(
           fun(acc, loser) -> let {_, loser_diff} = loser in acc + loser_diff end,
@@ -342,20 +342,62 @@ end = struct
 
     val update_score(players, updates) =
       List.foldl(
-        fun(players, update) ->
+        fun(acc, update) ->
+          let {players, diffs} = acc in
           let {seat, diff} = update in
           let player = Quad.access(seat, players) in
-          Quad.update(seat, { player | score = player.score + diff }, players)
+          {
+            Quad.update(seat, { player | score = player.score + diff }, players),
+            Quad.update(seat, diff, diffs)
+          }
         end,
-        players,
+        {players, Quad.make({0, 0, 0, 0})},
         updates)
 
-    val deal_with_inning_end(game_meta, winner_seat, gains_quad) : game_meta =
+    val deal_with_trick_end(game_meta, winner_seat, special_opt) : {game_meta, option<Quad.t<int>>} =
+      case special_opt of
+      | None ->
+          {game_meta, None}
+      | Some(special) ->
+          let loser_seats = the_other_seats(winner_seat) in
+          let num_consecutives = game_meta.num_consecutives in
+          let parent_seat = game_meta.parent_seat in
+          let losers =
+            if Quad.seat_equal(winner_seat, parent_seat) then
+            /* If the parent wins the trick: */
+              List.map(
+                fun(loser_seat) ->
+                  let loser_diff = 0 - 2 * (num_consecutives + 1) in
+                  {loser_seat, loser_diff}
+                end,
+                loser_seats)
+            else
+              List.map(
+                fun(loser_seat) ->
+                  let loser_diff =
+                    if Quad.seat_equal(loser_seat, parent_seat) then
+                      0 - 2 * (num_consecutives + 1)
+                    else
+                      0 - 2
+                  in
+                  {loser_seat, loser_diff}
+                end,
+                loser_seats)
+          in
+          let winner_diff = make_winner_diff(losers) in
+          let {players, diffs} = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+          {
+            { game_meta | players = players },
+            Some(diffs)
+          }
+      end
+
+    val deal_with_inning_end(game_meta, winner_seat, gains_quad) : {game_meta, Quad.t<int>} =
       let loser_seats = the_other_seats(winner_seat) in
       let num_consecutives = game_meta.num_consecutives in
       let parent_seat = game_meta.parent_seat in
       if Quad.seat_equal(winner_seat, parent_seat) then
-      /* If the parent wins: */
+      /* If the parent wins the inning: */
         let losers =
           List.map(
             fun(loser_seat) ->
@@ -371,12 +413,15 @@ end = struct
             loser_seats)
         in
         let winner_diff = make_winner_diff(losers) in
-        let players = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+        let {players, diffs} = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
         {
-          inning_index     = game_meta.inning_index,
-          num_consecutives = num_consecutives + 1,
-          parent_seat      = parent_seat,
-          players          = players,
+          {
+            inning_index     = game_meta.inning_index,
+            num_consecutives = num_consecutives + 1,
+            parent_seat      = parent_seat,
+            players          = players,
+          },
+          diffs
         }
       else
         let losers =
@@ -400,12 +445,15 @@ end = struct
             loser_seats)
         in
         let winner_diff = make_winner_diff(losers) in
-        let players = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+        let {players, diffs} = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
         {
-          inning_index     = game_meta.inning_index + 1,
-          num_consecutives = 1,
-          parent_seat      = winner_seat,
-          players          = players,
+          {
+            inning_index     = game_meta.inning_index + 1,
+            num_consecutives = 1,
+            parent_seat      = winner_seat,
+            players          = players,
+          },
+          diffs
         }
 
     val handle_submit(user_id : user_id, cards : list<Card.t>, state : state) = act
@@ -445,7 +493,8 @@ end = struct
                                 None
                               }
 
-                          | Inning.WinsTrick(winner_seat, last_table, submitter_hand, inning) ->
+                          | Inning.WinsTrick(winner_seat, last_table, submitter_hand, special_opt, inning) ->
+                              let {game_meta, diffs_opt} = deal_with_trick_end(game_meta, winner_seat, special_opt) in
                               {
                                 {
                                   meta        = game_meta,
@@ -453,18 +502,19 @@ end = struct
                                   snapshot_id = snapshot_id,
                                   sync        = WaitingSync(make_initial_sync()),
                                 },
-                                Some({table = last_table, hand = submitter_hand})
+                                Some({table = last_table, hand = submitter_hand, diffs = diffs_opt})
                               }
 
                           | Inning.WinsInning(winner_seat, last_table, gains_quad) ->
+                              let {game_meta, diffs} = deal_with_inning_end(game_meta, winner_seat, gains_quad) in
                               {
                                 {
-                                  meta        = deal_with_inning_end(game_meta, winner_seat, gains_quad),
+                                  meta        = game_meta,
                                   inning      = InningEnd(gains_quad, make_initial_sync()),
                                   snapshot_id = snapshot_id,
                                   sync        = WaitingSync(make_initial_sync()),
                                 },
-                                Some({table = last_table, hand = []})
+                                Some({table = last_table, hand = [], diffs = Some(diffs)})
                               }
                           end
                         in
@@ -483,7 +533,7 @@ end = struct
                                   seat       = seat,
                                   submitted  = card_opts,
                                   new_state  = obs,
-                                  trick_last = Option.map(fun(last) -> last.table end, last_opt),
+                                  trick_last = Option.map(fun(last) -> { table = last.table, diffs = last.diffs } end, last_opt),
                                 }
                               in
                               notify(u, [Models.NotifySubmission(submission)])
@@ -503,9 +553,25 @@ end = struct
           GenServer.reply(SubmissionDone(None), state)
 
       | Some({obs, last_opt, game_state}) ->
+          let reversed_logs =
+            case last_opt of
+            | None ->
+                state.reversed_logs
+            | Some(last) ->
+                case last.diffs of
+                | None ->
+                    state.reversed_logs
+                | Some(diffs) ->
+                    List.append(state.reversed_logs, [Models.LogDiffs(diffs)])
+                end
+            end
+          in
           GenServer.reply(
             SubmissionDone(Some({obs, last_opt})),
-            { state | room_state = InternalPlaying(game_state) },
+            { state |
+              room_state    = InternalPlaying(game_state),
+              reversed_logs = reversed_logs,
+            },
           )
       end
 
