@@ -445,7 +445,7 @@ end = struct
                                 None
                               }
 
-                          | Inning.WinsTrick(winner_seat, last_table, submitter_hands, inning) ->
+                          | Inning.WinsTrick(winner_seat, last_table, submitter_hand, inning) ->
                               {
                                 {
                                   meta        = game_meta,
@@ -453,7 +453,7 @@ end = struct
                                   snapshot_id = snapshot_id,
                                   sync        = WaitingSync(make_initial_sync()),
                                 },
-                                Some({table = last_table, hand = submitter_hands})
+                                Some({table = last_table, hand = submitter_hand})
                               }
 
                           | Inning.WinsInning(winner_seat, last_table, gains_quad) ->

@@ -626,7 +626,7 @@ end = struct
                         players   = players2,
                       }
                     in
-                    Some({WinsTrick(winner_seat, table1, submitter_hand1, inning1), is_front})
+                    Some({WinsTrick(winner_seat, table1, Card.sort(submitter_hand1), inning1), is_front})
                 else
                   let inning =
                     {
