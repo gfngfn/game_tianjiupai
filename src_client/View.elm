@@ -89,7 +89,7 @@ viewEntrance message userNameInput =
       ]
   in
   viewSimpleGridScheme
-    { header = [ text "header" ]
+    { header = [ text "天九 Online" ]
     , middle = middle
     , style  = "entrance-middle"
     , footer = message
@@ -101,8 +101,8 @@ viewPlaza message user roomNameInput maybeRoomSummaries =
   let
     middle =
       [ div [ class "plaza-container" ]
-          ([ div []
-              [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
+          ([ h1 []
+              [ text "部屋一覧" ]
           , div [ class "room-creation-input-group" ]
               [ specialInput
                   { placeholder = "部屋名"
@@ -115,7 +115,7 @@ viewPlaza message user roomNameInput maybeRoomSummaries =
       ]
   in
   viewSimpleGridScheme
-    { header = [ text "header" ]
+    { header = [ text ("天九 Online | " ++ user.userName ++ " さん") ]
     , middle = middle
     , style  = "plaza-middle"
     , footer = message
@@ -227,7 +227,7 @@ viewRoom message user pstate indices chatTextInput =
           ]
       in
       viewRoomGridScheme
-        { header = [ text "header" ]
+        { header = [ text ("天九 Online | " ++ user.userName ++ " さん") ]
         , left   = elemsLeft
         , center = []
         , right  = elemsChat
