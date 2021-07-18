@@ -325,7 +325,7 @@ body {
 
 .plaza-panel {
   @extend .panel;
-  width: $plaza-width;
+  width: calc($plaza-width - $text-frame-padding-horizontal * 2);
 }
 
 .plaza-panel-left {
@@ -433,4 +433,27 @@ body {
 
 .chat-input-container {
   height: $chat-input-height;
+}
+
+.room-creation-input-group {
+  margin: {
+    left: auto;
+    right: 0px;
+  }
+  width: 220px;
+  border-radius: 6px;
+  padding: {
+    top: 8px;
+    left: 4px;
+    right: 8px;
+    bottom: 8px;
+  }
+  background-color: #eeeeee;
+}
+
+.status-text {
+  margin: {
+    top: 4px;
+    bottom: 4px;
+  }
 }

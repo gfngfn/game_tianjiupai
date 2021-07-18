@@ -103,7 +103,7 @@ viewPlaza message user roomNameInput maybeRoomSummaries =
       [ div [ class "plaza-container" ]
           ([ div []
               [ text ("ようこそ，" ++ user.userName ++ " さん (ユーザID: " ++ user.userId ++ ")") ]
-          , div []
+          , div [ class "room-creation-input-group" ]
               [ specialInput
                   { placeholder = "部屋名"
                   , value       = roomNameInput
@@ -128,6 +128,9 @@ viewRoomList maybeRoomSummaries =
     Nothing ->
       [ div [] [ text "部屋一覧取得中……" ] ]
 
+    Just [] ->
+      [ div [] [ text "まだ部屋がありません．右上の入力部分から部屋を作成できます" ] ]
+
     Just roomSummaries ->
       roomSummaries |> List.map (\roomSummary ->
         let
@@ -142,13 +145,13 @@ viewRoomList maybeRoomSummaries =
         in
         div [ class "plaza-panel" ]
           [ div [ class "plaza-panel-left" ]
-              [ div []
-                  [ text (room.roomName ++ " (部屋ID: " ++ room.roomId ++ ")") ]
+              [ div [ class "room-name" ]
+                  [ text room.roomName ]
               , div []
                   [ text ("参加者: " ++ members) ]
               ]
           , div [ class "plaza-panel-right" ]
-              [ div []
+              [ div [ class "status-text" ]
                   [ text statusText ]
               , div []
                   [ specialButton True "参加" (EnterRoom room.roomId) ]
