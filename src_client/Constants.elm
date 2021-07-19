@@ -133,7 +133,13 @@ selfParentTileX : Int
 selfParentTileX = 440
 
 selfParentTileY : Int
-selfParentTileY = 430
+selfParentTileY = 435
+
+rightParentTileX : Int
+rightParentTileX = 480
+
+rightParentTileY : Int
+rightParentTileY = 180
 
 frontParentTileX : Int
 frontParentTileX = 138
@@ -141,6 +147,11 @@ frontParentTileX = 138
 frontParentTileY : Int
 frontParentTileY = 190
 
+leftParentTileX : Int
+leftParentTileX = 135
+
+leftParentTileY : Int
+leftParentTileY = 430
 
 standingCardPath : Card -> String
 standingCardPath card =
@@ -182,9 +193,19 @@ selfParentTilePath =
   "assets/parent-self.png"
 
 
+rightParentTilePath : String
+rightParentTilePath =
+  "assets/parent-right.png"
+
+
 frontParentTilePath : String
 frontParentTilePath =
   "assets/parent-front.png"
+
+
+leftParentTilePath : String
+leftParentTilePath =
+  "assets/parent-left.png"
 
 
 stringifyCard : Card -> String

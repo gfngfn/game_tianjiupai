@@ -402,6 +402,15 @@ displayParentTile relParentSeat =
           []
       ]
 
+    Right ->
+      [ Svg.image
+          [ SvgA.x (String.fromInt C.rightParentTileX)
+          , SvgA.y (String.fromInt C.rightParentTileY)
+          , SvgA.xlinkHref C.rightParentTilePath
+          ]
+          []
+      ]
+
     Front ->
       [ Svg.image
           [ SvgA.x (String.fromInt C.frontParentTileX)
@@ -411,8 +420,14 @@ displayParentTile relParentSeat =
           []
       ]
 
-    _ ->
-      []
+    Left ->
+      [ Svg.image
+          [ SvgA.x (String.fromInt C.leftParentTileX)
+          , SvgA.y (String.fromInt C.leftParentTileY)
+          , SvgA.xlinkHref C.leftParentTilePath
+          ]
+          []
+      ]
 
 
 makeRelativeQuad : Seat -> PerSeat (List Card) -> PerSeat (List (ClosedOr Card)) -> RelativeQuad
