@@ -278,7 +278,7 @@ end = struct
                 let game_meta =
                   {
                     inning_index     = 0,
-                    num_consecutives = 1,
+                    num_consecutives = 0, /* The initial value is exceptionally `0`, not `1` */
                     parent_seat      = parent_seat,
                     players          = player_quad,
                   }

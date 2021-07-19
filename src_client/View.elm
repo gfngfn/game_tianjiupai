@@ -288,7 +288,7 @@ viewRoom message user pstate indices chatTextInput =
               , div []
                   [ text
                       (String.fromInt (gameMeta.inningIndex + 1) ++ "局目，"
-                        ++ String.fromInt (gameMeta.numConsecutives - 1) ++ "本場")
+                        ++ String.fromInt (gameMeta.numConsecutives + 1) ++ "倍場")
                   ]
               , viewPlayer "東" players.east
               , viewPlayer "南" players.south
