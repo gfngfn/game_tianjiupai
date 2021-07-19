@@ -1,4 +1,4 @@
-module PerSeat exposing (find, advanceSeat)
+module PerSeat exposing (find, advanceSeat, RelativeSeat(..), relative)
 
 import Models exposing (..)
 
@@ -34,3 +34,30 @@ advanceSeat seat n =
     seat
   else
     advanceSeat (succSeat seat) (n - 1)
+
+
+type RelativeSeat
+  = Self
+  | Right
+  | Front
+  | Left
+
+
+relative : { from : Seat, target : Seat } -> RelativeSeat
+relative r =
+  let
+    self = r.from
+    target = r.target
+  in
+  if target == self then
+    Self
+  else
+    let right = succSeat self in
+    if target == right then
+      Right
+    else
+      let front = succSeat right in
+      if target == front then
+        Front
+      else
+        Left

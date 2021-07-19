@@ -298,7 +298,7 @@ viewRoom message user pstate indices chatTextInput =
           viewRoomGridScheme
             { header = [ text "header" ]
             , left   = elemsLeft
-            , center = [ ViewTable.view userId seat handInfo ostate.observableInning ]
+            , center = [ ViewTable.view userId seat gameMeta.parentSeat handInfo ostate.observableInning ]
             , right  = elemsChat
             , footer = message
             }
