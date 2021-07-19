@@ -11,6 +11,7 @@ import Svg.Events as SvgE
 
 import Models exposing (..)
 import Common exposing (..)
+import PerSeat exposing (RelativeSeat(..))
 import Game
 import Constants as C
 
@@ -34,8 +35,8 @@ type alias RelativeQuad =
   }
 
 
-view : UserId -> Seat -> HandInfo -> ObservableInning -> Html Msg
-view userId selfSeat handInfo observableInning =
+view : UserId -> Seat -> Seat -> HandInfo -> ObservableInning -> Html Msg
+view userId selfSeat parentSeat handInfo observableInning =
   let
     widthText = "min(100%, " ++ (String.fromInt C.svgWidth) ++ "px)"
     viewBoxText = "0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight
@@ -55,6 +56,7 @@ view userId selfSeat handInfo observableInning =
             ]
             (List.concat
               [ displayLeftHand (numCardsAtTrickBeginning - List.length relQuad.left.submitted)
+              , displayParentTile (PerSeat.relative { from = selfSeat, target = parentSeat })
               , displayGains relQuad
               , displayTable relQuad
               , displayRightHand (numCardsAtTrickBeginning - List.length relQuad.right.submitted)
@@ -386,6 +388,31 @@ displayVerticalClosedCard x y =
     , SvgA.xlinkHref C.verticalClosedCardPath
     ]
     []
+
+
+displayParentTile : RelativeSeat -> List (Svg Msg)
+displayParentTile relParentSeat =
+  case relParentSeat of
+    Self ->
+      [ Svg.image
+          [ SvgA.x (String.fromInt C.selfParentTileX)
+          , SvgA.y (String.fromInt C.selfParentTileY)
+          , SvgA.xlinkHref C.selfParentTilePath
+          ]
+          []
+      ]
+
+    Front ->
+      [ Svg.image
+          [ SvgA.x (String.fromInt C.frontParentTileX)
+          , SvgA.y (String.fromInt C.frontParentTileY)
+          , SvgA.xlinkHref C.frontParentTilePath
+          ]
+          []
+      ]
+
+    _ ->
+      []
 
 
 makeRelativeQuad : Seat -> PerSeat (List Card) -> PerSeat (List (ClosedOr Card)) -> RelativeQuad

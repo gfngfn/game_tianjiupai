@@ -129,6 +129,18 @@ leftSubmittedX = 146
 leftSubmittedY : Int
 leftSubmittedY = 340
 
+selfParentTileX : Int
+selfParentTileX = 440
+
+selfParentTileY : Int
+selfParentTileY = 430
+
+frontParentTileX : Int
+frontParentTileX = 138
+
+frontParentTileY : Int
+frontParentTileY = 190
+
 
 standingCardPath : Card -> String
 standingCardPath card =
@@ -163,6 +175,16 @@ verticalClosedStandingCardPath =
 horizontalClosedStandingCardPath : String
 horizontalClosedStandingCardPath =
   "assets/standh.png"
+
+
+selfParentTilePath : String
+selfParentTilePath =
+  "assets/parent-self.png"
+
+
+frontParentTilePath : String
+frontParentTilePath =
+  "assets/parent-front.png"
 
 
 stringifyCard : Card -> String
