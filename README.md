@@ -5,7 +5,7 @@ A *Tian Jiu Pai* (*Tien Gow Pai*, 天九牌) game server written in [Sesterl](ht
 
 The following is a capture video of playing the game:
 
-[![thumbnail](https://pbs.twimg.com/ext_tw_video_thumb/1404111611095252994/pu/img/yIbNyw8FmE__pZa9?format=jpg&name=small)](https://twitter.com/bd_gfngfn/status/1404112257517195268?s=20)
+- https://twitter.com/bd_gfngfn/status/1404112257517195268?s=20
 
 
 ## Memos for development
@@ -13,6 +13,7 @@ The following is a capture video of playing the game:
 ### Build dependencies
 
 * make
+* Sass
 * Erlang/OTP
 * Rebar3
 * Elm
@@ -31,7 +32,7 @@ Just invoke `make`.
 
 ### How to run tests
 
-Invoke `make test.
+Invoke `make test`.
 
 
 ### How to launch locally
