@@ -165,6 +165,9 @@ viewRoom message user pstate indices chatTextInput =
   let
     room : Room
     room = pstate.room
+
+    headerText : String
+    headerText = "天九 Online | " ++ user.userName ++ " さん"
   in
   let
     elemsChat : List (Html Msg)
@@ -227,7 +230,7 @@ viewRoom message user pstate indices chatTextInput =
           ]
       in
       viewRoomGridScheme
-        { header = [ text ("天九 Online | " ++ user.userName ++ " さん") ]
+        { header = [ text headerText ]
         , left   = elemsLeft
         , center = []
         , right  = elemsChat
@@ -296,7 +299,7 @@ viewRoom message user pstate indices chatTextInput =
               ]
           in
           viewRoomGridScheme
-            { header = [ text "header" ]
+            { header = [ text headerText ]
             , left   = elemsLeft
             , center = [ ViewTable.view userId seat gameMeta.parentSeat handInfo ostate.observableInning ]
             , right  = elemsChat
