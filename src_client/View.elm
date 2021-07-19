@@ -173,29 +173,7 @@ viewRoom message user pstate indices chatTextInput =
     elemsChat : List (Html Msg)
     elemsChat =
       [ div [ class "log-area" ]
-          (pstate.logs |> List.map (\log ->
-            case log of
-              LogComment comment ->
-                div [ class "log-entry" ] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
-
-              LogEntered u ->
-                div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが参加しました" ]
-
-              LogExited u ->
-                div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが退出しました" ]
-
-              LogGameStart gameIndex ->
-                let s = showGameIndex gameIndex.inningIndex gameIndex.numConsecutives in
-                div [ class "log-entry" ] [ b [] [ text (s ++ " 開始！") ] ]
-
-              LogDiffs diffs ->
-                let
-                  diffText =
-                    String.join ", "
-                      (List.map String.fromInt [ diffs.east, diffs.south, diffs.west, diffs.north ])
-                in
-                div [ class "log-entry" ] [ text diffText ]
-          ))
+          (pstate.logs |> List.map viewLogEntry)
       , div [ class "chat-input-container" ]
           [ specialInput
               { placeholder = "コメント"
@@ -244,9 +222,7 @@ viewRoom message user pstate indices chatTextInput =
       let synchronizing = ostate.synchronizing in
       let turn = Game.isMyTurn user.userId ostate in
       let userId = user.userId in
-      case
-        players |> PerSeat.find (\p -> p.user.userId == userId)
-      of
+      case players |> PerSeat.find (\p -> p.user.userId == userId) of
         Nothing ->
         -- Should never happen
           [ div [] [ text "broken" ] ]
@@ -257,32 +233,26 @@ viewRoom message user pstate indices chatTextInput =
               case ostate.observableInning of
                 ObservableDuringInning oinning -> Just oinning.table
                 ObservableInningEnd _          -> Nothing
-          in
-          let
+
             handInfo : HandInfo
             handInfo =
               { maybeIndices  = if turn then Just indices else Nothing
               , maybeTable    = maybeTable
               , synchronizing = synchronizing
               }
-          in
-          let
+
             elemsDebug : List (Html Msg)
             elemsDebug =
               [ div [] [ text "debug info" ]
               , ul []
-                  [ li []
-                      [ text ("room ID: " ++ room.roomId) ]
-                  , li []
-                      [ text ("snapshot ID: " ++ ostate.snapshotId) ]
-                  , li []
-                      [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
-                  , li []
-                      [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
+                  [ li [] [ text ("room ID: " ++ room.roomId) ]
+                  , li [] [ text ("snapshot ID: " ++ ostate.snapshotId) ]
+                  , li [] [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
+                  , li [] [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
                   ]
               ]
-          in
-          let
+
+            elemsLeft : List (Html Msg)
             elemsLeft =
               [ div [ class "room-name" ]
                   [ text room.roomName ]
@@ -303,6 +273,31 @@ viewRoom message user pstate indices chatTextInput =
             , right  = elemsChat
             , footer = message
             }
+
+
+viewLogEntry : Log -> Html Msg
+viewLogEntry log =
+  case log of
+    LogComment comment ->
+      div [ class "log-entry" ] [ b [] [ text comment.from.userName ], text (": " ++ comment.text) ]
+
+    LogEntered u ->
+      div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが参加しました" ]
+
+    LogExited u ->
+      div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが退出しました" ]
+
+    LogGameStart gameIndex ->
+      let s = showGameIndex gameIndex.inningIndex gameIndex.numConsecutives in
+      div [ class "log-entry" ] [ b [] [ text (s ++ " 開始！") ] ]
+
+    LogDiffs diffs ->
+      let
+        diffText =
+          String.join ", "
+            (List.map String.fromInt [ diffs.east, diffs.south, diffs.west, diffs.north ])
+      in
+      div [ class "log-entry" ] [ text diffText ]
 
 
 showGameIndex : Int -> Int -> String
