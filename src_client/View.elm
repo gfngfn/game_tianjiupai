@@ -184,8 +184,9 @@ viewRoom message user pstate indices chatTextInput =
               LogExited u ->
                 div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが退出しました" ]
 
-              LogGameStart ->
-                div [ class "log-entry" ] [ b [] [ text "対局開始！" ] ]
+              LogGameStart gameIndex ->
+                let s = showGameIndex gameIndex.inningIndex gameIndex.numConsecutives in
+                div [ class "log-entry" ] [ b [] [ text (s ++ " 開始！") ] ]
 
               LogDiffs diffs ->
                 let
@@ -286,10 +287,7 @@ viewRoom message user pstate indices chatTextInput =
               [ div [ class "room-name" ]
                   [ text room.roomName ]
               , div []
-                  [ text
-                      (String.fromInt (gameMeta.inningIndex + 1) ++ "局目，"
-                        ++ String.fromInt (gameMeta.numConsecutives - 1) ++ "本場")
-                  ]
+                  [ text (showGameIndex gameMeta.inningIndex gameMeta.numConsecutives) ]
               , viewPlayer "東" players.east
               , viewPlayer "南" players.south
               , viewPlayer "西" players.west
@@ -305,6 +303,25 @@ viewRoom message user pstate indices chatTextInput =
             , right  = elemsChat
             , footer = message
             }
+
+
+showGameIndex : Int -> Int -> String
+showGameIndex inningIndex numConsecutives =
+  case showInningIndex inningIndex of
+    Just s  -> s ++ "・" ++ (String.fromInt (numConsecutives + 1)) ++ "倍場"
+    Nothing -> "終局"
+
+
+showInningIndex : Int -> Maybe String
+showInningIndex inningIndex =
+  if inningIndex < 0 then
+    Nothing
+  else if inningIndex < 4 then
+    Just ("東" ++ (String.fromInt (inningIndex + 1)) ++ "局")
+  else if inningIndex < 8 then
+    Just ("南" ++ (String.fromInt (inningIndex - 3)) ++ "局")
+  else
+    Nothing
 
 
 type alias SimpleGridScheme =
