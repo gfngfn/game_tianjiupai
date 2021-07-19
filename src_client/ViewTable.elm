@@ -332,102 +332,51 @@ displayCardInHand index cardState card x y =
 
 displayClosedStandingCard : Int -> Int -> Svg Msg
 displayClosedStandingCard x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref C.verticalClosedStandingCardPath
-    ]
-    []
+  svgImage ( x, y ) C.verticalClosedStandingCardPath
 
 
 displayHorizontalStandingCard : Int -> Int -> Svg Msg
 displayHorizontalStandingCard x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref C.horizontalClosedStandingCardPath
-    ]
-    []
+  svgImage ( x, y ) C.horizontalClosedStandingCardPath
 
 
 displayHorizontalOpenCard : Card -> Int -> Int -> Svg Msg
 displayHorizontalOpenCard card x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref (C.horizontalOpenCardPath card)
-    ]
-    []
+  svgImage ( x, y ) (C.horizontalOpenCardPath card)
 
 
 displayHorizontalClosedCard : Int -> Int -> Svg Msg
 displayHorizontalClosedCard x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref C.horizontalClosedCardPath
-    ]
-    []
+  svgImage ( x, y ) C.horizontalClosedCardPath
 
 
 displayVerticalOpenCard : Card -> Int -> Int -> Svg Msg
 displayVerticalOpenCard card x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref (C.verticalOpenCardPath card)
-    ]
-    []
+  svgImage ( x, y ) (C.verticalOpenCardPath card)
 
 
 displayVerticalClosedCard : Int -> Int -> Svg Msg
 displayVerticalClosedCard x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref C.verticalClosedCardPath
-    ]
-    []
+  svgImage ( x, y ) C.verticalClosedCardPath
 
 
 displayParentTile : RelativeSeat -> List (Svg Msg)
 displayParentTile relParentSeat =
   case relParentSeat of
-    Self ->
-      [ Svg.image
-          [ SvgA.x (String.fromInt C.selfParentTileX)
-          , SvgA.y (String.fromInt C.selfParentTileY)
-          , SvgA.xlinkHref C.selfParentTilePath
-          ]
-          []
-      ]
+    Self  -> [ svgImage ( C.selfParentTileX,  C.selfParentTileY  ) C.selfParentTilePath  ]
+    Right -> [ svgImage ( C.rightParentTileX, C.rightParentTileY ) C.rightParentTilePath ]
+    Front -> [ svgImage ( C.frontParentTileX, C.frontParentTileY ) C.frontParentTilePath ]
+    Left  -> [ svgImage ( C.leftParentTileX,  C.leftParentTileY  ) C.leftParentTilePath  ]
 
-    Right ->
-      [ Svg.image
-          [ SvgA.x (String.fromInt C.rightParentTileX)
-          , SvgA.y (String.fromInt C.rightParentTileY)
-          , SvgA.xlinkHref C.rightParentTilePath
-          ]
-          []
-      ]
 
-    Front ->
-      [ Svg.image
-          [ SvgA.x (String.fromInt C.frontParentTileX)
-          , SvgA.y (String.fromInt C.frontParentTileY)
-          , SvgA.xlinkHref C.frontParentTilePath
-          ]
-          []
-      ]
-
-    Left ->
-      [ Svg.image
-          [ SvgA.x (String.fromInt C.leftParentTileX)
-          , SvgA.y (String.fromInt C.leftParentTileY)
-          , SvgA.xlinkHref C.leftParentTilePath
-          ]
-          []
-      ]
+svgImage : ( Int, Int ) -> String -> Svg Msg
+svgImage ( x, y ) path =
+  Svg.image
+    [ SvgA.x (String.fromInt x)
+    , SvgA.y (String.fromInt y)
+    , SvgA.xlinkHref path
+    ]
+    []
 
 
 makeRelativeQuad : Seat -> PerSeat (List Card) -> PerSeat (List (ClosedOr Card)) -> RelativeQuad
