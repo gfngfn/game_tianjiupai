@@ -283,6 +283,7 @@ end = struct
                     players          = player_quad,
                   }
                 in
+                let game_index = { inning_index = 0, num_consecutives = 0 } in
                 do game_state <- start_new_inning(game_meta) in
                 do dummy <-
                   List.for_each(
@@ -296,7 +297,7 @@ end = struct
                 let state =
                   { state |
                     room_state    = InternalPlaying(game_state),
-                    reversed_logs = Models.LogGameStart :: log_enter :: state.reversed_logs,
+                    reversed_logs = Models.LogGameStart(game_index) :: log_enter :: state.reversed_logs,
                   }
                 in
                 let Some(personal_state) = make_personal_state(state, user_id) in
@@ -562,7 +563,7 @@ end = struct
                 | None ->
                     state.reversed_logs
                 | Some(diffs) ->
-                    List.append(state.reversed_logs, [Models.LogDiffs(diffs)])
+                    Models.LogDiffs(diffs) :: state.reversed_logs
                 end
             end
           in
@@ -672,10 +673,18 @@ end = struct
                               end,
                               user_id :: user_ids)
                           in
-                          return(Some(game_state))
+                          let game_index =
+                            let meta = game_state.meta in
+                            {
+                              inning_index     = meta.inning_index,
+                              num_consecutives = meta.num_consecutives,
+                            }
+                          in
+                          return(Some({game_state, Some(game_index)}))
 
                       | _ ->
-                          return(Some({ game_state | inning = InningEnd(gains_quad, inning_sync_quad) }))
+                          let game_state = { game_state | inning = InningEnd(gains_quad, inning_sync_quad) } in
+                          return(Some({game_state, None}))
                       end
                   end
                 else
@@ -684,8 +693,16 @@ end = struct
         end
       in
       case opt of
-      | None             -> GenServer.no_reply(state)
-      | Some(game_state) -> GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
+      | None ->
+          GenServer.no_reply(state)
+      | Some({game_state, game_index_opt}) ->
+          let state =
+            case game_index_opt of
+            | None             -> state
+            | Some(game_index) -> { state | reversed_logs = Models.LogGameStart(game_index) :: state.reversed_logs }
+            end
+          in
+          GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
       end
 
     val update_sync(user_id : user_id, state : state) = act

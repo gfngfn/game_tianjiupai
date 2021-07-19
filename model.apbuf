@@ -92,12 +92,17 @@ comment := {
   text : string,
 }
 
+game_index := {
+  inning_index     : int,
+  num_consecutives : int,
+}
+
 log :=
-  | LogComment : comment
-  | LogEntered : user
-  | LogExited  : user
-  | LogGameStart
-  | LogDiffs   : per_seat(int)
+  | LogComment   : comment
+  | LogEntered   : user
+  | LogExited    : user
+  | LogGameStart : game_index
+  | LogDiffs     : per_seat(int)
 
 notification :=
   | NotifyComment    : comment
