@@ -269,6 +269,10 @@ update msg model =
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
+        ( _, ReceiveNotification (Ok (NotifyConnection connection)) ) ->
+          let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogConnection connection ] } in
+          ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
+
         ( _, ReceiveNotification (Ok (NotifyGameStart ostate0)) ) ->
           let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
           let ostate1 = { ostate0 | synchronizing = True } in
@@ -493,6 +497,7 @@ showNotification notification =
     NotifyGameStart _  -> "NotifyGameStart"
     NotifyNextStep     -> "NotifyNextStep"
     NotifySubmission _ -> "NotifySubmission"
+    NotifyConnection _ -> "NotifyConnection"
 
 
 showMessage : Msg -> String

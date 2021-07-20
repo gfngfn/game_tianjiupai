@@ -736,8 +736,63 @@ end = struct
       end
 
     val handle_set_connection_status(user_id : user_id, is_connected : bool, state : state) = act
-      /* TODO */
-      GenServer.no_reply(state)
+      let opt =
+        case state.room_state of
+        | InternalWaiting(waiting_state) ->
+            let members0 = waiting_state.members in
+            case List.filter(fun(w) -> Binary.equal(w.user.user_id, user_id) end, members0) of
+            | [] ->
+                None
+
+            | w :: _ ->
+                let user = w.user in
+                let members1 =
+                  List.map(
+                    fun(w) ->
+                      if Binary.equal(w.user.user_id, user_id) then
+                        { w | is_connected = is_connected }
+                      else
+                        w
+                    end,
+                    members0,
+                  )
+                in
+                let all_user_ids = List.map(fun(w) -> w.user.user_id end, members1) in
+                Some({user, all_user_ids, InternalWaiting({ members = members1 })})
+            end
+
+        | InternalPlaying(game_state) ->
+            case find_user_seat(game_state, user_id) of
+            | None ->
+                None
+
+            | Some(seat) ->
+                let game_meta = game_state.meta in
+                let players0 = game_meta.players in
+                let p0 = Quad.access(seat, players0) in
+                let p1 = { p0 | is_connected = is_connected } in
+                let players1 = Quad.update(seat, p1, players0) in
+                let all_user_ids = List.map(fun(g) -> g.user.user_id end, Quad.to_list(players1)) in
+                let game_state = { game_state | meta = { game_meta | players = players1 } } in
+                Some({p1.user, all_user_ids, InternalPlaying(game_state)})
+            end
+        end
+      in
+      case opt of
+      | None ->
+          GenServer.no_reply(state)
+
+      | Some({user, all_user_ids, room_state}) ->
+          let connection = { user = user, is_connected = is_connected } in
+          do dummy <- notify_for_each(all_user_ids, [Models.NotifyConnection(connection)]) in
+          let state =
+            { state |
+              room_state    = room_state,
+              reversed_logs = Models.LogConnection(connection) :: state.reversed_logs,
+            }
+          in
+          GenServer.no_reply(state)
+      end
 
     val update_sync(user_id : user_id, state : state) = act
       case state.room_state of
