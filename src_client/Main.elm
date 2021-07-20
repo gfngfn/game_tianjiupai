@@ -241,6 +241,19 @@ update msg model =
           let cmd = WebSocketClient.sendChat ws chatTextInput0 in
           ( { model | state = InRoom ws user pstate0 indices0 ""  }, cmd )
 
+        ( _, SendRequest (ExitRoom roomId) ) ->
+          let cmd = HttpClient.exitRoom model.origin user.userId roomId in
+          ( model, cmd )
+
+        ( _, ReceiveResponse (RoomExited roomId res) ) ->
+          case res of
+            Ok _ ->
+              let cmd = HttpClient.getAllRooms model.origin in
+              ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+
+            Err err ->
+              ( { model | message = makeErrorMessage "room exit" err }, Cmd.none )
+
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = ( Warning, "invalid notification: " ++ JD.errorToString err ) }, Cmd.none )
 

@@ -100,7 +100,7 @@ module Api = struct
     end
 
   val enter_room(user_id : user_id, room_id : room_id) = act
-    do res <- User.set_room(user_id, room_id) in
+    do res <- User.set_room(user_id, Some(room_id)) in
     case res of
     | Some({}) ->
         do res <- User.get_name(user_id) in
@@ -130,6 +130,34 @@ module Api = struct
         return(None)
     end
 
+  val exit_room(user_id : user_id, room_id : room_id) = act
+    do res <- User.set_room(user_id, None) in
+    case res of
+    | Some({}) ->
+        do res <- Room.exit(room_id, user_id) in
+        let is_success =
+          case res of
+          | Some(_) -> true
+          | None    -> false
+          end
+        in
+        let _ =
+          assert Logger.info(
+            f'exit (user_id: ~p, room_id: ~p, success: ~p)',
+            {user_id, room_id, is_success}
+          )
+        in
+        case res of
+        | Some({}) ->
+            let enc = Models.encode_exit_room_response() in
+            return(Some(Json.Encode.run(enc({}))))
+        | None ->
+            return(None)
+        end
+    | None ->
+        return(None)
+    end
+
   val update_room(room_id : room_id, req_body : binary, validator : fun(user_id) -> bool) = act
     case Json.Decode.run(Models.decode_room_request(), req_body) of
     | Ok(room_request) ->
@@ -138,6 +166,12 @@ module Api = struct
             let user_id = enter_room_request.user_id in
             if validator(user_id) then
               enter_room(user_id, room_id)
+            else
+              return(None)
+        | Models.RoomRequestToExitRoom(exit_room_request) ->
+            let user_id = exit_room_request.user_id in
+            if validator(user_id) then
+              exit_room(user_id, room_id)
             else
               return(None)
         | Models.RoomRequestToSubmitCards(submit_cards_request) ->
