@@ -43,8 +43,13 @@ end = struct
     room_name : binary,
   }
 
+  type waiting_member = {
+    user         : user,
+    is_connected : bool,
+  }
+
   type waiting_state = {
-    members : list<user>,
+    members : list<waiting_member>,
   }
 
   type sync =
@@ -119,7 +124,7 @@ end = struct
     val get_members_from_state(room_state : internal_room_state) : {bool, list<user>} =
       case room_state of
       | InternalWaiting(waiting_state) ->
-          {false, waiting_state.members}
+          {false, List.map(fun(w) -> w.user end, waiting_state.members)}
 
       | InternalPlaying(whole_game_state) ->
           let game_players = Quad.to_list(whole_game_state.meta.players) in
@@ -191,7 +196,8 @@ end = struct
     val make_observable(room_state : internal_room_state, user_id : user_id) : option<observable_room_state> =
       case room_state of
       | InternalWaiting(waiting_state) ->
-          Some(Models.WaitingStart(waiting_state.members))
+          let members = List.map(fun(w) -> w.user end, waiting_state.members) in
+          Some(Models.WaitingStart(members))
 
       | InternalPlaying(game_state) ->
           Option.map(fun(obs) -> Models.PlayingGame(obs) end, make_observable_game_state(game_state, user_id))
@@ -262,19 +268,23 @@ end = struct
 
       | InternalWaiting(waiting_state) ->
           let members = waiting_state.members in
-          if List.any(fun(u) -> Binary.equal(u.user_id, user_id) end, members) then
+          if List.any(fun(w) -> Binary.equal(w.user.user_id, user_id) end, members) then
             let Some(personal_state) = make_personal_state(state, user_id) in
             GenServer.reply(Attended(Some(personal_state)), state)
           else
             let log_enter = Models.LogEntered(user) in
             let notif_enter = Models.NotifyEntered(user) in
             case members of
-            | u0 :: u1 :: u2 :: _ ->
+            | w0 :: w1 :: w2 :: _ ->
+                let u0 = w0.user in
+                let u1 = w1.user in
+                let u2 = w2.user in
                 let player_quad =
-                  let player0 = { user = u0, score = 0 } in
-                  let player1 = { user = u1, score = 0 } in
-                  let player2 = { user = u2, score = 0 } in
-                  let player3 = { user = user, score = 0 } in
+                  let player0 = { user = u0, score = 0, is_connected = w0.is_connected } in
+                  let player1 = { user = u1, score = 0, is_connected = w1.is_connected } in
+                  let player2 = { user = u2, score = 0, is_connected = w2.is_connected } in
+                  let player3 = { user = user, score = 0, is_connected = true } in
+                     /* TODO: specify an appropriate value for `is_connected` */
                   Quad.make({player0, player1, player2, player3})
                 in
                 let parent_seat = Models.SeatA in
@@ -307,8 +317,10 @@ end = struct
                 GenServer.reply(Attended(Some(personal_state)), state)
 
             | _ ->
-                let waiting_state = { waiting_state | members = List.append(members, [user]) } in
-                do dummy <- notify_for_each(List.map(fun(u) -> u.user_id end, members), [notif_enter]) in
+                let w = { user = user, is_connected = true } in
+                  /* TODO: specify an appropriate value for `is_connected` */
+                let waiting_state = { waiting_state | members = List.append(members, [w]) } in
+                do dummy <- notify_for_each(List.map(fun(w) -> w.user.user_id end, members), [notif_enter]) in
                 let state =
                   { state |
                     room_state    = InternalWaiting(waiting_state),
@@ -327,17 +339,18 @@ end = struct
 
       | InternalWaiting(waiting_state) ->
           let members0 = waiting_state.members in
-          case List.filter(fun(u) -> Binary.equal(u.user_id, user_id) end, members0) of
+          case List.filter(fun(w0) -> Binary.equal(w0.user.user_id, user_id) end, members0) of
           | [] ->
               GenServer.reply(Exited(false), state)
-          | user :: _ ->
+          | w :: _ ->
+              let user = w.user in
               let members1 =
                 List.filter(
-                  fun(u) -> Bool.not(Binary.equal(u.user_id, user_id)) end,
+                  fun(w0) -> Bool.not(Binary.equal(w0.user.user_id, user_id)) end,
                   members0)
               in
               do dummy <-
-                notify_for_each(List.map(fun(u) -> u.user_id end, members1), [Models.NotifyExited(user)])
+                notify_for_each(List.map(fun(w) -> w.user.user_id end, members1), [Models.NotifyExited(user)])
               in
               let state =
                 { state |

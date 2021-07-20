@@ -225,8 +225,9 @@ seat :=
 snapshot_id := string
 
 game_player := {
-  user  : user,
-  score : int,
+  user         : user,
+  score        : int,
+  is_connected : bool,
 }
 
 game_meta := {
