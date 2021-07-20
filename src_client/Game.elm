@@ -28,7 +28,11 @@ isMyTurn userId ostate =
 
 getMySeat : UserId -> ObservableGameState -> Maybe Seat
 getMySeat userId ostate =
-  PerSeat.find (\player -> player.user.userId == userId) ostate.meta.players
+  PerSeat.find (\maybePlayer ->
+    case maybePlayer of
+      Just player -> player.user.userId == userId
+      Nothing     -> False
+  ) ostate.meta.players
 
 
 getNextSubmitterSeat : ObservableInningState -> Maybe Seat

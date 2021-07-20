@@ -241,7 +241,7 @@ game_meta := {
   num_consecutives : int,
   parent_seat      : seat,
   scores           : per_seat(int),
-  players          : per_seat(game_player),
+  players          : per_seat(option(game_player)),
 }
 
 observable_inning_state := {

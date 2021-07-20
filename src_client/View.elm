@@ -225,7 +225,13 @@ viewRoom message user pstate indices chatTextInput =
       let synchronizing = ostate.synchronizing in
       let turn = Game.isMyTurn user.userId ostate in
       let userId = user.userId in
-      case players |> PerSeat.find (\p -> p.user.userId == userId) of
+      case
+        players |> PerSeat.find (\maybePlayer ->
+          case maybePlayer of
+            Just player -> player.user.userId == userId
+            Nothing     -> False
+        )
+      of
         Nothing ->
         -- Should never happen
           [ div [] [ text "broken" ] ]
@@ -381,9 +387,15 @@ footerStyleFromLevel level =
     Warning     -> "footer-style-warning"
 
 
-viewPlayer : String -> GamePlayer -> Int -> Html Msg
-viewPlayer direction player score =
+viewPlayer : String -> Maybe GamePlayer -> Int -> Html Msg
+viewPlayer direction maybePlayer score =
+  let
+    userName =
+      case maybePlayer of
+        Just player -> player.user.userName
+        Nothing     -> "空席"
+  in
   div [ class "panel" ]
-    [ div [ class "player-name" ] [ text (direction ++ " " ++ player.user.userName) ]
+    [ div [ class "player-name" ] [ text (direction ++ " " ++ userName) ]
     , div [] [ text ("得点： " ++ String.fromInt score) ]
     ]
