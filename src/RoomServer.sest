@@ -323,13 +323,27 @@ end = struct
           GenServer.reply(Exited(false), state)
 
       | InternalWaiting(waiting_state) ->
-          let members =
-            List.filter(
-              fun(u) -> Bool.not(Binary.equal(u.user_id, user_id)) end,
-              waiting_state.members)
-          in
-          let room_state = InternalWaiting({ waiting_state | members = members }) in
-          GenServer.reply(Exited(true), { state | room_state = room_state })
+          let members0 = waiting_state.members in
+          case List.filter(fun(u) -> Binary.equal(u.user_id, user_id) end, members0) of
+          | [] ->
+              GenServer.reply(Exited(false), state)
+          | user :: _ ->
+              let members1 =
+                List.filter(
+                  fun(u) -> Bool.not(Binary.equal(u.user_id, user_id)) end,
+                  members0)
+              in
+              do dummy <-
+                notify_for_each(List.map(fun(u) -> u.user_id end, members1), [Models.NotifyExited(user)])
+              in
+              let state =
+                { state |
+                  room_state    = InternalWaiting({ waiting_state | members = members1 }),
+                  reversed_logs = Models.LogExited(user) :: state.reversed_logs,
+                }
+              in
+              GenServer.reply(Exited(true), state)
+          end
       end
 
     val make_winner_diff(losers : list<{Quad.seat, int}>) : int =
