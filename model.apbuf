@@ -105,12 +105,18 @@ game_index := {
   num_consecutives : int,
 }
 
+connection := {
+  user         : user,
+  is_connected : bool,
+}
+
 log :=
-  | LogComment   : comment
-  | LogEntered   : user
-  | LogExited    : user
-  | LogGameStart : game_index
-  | LogDiffs     : per_seat(int)
+  | LogComment    : comment
+  | LogEntered    : user
+  | LogExited     : user
+  | LogGameStart  : game_index
+  | LogDiffs      : per_seat(int)
+  | LogConnection : connection
 
 notification :=
   | NotifyComment    : comment
@@ -119,6 +125,7 @@ notification :=
   | NotifyGameStart  : observable_game_state
   | NotifyNextStep
   | NotifySubmission : submission
+  | NotifyConnection : connection
 
 last := {
   table : table,
@@ -225,8 +232,9 @@ seat :=
 snapshot_id := string
 
 game_player := {
-  user  : user,
-  score : int,
+  user         : user,
+  score        : int,
+  is_connected : bool,
 }
 
 game_meta := {

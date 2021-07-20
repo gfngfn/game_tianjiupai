@@ -301,6 +301,17 @@ viewLogEntry log =
       in
       div [ class "log-entry" ] [ text diffText ]
 
+    LogConnection connection ->
+      let u = connection.user in
+      let
+        suffix =
+          if connection.isConnected then
+            " さんが再接続しました"
+          else
+            " さんの接続が切れました"
+      in
+      div [ class "log-entry" ] [ b [] [ text u.userName ], text suffix ]
+
 
 showGameIndex : Int -> Int -> String
 showGameIndex inningIndex numConsecutives =

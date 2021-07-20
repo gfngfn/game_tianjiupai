@@ -160,6 +160,12 @@ end = struct
           in
           do monitor_ref_new <- monitor(ws_proc) in
           let state = { state | websocket_connection = Some(monitor_ref_new) } in
+          do dummy <-
+            case state.belongs_to of
+            | None               -> return({})
+            | Some({room_id, _}) -> Room.notify_connected(room_id, state.settings.user_id)
+            end
+          in
           GenServer.reply(WebsocketConnectionSet, state)
       end
 
@@ -189,7 +195,7 @@ end = struct
 
     val handle_info(info : RawValue.t, state : state) = act
       let user_id = state.settings.user_id in
-      let state =
+      do state <-
         case check_room_down(info, state) of
         | Some(reason) ->
             let _ =
@@ -198,7 +204,7 @@ end = struct
                 {user_id, reason}
               )
             in
-            { state | belongs_to = None }
+            return({ state | belongs_to = None })
         | None ->
             case check_websocket_down(info, state) of
             | Some(reason) ->
@@ -208,7 +214,13 @@ end = struct
                     {user_id, reason}
                   )
                 in
-                { state | websocket_connection = None }
+                do dummy <-
+                  case state.belongs_to of
+                  | None               -> return({})
+                  | Some({room_id, _}) -> Room.notify_disconnected(room_id, user_id)
+                  end
+                in
+                return({ state | websocket_connection = None })
             | None ->
                 let _ =
                   assert Logger.info(
@@ -216,7 +228,7 @@ end = struct
                     {user_id, info}
                   )
                 in
-                state
+                return(state)
             end
         end
       in
