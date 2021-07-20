@@ -220,6 +220,7 @@ viewRoom message user pstate indices chatTextInput =
 
     PlayingGame ostate ->
       let gameMeta = ostate.meta in
+      let scores = gameMeta.scores in
       let players = gameMeta.players in
       let synchronizing = ostate.synchronizing in
       let turn = Game.isMyTurn user.userId ostate in
@@ -260,10 +261,10 @@ viewRoom message user pstate indices chatTextInput =
                   [ text room.roomName ]
               , div []
                   [ text (showGameIndex gameMeta.inningIndex gameMeta.numConsecutives) ]
-              , viewPlayer "東" players.east
-              , viewPlayer "南" players.south
-              , viewPlayer "西" players.west
-              , viewPlayer "北" players.north
+              , viewPlayer "東" players.east  scores.east
+              , viewPlayer "南" players.south scores.south
+              , viewPlayer "西" players.west  scores.west
+              , viewPlayer "北" players.north scores.north
               , div [ class "debug-info" ]
                   elemsDebug
               ]
@@ -380,9 +381,9 @@ footerStyleFromLevel level =
     Warning     -> "footer-style-warning"
 
 
-viewPlayer : String -> GamePlayer -> Html Msg
-viewPlayer direction player =
+viewPlayer : String -> GamePlayer -> Int -> Html Msg
+viewPlayer direction player score =
   div [ class "panel" ]
     [ div [ class "player-name" ] [ text (direction ++ " " ++ player.user.userName) ]
-    , div [] [ text ("得点： " ++ String.fromInt player.score) ]
+    , div [] [ text ("得点： " ++ String.fromInt score) ]
     ]

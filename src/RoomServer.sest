@@ -280,10 +280,10 @@ end = struct
                 let u1 = w1.user in
                 let u2 = w2.user in
                 let player_quad =
-                  let player0 = { user = u0, score = 0, is_connected = w0.is_connected } in
-                  let player1 = { user = u1, score = 0, is_connected = w1.is_connected } in
-                  let player2 = { user = u2, score = 0, is_connected = w2.is_connected } in
-                  let player3 = { user = user, score = 0, is_connected = true } in
+                  let player0 = { user = u0, is_connected = w0.is_connected } in
+                  let player1 = { user = u1, is_connected = w1.is_connected } in
+                  let player2 = { user = u2, is_connected = w2.is_connected } in
+                  let player3 = { user = user, is_connected = true } in
                      /* TODO: specify an appropriate value for `is_connected` */
                   Quad.make({player0, player1, player2, player3})
                 in
@@ -293,6 +293,7 @@ end = struct
                     inning_index     = 0,
                     num_consecutives = 0, /* The initial value is exceptionally `0`, not `1` */
                     parent_seat      = parent_seat,
+                    scores           = Quad.make({0, 0, 0, 0}),
                     players          = player_quad,
                   }
                 in
@@ -371,21 +372,25 @@ end = struct
       in
       0 - loser_diff_sum
 
-    val update_score(players, updates) =
+    val update_score(scores : Quad.t<int>, updates : list<{Quad.seat, int}>) : {Quad.t<int>, Quad.t<int>} =
       List.foldl(
         fun(acc, update) ->
-          let {players, diffs} = acc in
+          let {scores, diffs} = acc in
           let {seat, diff} = update in
-          let player = Quad.access(seat, players) in
+          let score = Quad.access(seat, scores) in
           {
-            Quad.update(seat, { player | score = player.score + diff }, players),
+            Quad.update(seat, score + diff, scores),
             Quad.update(seat, diff, diffs)
           }
         end,
-        {players, Quad.make({0, 0, 0, 0})},
+        {scores, Quad.make({0, 0, 0, 0})},
         updates)
 
-    val deal_with_trick_end(game_meta, winner_seat, special_opt) : {game_meta, option<Quad.t<int>>} =
+    val deal_with_trick_end(
+      game_meta   : game_meta,
+      winner_seat : Quad.seat,
+      special_opt
+    ) : {game_meta, option<Quad.t<int>>} =
       case special_opt of
       | None ->
           {game_meta, None}
@@ -416,9 +421,9 @@ end = struct
                 loser_seats)
           in
           let winner_diff = make_winner_diff(losers) in
-          let {players, diffs} = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+          let {scores, diffs} = update_score(game_meta.scores, {winner_seat, winner_diff} :: losers) in
           {
-            { game_meta | players = players },
+            { game_meta | scores = scores },
             Some(diffs)
           }
       end
@@ -444,13 +449,14 @@ end = struct
             loser_seats)
         in
         let winner_diff = make_winner_diff(losers) in
-        let {players, diffs} = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+        let {scores, diffs} = update_score(game_meta.scores, {winner_seat, winner_diff} :: losers) in
         {
           {
             inning_index     = game_meta.inning_index,
             num_consecutives = num_consecutives + 1,
             parent_seat      = parent_seat,
-            players          = players,
+            scores           = scores,
+            players          = game_meta.players,
           },
           diffs
         }
@@ -476,13 +482,14 @@ end = struct
             loser_seats)
         in
         let winner_diff = make_winner_diff(losers) in
-        let {players, diffs} = update_score(game_meta.players, {winner_seat, winner_diff} :: losers) in
+        let {scores, diffs} = update_score(game_meta.scores, {winner_seat, winner_diff} :: losers) in
         {
           {
             inning_index     = game_meta.inning_index + 1,
             num_consecutives = 1,
             parent_seat      = winner_seat,
-            players          = players,
+            scores           = scores,
+            players          = game_meta.players,
           },
           diffs
         }

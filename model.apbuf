@@ -233,7 +233,6 @@ snapshot_id := string
 
 game_player := {
   user         : user,
-  score        : int,
   is_connected : bool,
 }
 
@@ -241,6 +240,7 @@ game_meta := {
   inning_index     : int,
   num_consecutives : int,
   parent_seat      : seat,
+  scores           : per_seat(int),
   players          : per_seat(game_player),
 }
 
