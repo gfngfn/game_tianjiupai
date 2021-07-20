@@ -17,6 +17,8 @@ module Room :> sig
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<last>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+  val notify_connected<$a> : fun(room_id, user_id) -> [$a]unit
+  val notify_disconnected<$a> : fun(room_id, user_id) -> [$a]unit
 
   val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
 end = struct
@@ -73,6 +75,12 @@ end = struct
 
   val require_next_inning(room_id, user_id, snapshot_id) = act
     RoomServer.require_next_inning(room_id, user_id, snapshot_id)
+
+  val notify_connected(room_id, user_id) = act
+    RoomServer.notify_connected(room_id, user_id)
+
+  val notify_disconnected(room_id, user_id) = act
+    RoomServer.notify_disconnected(room_id, user_id)
 
   val monitor(room_id) = act
     RoomServer.monitor(room_id)

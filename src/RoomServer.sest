@@ -26,6 +26,8 @@ module RoomServer :> sig
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<last>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+  val notify_connected<$a> : fun(room_id, user_id) -> [$a]unit
+  val notify_disconnected<$a> : fun(room_id, user_id) -> [$a]unit
 
 end = struct
   open Stdlib
@@ -90,6 +92,7 @@ end = struct
     type cast_message =
       | Ack(user_id, snapshot_id)
       | RequireNextInning(user_id, snapshot_id)
+      | SetConnectionStatus(user_id, bool)
 
     type info =
       | DummyInfo
@@ -719,6 +722,10 @@ end = struct
           GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
       end
 
+    val handle_set_connection_status(user_id : user_id, is_connected : bool, state : state) = act
+      /* TODO */
+      GenServer.no_reply(state)
+
     val update_sync(user_id : user_id, state : state) = act
       case state.room_state of
       | InternalWaiting(_) ->
@@ -778,6 +785,9 @@ end = struct
 
       | RequireNextInning(user_id, snapshot_id) ->
           handle_require_next_inning(user_id, snapshot_id, state)
+
+      | SetConnectionStatus(user_id, is_connected) ->
+          handle_set_connection_status(user_id, is_connected, state)
       end
 
     val handle_info(info, state) = act
@@ -898,5 +908,18 @@ end = struct
     | Some(proc) ->
         Impl.cast(proc, Callback.RequireNextInning(user_id, snapshot_id))
     end
+
+  val set_connection(room_id, user_id, is_connected) = act
+    do proc_opt <- Impl.where_is_global(room_id) in
+    case proc_opt of
+    | None       -> return({})
+    | Some(proc) -> Impl.cast(proc, Callback.SetConnectionStatus(user_id, is_connected))
+    end
+
+  val notify_connected(room_id, user_id) = act
+    set_connection(room_id, user_id, true)
+
+  val notify_disconnected(room_id, user_id) = act
+    set_connection(room_id, user_id, false)
 
 end
