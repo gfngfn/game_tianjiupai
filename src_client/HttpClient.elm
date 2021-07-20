@@ -2,6 +2,7 @@ module HttpClient exposing
   ( createUser
   , createRoom
   , enterRoom
+  , exitRoom
   , getRoom
   , getAllRooms
   , submitCards
@@ -55,6 +56,19 @@ enterRoom origin userId roomId =
     , url     = origin ++ "/rooms/" ++ roomId
     , body    = Http.jsonBody (encodeRoomRequest (RoomRequestToEnterRoom { userId = userId }))
     , expect  = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) decodeEnterRoomResponse
+    , timeout = Nothing
+    , tracker = Nothing
+    }
+
+
+exitRoom : Origin -> UserId -> RoomId -> Cmd Msg
+exitRoom origin userId roomId =
+  Http.request
+    { method  = "PATCH"
+    , headers = []
+    , url     = origin ++ "/rooms/" ++ roomId
+    , body    = Http.jsonBody (encodeRoomRequest (RoomRequestToExitRoom { userId = userId }))
+    , expect  = Http.expectJson (ReceiveResponse << (RoomExited roomId)) decodeExitRoomResponse
     , timeout = Nothing
     , tracker = Nothing
     }

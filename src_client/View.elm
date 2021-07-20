@@ -186,9 +186,9 @@ viewRoom message user pstate indices chatTextInput =
   in
   case pstate.game of
     WaitingStart users ->
-      let members = String.join ", " (users |> List.map (\u -> u.userName)) in
       let
         elemsDebug =
+          let members = String.join ", " (users |> List.map (\u -> u.userName)) in
           [ div []
               [ text "debug info" ]
           , ul []
@@ -204,6 +204,8 @@ viewRoom message user pstate indices chatTextInput =
               [ text room.roomName ]
           , div []
               [ text "待機中" ]
+          , div []
+              [ specialButton True "退室" (ExitRoom room.roomId) ]
           , div [ class "debug-info" ]
               elemsDebug
           ]

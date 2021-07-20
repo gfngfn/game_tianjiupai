@@ -15,7 +15,7 @@ module User :> sig
 
   val get_info<$a> : fun(user_id) -> [$a]option<UserServer.user_state>
 
-  val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
+  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]option<unit>
 
   val get_room<$a> : fun(user_id) -> [$a]option<room_id>
 
@@ -51,8 +51,8 @@ end = struct
   val get_info(user_id) = act
     UserServer.get_user_state(user_id)
 
-  val set_room(user_id, room_id) = act
-    UserServer.set_room(user_id, room_id)
+  val set_room(user_id, room_id_opt) = act
+    UserServer.set_room(user_id, room_id_opt)
 
   val get_room(user_id) = act
     UserServer.get_room(user_id)

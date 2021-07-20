@@ -28,7 +28,7 @@ module UserServer :> sig
 
   val get_room<$a> : fun(user_id) -> [$a]option<room_id>
 
-  val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
+  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]option<unit>
 
   val as_pid : fun(proc) -> pid<info>
 
@@ -65,7 +65,7 @@ end = struct
     }
 
     type request =
-      | SetRoom(room_id)
+      | SetRoom(option<room_id>)
       | SetWebsocketConnection(websocket_proc)
       | GetUserState
 
@@ -124,20 +124,32 @@ end = struct
             }
           in
           GenServer.reply(UserStateGot(user_state), state)
-      | SetRoom(room_id) ->
-          do monitor_ref_opt <- monitor_room(room_id) in
-          case monitor_ref_opt of
+      | SetRoom(room_id_opt) ->
+          case room_id_opt of
           | None ->
-              GenServer.reply(RoomSet(false), state)
-          | Some(monitor_ref_new) ->
               do dummy <-
                 case state.belongs_to of
                 | None                   -> return({})
                 | Some({_, monitor_ref}) -> demonitor(monitor_ref)
                 end
               in
-              let state = { state | belongs_to = Some({room_id, monitor_ref_new}) } in
+              let state = { state | belongs_to = None } in
               GenServer.reply(RoomSet(true), state)
+          | Some(room_id) ->
+              do monitor_ref_opt <- monitor_room(room_id) in
+              case monitor_ref_opt of
+              | None ->
+                  GenServer.reply(RoomSet(false), state)
+              | Some(monitor_ref_new) ->
+                  do dummy <-
+                    case state.belongs_to of
+                    | None                   -> return({})
+                    | Some({_, monitor_ref}) -> demonitor(monitor_ref)
+                    end
+                  in
+                  let state = { state | belongs_to = Some({room_id, monitor_ref_new}) } in
+                  GenServer.reply(RoomSet(true), state)
+              end
           end
       | SetWebsocketConnection(ws_proc) ->
           do dummy <-
@@ -269,8 +281,8 @@ end = struct
     do opt <- get_user_state(user_id) in
     return(Option.bind(opt, fun(u) -> u.belongs_to end))
 
-  val set_room(user_id, room_id) = act
-    call(user_id, Callback.SetRoom(room_id), fun(resp) -> act
+  val set_room(user_id, room_id_opt) = act
+    call(user_id, Callback.SetRoom(room_id_opt), fun(resp) -> act
       case resp of
       | Callback.RoomSet(true)  -> return(Some({}))
       | Callback.RoomSet(false) -> return(None)
