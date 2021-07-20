@@ -757,8 +757,18 @@ end = struct
                     members0,
                   )
                 in
-                let all_user_ids = List.map(fun(w) -> w.user.user_id end, members1) in
-                Some({user, all_user_ids, InternalWaiting({ members = members1 })})
+                let user_ids_for_notification =
+                  List.filter_map(
+                    fun(w) ->
+                      if w.is_connected then
+                        let u = w.user.user_id in
+                        if Binary.equal(u, user_id) then None else Some(u)
+                      else
+                        None
+                    end,
+                    members1)
+                in
+                Some({user, user_ids_for_notification, InternalWaiting({ members = members1 })})
             end
 
         | InternalPlaying(game_state) ->
@@ -772,9 +782,20 @@ end = struct
                 let p0 = Quad.access(seat, players0) in
                 let p1 = { p0 | is_connected = is_connected } in
                 let players1 = Quad.update(seat, p1, players0) in
-                let all_user_ids = List.map(fun(g) -> g.user.user_id end, Quad.to_list(players1)) in
+                let user_ids_for_notification =
+                  List.filter_map(
+                    fun(g) ->
+                      if g.is_connected then
+                        let u = g.user.user_id in
+                        if Binary.equal(u, user_id) then None else Some(u)
+                      else
+                        None
+                    end,
+                    Quad.to_list(players1)
+                  )
+                in
                 let game_state = { game_state | meta = { game_meta | players = players1 } } in
-                Some({p1.user, all_user_ids, InternalPlaying(game_state)})
+                Some({p1.user, user_ids_for_notification, InternalPlaying(game_state)})
             end
         end
       in
@@ -782,9 +803,9 @@ end = struct
       | None ->
           GenServer.no_reply(state)
 
-      | Some({user, all_user_ids, room_state}) ->
+      | Some({user, user_ids_for_notification, room_state}) ->
           let connection = { user = user, is_connected = is_connected } in
-          do dummy <- notify_for_each(all_user_ids, [Models.NotifyConnection(connection)]) in
+          do dummy <- notify_for_each(user_ids_for_notification, [Models.NotifyConnection(connection)]) in
           let state =
             { state |
               room_state    = room_state,
