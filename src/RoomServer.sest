@@ -127,8 +127,17 @@ end = struct
           {false, List.map(fun(w) -> w.user end, waiting_state.members)}
 
       | InternalPlaying(whole_game_state) ->
-          let game_players = Quad.to_list(whole_game_state.meta.players) in
-          let members = List.map(fun(p) -> p.user end, game_players) in
+          let player_opts = Quad.to_list(whole_game_state.meta.players) in
+          let members =
+            List.filter_map(
+              fun(player_opt) ->
+                case player_opt of
+                | None         -> None
+                | Some(player) -> Some(player.user)
+                end
+              end,
+              player_opts)
+          in
           {true, members}
       end
 
@@ -142,7 +151,16 @@ end = struct
       }
 
     val find_user_seat(game_state : whole_game_state, user_id : user_id) =
-      let opt = Quad.find(fun(p) -> Binary.equal(p.user.user_id, user_id) end, game_state.meta.players) in
+      let opt =
+        Quad.find(
+          fun(player_opt) ->
+            case player_opt of
+            | None         -> false
+            | Some(player) -> Binary.equal(player.user.user_id, user_id)
+            end
+          end,
+          game_state.meta.players)
+      in
       Option.map(
         fun(pair) ->
           let {seat, _} = pair in
@@ -158,13 +176,18 @@ end = struct
       | Models.SeatD -> [Models.SeatA, Models.SeatB, Models.SeatC]
       end
 
-    val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<user_id> =
-      let {u0, u1, u2, u3} = Quad.decompose(Quad.map(fun(p) -> p.user.user_id end, game_state.meta.players)) in
+    val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<option<user_id>> =
+      let {uo0, uo1, uo2, uo3} =
+        Quad.decompose(Quad.map(
+          fun(player_opt) -> Option.map(fun(player) -> player.user.user_id end, player_opt) end,
+          game_state.meta.players
+        ))
+      in
       case seat of
-      | Models.SeatA -> [u1, u2, u3]
-      | Models.SeatB -> [u2, u3, u0]
-      | Models.SeatC -> [u3, u0, u1]
-      | Models.SeatD -> [u0, u1, u2]
+      | Models.SeatA -> [uo1, uo2, uo3]
+      | Models.SeatB -> [uo2, uo3, uo0]
+      | Models.SeatC -> [uo3, uo0, uo1]
+      | Models.SeatD -> [uo0, uo1, uo2]
       end
 
     val make_observable_game_state(game_state : whole_game_state, user_id : user_id) : option<observable_game_state> =
@@ -251,6 +274,18 @@ end = struct
     val notify_for_each<$a>(user_ids : list<user_id>, logs : list<notification>) : [$a]unit = act
       List.for_each(fun(user_id) -> act notify(user_id, logs) end, user_ids)
 
+    val find_empty_seat(game_state : whole_game_state) : option<Quad.seat> =
+      Option.map(
+        fun(pair) -> let {seat, _} = pair in seat end,
+        Quad.find(
+          fun(player_opt) ->
+            case player_opt of
+            | Some(_) -> true
+            | None    -> false
+            end
+          end,
+          game_state.meta.players))
+
     val handle_send_chat(user : user, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
       let comment = { from = user, text = text } in
@@ -263,8 +298,19 @@ end = struct
     val handle_attend(user : user, state : state) = act
       let user_id = user.user_id in
       case state.room_state of
-      | InternalPlaying(_) ->
-          GenServer.reply(Attended(None), state)
+      | InternalPlaying(game_state) ->
+          case find_empty_seat(game_state) of
+          | None ->
+              GenServer.reply(Attended(None), state)
+          | Some(seat) ->
+              let game_meta = game_state.meta in
+              let player = { user = user, is_connected = true } in
+              let players = Quad.update(seat, Some(player), game_meta.players) in
+              let game_state = { game_state | meta = { game_meta | players = players } } in
+              let state = { state | room_state = InternalPlaying(game_state) } in
+              let Some(personal_state) = make_personal_state(state, user_id) in
+              GenServer.reply(Attended(Some(personal_state)), state)
+          end
 
       | InternalWaiting(waiting_state) ->
           let members = waiting_state.members in
@@ -494,77 +540,75 @@ end = struct
           diffs
         }
 
-    val handle_submit(user_id : user_id, cards : list<Card.t>, state : state) = act
-      do opt <-
-        case state.room_state of
-        | InternalWaiting(_) ->
+    val handle_submit_impl(user_id : user_id, cards : list<Card.t>, game_state : whole_game_state) = act
+        case find_user_seat(game_state, user_id) of
+        | None ->
             return(None)
 
-        | InternalPlaying(game_state) ->
-            case find_user_seat(game_state, user_id) of
-            | None ->
+        | Some(seat) ->
+            case game_state.inning of
+            | InningEnd(_, _) ->
                 return(None)
 
-            | Some(seat) ->
-                case game_state.inning of
-                | InningEnd(_, _) ->
+            | DuringInning(inning) ->
+                case Inning.submit(seat, cards, inning) of
+                | None ->
                     return(None)
 
-                | DuringInning(inning) ->
-                    case Inning.submit(seat, cards, inning) of
-                    | None ->
-                        return(None)
+                | Some({submit_result, is_front}) ->
+                    do snapshot_id <- SnapshotId.generate() in
+                    let game_meta = game_state.meta in
+                    let {game_state, last_opt} =
+                      case submit_result of
+                      | Inning.Continues(inning) ->
+                          {
+                            {
+                              meta        = game_meta,
+                              inning      = DuringInning(inning),
+                              snapshot_id = snapshot_id,
+                              sync        = WaitingSync(make_initial_sync()),
+                            },
+                            None
+                          }
 
-                    | Some({submit_result, is_front}) ->
-                        do snapshot_id <- SnapshotId.generate() in
-                        let game_meta = game_state.meta in
-                        let {game_state, last_opt} =
-                          case submit_result of
-                          | Inning.Continues(inning) ->
-                              {
-                                {
-                                  meta        = game_meta,
-                                  inning      = DuringInning(inning),
-                                  snapshot_id = snapshot_id,
-                                  sync        = WaitingSync(make_initial_sync()),
-                                },
-                                None
-                              }
+                      | Inning.WinsTrick(winner_seat, last_table, submitter_hand, special_opt, inning) ->
+                          let {game_meta, diffs_opt} = deal_with_trick_end(game_meta, winner_seat, special_opt) in
+                          {
+                            {
+                              meta        = game_meta,
+                              inning      = DuringInning(inning),
+                              snapshot_id = snapshot_id,
+                              sync        = WaitingSync(make_initial_sync()),
+                            },
+                            Some({table = last_table, hand = submitter_hand, diffs = diffs_opt})
+                          }
 
-                          | Inning.WinsTrick(winner_seat, last_table, submitter_hand, special_opt, inning) ->
-                              let {game_meta, diffs_opt} = deal_with_trick_end(game_meta, winner_seat, special_opt) in
-                              {
-                                {
-                                  meta        = game_meta,
-                                  inning      = DuringInning(inning),
-                                  snapshot_id = snapshot_id,
-                                  sync        = WaitingSync(make_initial_sync()),
-                                },
-                                Some({table = last_table, hand = submitter_hand, diffs = diffs_opt})
-                              }
-
-                          | Inning.WinsInning(winner_seat, last_table, gains_quad) ->
-                              let {game_meta, diffs} = deal_with_inning_end(game_meta, winner_seat, gains_quad) in
-                              {
-                                {
-                                  meta        = game_meta,
-                                  inning      = InningEnd(gains_quad, make_initial_sync()),
-                                  snapshot_id = snapshot_id,
-                                  sync        = WaitingSync(make_initial_sync()),
-                                },
-                                Some({table = last_table, hand = [], diffs = Some(diffs)})
-                              }
-                          end
-                        in
-                        let card_opts =
-                          if is_front then
-                            List.map(fun(card) -> Some(card) end, cards)
-                          else
-                            List.map(fun(card) -> None end, cards)
-                        in
-                        do dummy <-
-                          List.for_each(
-                            fun(u) -> act
+                      | Inning.WinsInning(winner_seat, last_table, gains_quad) ->
+                          let {game_meta, diffs} = deal_with_inning_end(game_meta, winner_seat, gains_quad) in
+                          {
+                            {
+                              meta        = game_meta,
+                              inning      = InningEnd(gains_quad, make_initial_sync()),
+                              snapshot_id = snapshot_id,
+                              sync        = WaitingSync(make_initial_sync()),
+                            },
+                            Some({table = last_table, hand = [], diffs = Some(diffs)})
+                          }
+                      end
+                    in
+                    let card_opts =
+                      if is_front then
+                        List.map(fun(card) -> Some(card) end, cards)
+                      else
+                        List.map(fun(card) -> None end, cards)
+                    in
+                    do dummy <-
+                      List.for_each(
+                        fun(u_opt) -> act
+                          case u_opt of
+                          | None ->
+                              return({})
+                          | Some(u) ->
                               let Some(obs) = make_observable_game_state(game_state, u) in
                               let submission =
                                 {
@@ -575,14 +619,27 @@ end = struct
                                 }
                               in
                               notify(u, [Models.NotifySubmission(submission)])
-                            end,
-                            the_other_players(game_state, seat)
-                          )
-                        in
-                        let Some(obs) = make_observable_game_state(game_state, user_id) in
-                        return(Some({obs, last_opt, game_state}))
-                    end
+                          end
+                        end,
+                        the_other_players(game_state, seat)
+                      )
+                    in
+                    let Some(obs) = make_observable_game_state(game_state, user_id) in
+                    return(Some({obs, last_opt, game_state}))
                 end
+            end
+      end
+
+    val handle_submit(user_id : user_id, cards : list<Card.t>, state : state) = act
+      do opt <-
+        case state.room_state of
+        | InternalWaiting(_) ->
+            return(None)
+
+        | InternalPlaying(game_state) ->
+            case find_empty_seat(game_state) of
+            | None    -> handle_submit_impl(user_id, cards, game_state)
+            | Some(_) -> return(None)
             end
         end
       in
@@ -638,7 +695,10 @@ end = struct
                       case Quad.decompose(sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
-                          let user_ids = the_other_players(game_state, seat) in
+                          let user_ids =
+                            let user_id_opts = the_other_players(game_state, seat) in
+                            List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
+                          in
                           do dummy <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
                           return(Some(game_state))
@@ -701,7 +761,10 @@ end = struct
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
                           do game_state <- start_new_inning(game_state.meta) in
-                          let user_ids = the_other_players(game_state, seat) in
+                          let user_ids =
+                            let user_id_opts = the_other_players(game_state, seat) in
+                            List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
+                          in
                           do dummy <-
                             List.for_each(
                               fun(u) -> act
@@ -786,17 +849,22 @@ end = struct
             | Some(seat) ->
                 let game_meta = game_state.meta in
                 let players0 = game_meta.players in
-                let p0 = Quad.access(seat, players0) in
+                let Some(p0) = Quad.access(seat, players0) in
                 let p1 = { p0 | is_connected = is_connected } in
-                let players1 = Quad.update(seat, p1, players0) in
+                let players1 = Quad.update(seat, Some(p1), players0) in
                 let user_ids_for_notification =
                   List.filter_map(
-                    fun(g) ->
-                      if g.is_connected then
-                        let u = g.user.user_id in
-                        if Binary.equal(u, user_id) then None else Some(u)
-                      else
-                        None
+                    fun(g_opt) ->
+                      case g_opt of
+                      | None ->
+                          None
+                      | Some(g) ->
+                          if g.is_connected then
+                            let u = g.user.user_id in
+                            if Binary.equal(u, user_id) then None else Some(u)
+                          else
+                            None
+                      end
                     end,
                     Quad.to_list(players1)
                   )
@@ -842,7 +910,10 @@ end = struct
                   case Quad.decompose(sync_quad) of
                   | {true, true, true, true} ->
                     /* If all the players are ready for the next step: */
-                      let user_ids = the_other_players(game_state, seat) in
+                      let user_ids =
+                        let user_id_opts = the_other_players(game_state, seat) in
+                        List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
+                      in
                       do dummy <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
                       let game_state = { game_state | sync = WaitingInput } in
                       return({ state | room_state = InternalPlaying(game_state) })
