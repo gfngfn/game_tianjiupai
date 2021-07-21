@@ -280,8 +280,8 @@ end = struct
         Quad.find(
           fun(player_opt) ->
             case player_opt of
-            | Some(_) -> true
-            | None    -> false
+            | Some(_) -> false
+            | None    -> true
             end
           end,
           game_state.meta.players))
