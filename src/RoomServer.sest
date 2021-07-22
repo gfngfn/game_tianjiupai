@@ -463,34 +463,66 @@ end = struct
       end
 
     val handle_exit(user_id : user_id, state : state) = act
-      case state.room_state of
-      | InternalPlaying(_) ->
-          GenServer.reply(Exited(false), state)
+      let opt =
+        case state.room_state of
+        | InternalPlaying(game_state) ->
+            case find_user_seat(game_state, user_id) of
+            | None ->
+                None
 
-      | InternalWaiting(waiting_state) ->
-          let members0 = waiting_state.members in
-          case List.filter(fun(w0) -> Binary.equal(w0.user.user_id, user_id) end, members0) of
-          | [] ->
-              GenServer.reply(Exited(false), state)
-          | w :: _ ->
-              let user = w.user in
-              let members1 =
-                List.filter(
-                  fun(w0) -> Bool.not(Binary.equal(w0.user.user_id, user_id)) end,
-                  members0)
-              in
-              do dummy <-
-                notify_for_each(List.map(fun(w) -> w.user.user_id end, members1), [Models.NotifyExited(user)])
-              in
-              let state =
-                { state |
-                  room_state    = InternalWaiting({ waiting_state | members = members1 }),
-                  reversed_logs = Models.LogExited(user) :: state.reversed_logs,
-                }
-              in
-              GenServer.reply(Exited(true), state)
-          end
-      end
+            | Some(seat) ->
+                let meta0 = game_state.meta in
+                let players0 = meta0.players in
+                let Some(player) = Quad.access(seat, players0) in
+                let players1 = Quad.update(seat, None, players0) in
+                let user_ids_for_notification =
+                  let user_id_opts = the_other_players(game_state, seat) in
+                  List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
+                in
+                Some({
+                  player.user,
+                  user_ids_for_notification,
+                  InternalPlaying({ game_state | meta = { meta0 | players = players1 } })
+                })
+            end
+
+        | InternalWaiting(waiting_state) ->
+            let members0 = waiting_state.members in
+            case List.filter(fun(w0) -> Binary.equal(w0.user.user_id, user_id) end, members0) of
+            | [] ->
+                None
+
+            | w :: _ ->
+                let members1 =
+                  List.filter(
+                    fun(w0) -> Bool.not(Binary.equal(w0.user.user_id, user_id)) end,
+                    members0)
+                in
+                let user_ids_for_notification = List.map(fun(w) -> w.user.user_id end, members1) in
+                Some({
+                  w.user,
+                  user_ids_for_notification,
+                  InternalWaiting({ waiting_state | members = members1 })
+                })
+            end
+        end
+        in
+        case opt of
+        | None ->
+            GenServer.reply(Exited(false), state)
+
+        | Some({user, user_ids_for_notification, room_state}) ->
+            do dummy <-
+              notify_for_each(user_ids_for_notification, [Models.NotifyExited(user)])
+            in
+            let state =
+              { state |
+                room_state    = room_state,
+                reversed_logs = Models.LogExited(user) :: state.reversed_logs,
+              }
+            in
+            GenServer.reply(Exited(true), state)
+        end
 
     val make_winner_diff(losers : list<{Quad.seat, int}>) : int =
       let loser_diff_sum =

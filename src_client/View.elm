@@ -82,7 +82,23 @@ viewEntrance message userNameInput =
                   , li []
                       [ text "機能上は対戦データ等を永続化して記録することは特にありません．" ]
                   , li []
-                      [ text "現時点ではセキュリティ対策が万全とは限りませんのでご了承ください．" ]
+                      [ text "ゲームの途中で接続が切れてもある程度回復できる設計になっています．"
+                      , ul []
+                         [ li [] [ text "接続が切れて30秒以内に再接続しない場合は自動で退出扱いになります．" ]
+                         , li [] [ text "途中退出で空席が生じたら，誰かが途中参加するまで中断となります．" ]
+                         ]
+                      ]
+                  , li []
+                      [ text "ただし，現時点では実装が万全とは限りませんのでご了承ください．"
+                      , ul []
+                          [ li [] [ text "もしも何か不整合が起きた場合，リロードを試してください．" ]
+                          , li [] [ text "リロードで解決しない場合はログアウト後再ログインをお願いします．" ]
+                          , li [] [ text "5xxエラーが生じた場合は回復が困難かもしれません．" ]
+                          , li [] [ text "天九のゲーム進行のロジック自体はある程度自動テストをしています．" ]
+                          ]
+                      ]
+                  , li []
+                      [ text "実装が公開されています： ", a [ href "https://github.com/gfngfn/game_tianjiupai" ] [ text "リポジトリ" ] ]
                   ]
               ]
           ]
@@ -129,7 +145,7 @@ viewRoomList maybeRoomSummaries =
       [ div [] [ text "部屋一覧取得中……" ] ]
 
     Just [] ->
-      [ div [] [ text "まだ部屋がありません．右上の入力部分から部屋を作成できます" ] ]
+      [ div [] [ text "まだ部屋がありません．右上の入力部分から部屋を作成できます．" ] ]
 
     Just roomSummaries ->
       roomSummaries |> List.map (\roomSummary ->
@@ -192,17 +208,16 @@ viewRoom message user pstate indices chatTextInput =
           [ div []
               [ text "debug info" ]
           , ul []
-              [ li []
-                  [ text ("room ID: " ++ room.roomId) ]
-              , li []
-                  [ text ("members: " ++ members) ]
+              [ li [] [ text ("user ID: " ++ user.userId) ]
+              , li [] [ text ("room ID: " ++ room.roomId) ]
+              , li [] [ text ("members: " ++ members) ]
               ]
           ]
 
         elemsLeft =
           [ div [ class "room-name" ]
               [ text room.roomName ]
-          , div []
+          , div [ class "status-text" ]
               [ text "待機中" ]
           , div []
               [ specialButton True "退室" (ExitRoom room.roomId) ]
@@ -254,7 +269,8 @@ viewRoom message user pstate indices chatTextInput =
             elemsDebug =
               [ div [] [ text "debug info" ]
               , ul []
-                  [ li [] [ text ("room ID: " ++ room.roomId) ]
+                  [ li [] [ text ("user ID: " ++ user.userId) ]
+                  , li [] [ text ("room ID: " ++ room.roomId) ]
                   , li [] [ text ("snapshot ID: " ++ ostate.snapshotId) ]
                   , li [] [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
                   , li [] [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
@@ -265,8 +281,10 @@ viewRoom message user pstate indices chatTextInput =
             elemsLeft =
               [ div [ class "room-name" ]
                   [ text room.roomName ]
-              , div []
+              , div [ class "status-text" ]
                   [ text (showGameIndex gameMeta.inningIndex gameMeta.numConsecutives) ]
+              , div []
+                  [ specialButton True "中断して退室" (ExitRoom room.roomId) ]
               , viewPlayer "東" players.east  scores.east
               , viewPlayer "南" players.south scores.south
               , viewPlayer "西" players.west  scores.west
