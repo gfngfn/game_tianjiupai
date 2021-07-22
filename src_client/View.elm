@@ -115,7 +115,7 @@ viewPlaza message user roomNameInput maybeRoomSummaries =
       ]
   in
   viewSimpleGridScheme
-    { header = [ text ("天九 Online | " ++ user.userName ++ " さん") ]
+    { header = [ text ("天九 Online | " ++ user.userName ++ " さん"), specialButton True "ログアウト" DeleteUser ]
     , middle = middle
     , style  = "plaza-middle"
     , footer = message

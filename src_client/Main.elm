@@ -158,6 +158,19 @@ update msg model =
             Err err ->
               ( { model | message = makeErrorMessage "rooms" err }, Cmd.none )
 
+        SendRequest DeleteUser ->
+          let cmd = HttpClient.deleteUser model.origin user.userId in
+          ( model, cmd )
+
+        ReceiveResponse (UserDeleted userId result) ->
+          case result of
+            Ok () ->
+              let message = ( Information, "delted user " ++ userId ) in
+              ( { model | message = message, state = AtEntrance "" Nothing }, Cmd.none )
+
+            Err err ->
+              ( { model | message = makeErrorMessage "user deletion" err }, Cmd.none )
+
         SendRequest CreateRoom ->
           let cmd = HttpClient.createRoom model.origin user.userId roomNameInput0 in
           ( { model | state = AtPlaza ws user "" maybeRooms }, cmd )

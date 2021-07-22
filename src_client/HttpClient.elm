@@ -1,5 +1,6 @@
 module HttpClient exposing
   ( createUser
+  , deleteUser
   , createRoom
   , enterRoom
   , exitRoom
@@ -39,7 +40,20 @@ createUser origin userName =
     }
 
 
-createRoom : Origin ->UserId -> RoomName -> Cmd Msg
+deleteUser : Origin -> UserId -> Cmd Msg
+deleteUser origin userId =
+  Http.request
+    { method  = "DELETE"
+    , headers = []
+    , url     = origin ++ "/users/" ++ userId
+    , body    = Http.jsonBody (encodeInt 0)
+    , expect  = Http.expectWhatever (ReceiveResponse << (UserDeleted userId))
+    , timeout = Nothing
+    , tracker = Nothing
+    }
+
+
+createRoom : Origin -> UserId -> RoomName -> Cmd Msg
 createRoom origin userId roomName =
   Http.post
     { url    = origin ++ "/rooms"

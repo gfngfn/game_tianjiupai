@@ -8,7 +8,9 @@
     init/2,
     allowed_methods/2,
     content_types_accepted/2,
-    content_types_provided/2
+    content_types_provided/2,
+    delete_resource/2,
+    delete_completed/2
 ]).
 
 %%====================================================================================================
@@ -31,6 +33,7 @@
 -type endpoint_kind() ::
     {page, bbmustache:template()}
   | all_users
+  | specific_user
   | all_rooms
   | specific_room
   | specific_room_and_user.
@@ -68,7 +71,9 @@ init(Req0, EndpointKind) ->
             all_users ->
                 all_users;
             specific_user ->
+                io:format("!!! specific_user 1~n"),
                 UserId = cowboy_req:binding(user_id, Req1, undefined),
+                io:format("!!! specific_user 2~n"),
                 {specific_user, UserId};
             all_rooms ->
                 all_rooms;
@@ -93,6 +98,7 @@ allowed_methods(Req, State) ->
     #state{
         endpoint = Endpoint
     } = State,
+    io:format("!!! allowed_methods 1 (endpoint: ~p)~n", [Endpoint]),
     Methods =
         case Endpoint of
             {page, _}                      -> [<<"GET">>];
@@ -102,6 +108,7 @@ allowed_methods(Req, State) ->
             {specific_room, _}             -> [<<"PATCH">>];
             {specific_room_and_user, _, _} -> [<<"GET">>]
         end,
+    io:format("!!! allowed_methods 2~n"),
     {Methods, Req, State}.
 
 -spec content_types_accepted(cowboy_req:req(), #state{}) -> {Table, cowboy_req:req(), #state{}} when
@@ -109,6 +116,7 @@ allowed_methods(Req, State) ->
     ParsedMime :: {Type :: binary(), SubType :: binary(), '*' | Params},
     Params     :: [{Key :: binary(), Value :: binary()}].
 content_types_accepted(Req, State) ->
+    io:format("!!! content_types_accepted~n"),
     Table = [
         {{<<"application">>, <<"json">>, '*'}, accept_json}
     ],
@@ -132,11 +140,28 @@ content_types_provided(Req, State) ->
         end,
     {Table, Req, State}.
 
+-spec delete_completed(cowboy_req:req(), #state{}) -> {boolean(), cowboy_req:req(), #state{}}.
+delete_completed(Req0, State) ->
+    {true, Req0, State}.
+
+-spec delete_resource(cowboy_req:req(), #state{}) -> boolean().
+delete_resource(Req0, State) ->
+    io:format("!!! delete_resource~n"),
+    case State of
+        #state{
+            method       = <<"DELETE">>,
+            endpoint     = {specific_user, UserId},
+            session_info = MaybeInfo
+        } ->
+            handle_user_deletion(Req0, MaybeInfo, UserId)
+    end.
+
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
 -spec accept_json(cowboy_req:req(), #state{}) -> {boolean(), cowboy_req:req(), #state{}}.
 accept_json(Req0, State) ->
+    io:format("!!! accept_json~n"),
     {IsSuccess, Req} =
         case State of
             #state{
@@ -145,12 +170,6 @@ accept_json(Req0, State) ->
                 session_info = MaybeInfo
             } ->
                 handle_user_creation(Req0, MaybeInfo);
-            #state{
-                method       = <<"DELETE">>,
-                endpoint     = {specific_user, UserId},
-                session_info = MaybeInfo
-            } ->
-                handle_user_deletion(Req0, MaybeInfo, UserId);
             #state{
                 method       = <<"POST">>,
                 endpoint     = all_rooms,
@@ -247,16 +266,16 @@ handle_user_creation(Req0, MaybeInfo) ->
     MaybeInfo :: undefined | tianjiupai_session:info(),
     UserId    :: tianjiupai:user_id()
 ) ->
-    {boolean(), cowboy_req:req()}.
+    boolean().
 handle_user_deletion(Req0, MaybeInfo, UserId) ->
+    io:format("!!! handle_user_deletion~n"),
     case validate_cookie(MaybeInfo, UserId) of
         true ->
-            {ok, Req1} = tianjiupai_session:expire(Req0),
+            Req1 = tianjiupai_session:expire(Req0),
             Req2 = cowboy_req:set_resp_body(<<"">>, Req1),
-            {true, Req2};
+            true;
         false ->
-            Req1 = set_failure_reason_to_resp_body(user_deletion_failed, Req0),
-            {false, Req1}
+            false
     end.
 
 %% @doc `POST /rooms'

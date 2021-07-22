@@ -41,6 +41,7 @@ type alias Model =
 
 type Request
   = CreateUser
+  | DeleteUser
   | CreateRoom
   | EnterRoom RoomId
   | ExitRoom RoomId
@@ -50,6 +51,7 @@ type Request
 
 type Response
   = UserCreated UserName (Result Http.Error CreateUserResponse)
+  | UserDeleted UserId (Result Http.Error ())
   | RoomCreated RoomName (Result Http.Error CreateRoomResponse)
   | RoomGot RoomId (Result Http.Error PersonalState)
   | RoomEntered RoomId (Result Http.Error EnterRoomResponse)
