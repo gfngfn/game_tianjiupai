@@ -1,4 +1,10 @@
-module PerSeat exposing (find, advanceSeat, RelativeSeat(..), relative)
+module PerSeat exposing
+  ( find
+  , update
+  , advanceSeat
+  , RelativeSeat(..)
+  , relative
+  )
 
 import Models exposing (..)
 
@@ -15,6 +21,15 @@ find f p =
     Just SeatD
   else
     Nothing
+
+
+update : Seat -> a -> PerSeat a -> PerSeat a
+update seat x p =
+  case seat of
+    SeatA -> { p | east  = x }
+    SeatB -> { p | south = x }
+    SeatC -> { p | west  = x }
+    SeatD -> { p | north = x }
 
 
 succSeat : Seat -> Seat

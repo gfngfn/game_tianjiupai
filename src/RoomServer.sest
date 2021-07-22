@@ -298,16 +298,65 @@ end = struct
     val handle_attend(user : user, state : state) = act
       let user_id = user.user_id in
       case state.room_state of
-      | InternalPlaying(game_state) ->
-          case find_empty_seat(game_state) of
+      | InternalPlaying(game_state0) ->
+          case find_empty_seat(game_state0) of
           | None ->
               GenServer.reply(Attended(None), state)
           | Some(seat) ->
-              let game_meta = game_state.meta in
+              let game_meta0 = game_state0.meta in
               let player = { user = user, is_connected = true } in
-              let players = Quad.update(seat, Some(player), game_meta.players) in
-              let game_state = { game_state | meta = { game_meta | players = players } } in
-              let state = { state | room_state = InternalPlaying(game_state) } in
+              let players1 = Quad.update(seat, Some(player), game_meta0.players) in
+              let game_state1 = { game_state0 | meta = { game_meta0 | players = players1 } } in
+              let user_ids =
+                let user_id_opts = the_other_players(game_state1, seat) in
+                List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
+              in
+              do game_state2 <-
+                case game_state1.sync of
+                | WaitingInput ->
+                    do dummy <-
+                      notify_for_each(user_ids, [
+                        Models.NotifyEnteredMidway({ user = user, seat = seat }),
+                      ])
+                    in
+                    return(game_state1)
+
+                | WaitingSync(sync_quad0) ->
+                    if Quad.access(seat, sync_quad0) then
+                      do dummy <-
+                        notify_for_each(user_ids, [
+                          Models.NotifyEnteredMidway({ user = user, seat = seat }),
+                        ])
+                      in
+                      return(game_state1)
+                    else
+                      let sync_quad1 = Quad.update(seat, true, sync_quad0) in
+                      case Quad.decompose(sync_quad1) of
+                      | {true, true, true, true} ->
+                          do dummy <-
+                            notify_for_each(user_ids, [
+                              Models.NotifyEnteredMidway({ user = user, seat = seat }),
+                              Models.NotifyNextStep,
+                            ])
+                          in
+                          return({ game_state1 | sync = WaitingInput })
+
+                      | _ ->
+                          do dummy <-
+                            notify_for_each(user_ids, [
+                              Models.NotifyEnteredMidway({ user = user, seat = seat }),
+                            ])
+                          in
+                          return({ game_state1 | sync = WaitingSync(sync_quad1) })
+                      end
+                end
+              in
+              let state =
+                { state |
+                  room_state    = InternalPlaying(game_state2),
+                  reversed_logs = Models.LogEntered(user) :: state.reversed_logs,
+                }
+              in
               let Some(personal_state) = make_personal_state(state, user_id) in
               GenServer.reply(Attended(Some(personal_state)), state)
           end

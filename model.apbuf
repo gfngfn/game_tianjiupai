@@ -110,6 +110,11 @@ connection := {
   is_connected : bool,
 }
 
+midway_enter := {
+  user : user,
+  seat : seat,
+}
+
 log :=
   | LogComment    : comment
   | LogEntered    : user
@@ -119,13 +124,14 @@ log :=
   | LogConnection : connection
 
 notification :=
-  | NotifyComment    : comment
-  | NotifyEntered    : user
-  | NotifyExited     : user
-  | NotifyGameStart  : observable_game_state
+  | NotifyComment       : comment
+  | NotifyEntered       : user
+  | NotifyExited        : user
+  | NotifyGameStart     : observable_game_state
   | NotifyNextStep
-  | NotifySubmission : submission
-  | NotifyConnection : connection
+  | NotifySubmission    : submission
+  | NotifyConnection    : connection
+  | NotifyEnteredMidway : midway_enter
 
 last := {
   table : table,
