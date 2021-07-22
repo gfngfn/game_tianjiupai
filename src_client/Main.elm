@@ -203,9 +203,9 @@ update msg model =
 
                 PlayingGame ostate0 ->
                   let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
-                  let ostate1 = { ostate0 | synchronizing = True } in
+                  let ostate1 = ostate0 in
                   let pstate1 = { pstate0 | game = PlayingGame ostate1 } in
-                  Debug.log "RoomEntered (+)" ( { model | state = InRoom ws user pstate1 Set.empty "" }, cmd )
+                  Debug.log "RoomEntered (+)/(0)" ( { model | state = InRoom ws user pstate1 Set.empty "" }, cmd )
 
             Err err ->
               ( { model | message = makeErrorMessage "enter room" err }, Cmd.none )
@@ -326,49 +326,45 @@ update msg model =
           let newState = submission.newState in
           let
             maybeNext =
-              if ostate0.synchronizing then
-                Nothing
-              else
-                -- TODO: extract (possibly hidden) submitted cards and a submitter from `submission` for animation
-                case ( submission.trickLast, ostate0.observableInning ) of
-                  ( Just observableLast, ObservableDuringInning oinning0 ) ->
-                  -- If this is the last submission within a trick:
-                  -- begins to synchronize, and waits `Constants.trickLastTimeMs' milliseconds.
-                    let
-                      oinning1 =
-                        { oinning0 | table = observableLast.table }
+              case ( submission.trickLast, ostate0.observableInning ) of
+                ( Just observableLast, ObservableDuringInning oinning0 ) ->
+                -- If this is the last submission within a trick:
+                -- begins to synchronize, and waits `Constants.trickLastTimeMs' milliseconds.
+                  let
+                    oinning1 =
+                      { oinning0 | table = observableLast.table }
 
-                      ostate1 =
-                        { ostate0
-                        | synchronizing    = True
-                        , observableInning = ObservableDuringInning oinning1
-                        }
+                    ostate1 =
+                      { ostate0
+                      | synchronizing    = True
+                      , observableInning = ObservableDuringInning oinning1
+                      }
 
-                      logs1 =
-                        case observableLast.diffs of
-                          Nothing    -> pstate0.logs
-                          Just diffs -> pstate0.logs ++ [ LogDiffs diffs ]
+                    logs1 =
+                      case observableLast.diffs of
+                        Nothing    -> pstate0.logs
+                        Just diffs -> pstate0.logs ++ [ LogDiffs diffs ]
 
-                      pstate1 =
-                        { pstate0
-                        | game = PlayingGame ostate1
-                        , logs = logs1
-                        }
-                    in
-                    let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
-                    let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
-                    Just ( { model | state = state1 }, cmd )
+                    pstate1 =
+                      { pstate0
+                      | game = PlayingGame ostate1
+                      , logs = logs1
+                      }
+                  in
+                  let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
+                  let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
+                  Just ( { model | state = state1 }, cmd )
 
-                  ( Just _, _ ) ->
-                    Nothing
+                ( Just _, _ ) ->
+                  Nothing
 
-                  ( Nothing, _ ) ->
-                  -- If this is NOT the last submission within a trick:
-                  -- sends ACK, updates the state, and begins to synchronize.
-                    let ostate1 = { newState | synchronizing = True } in
-                    let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
-                    let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-                    Just ( { model | state = state1 }, cmd )
+                ( Nothing, _ ) ->
+                -- If this is NOT the last submission within a trick:
+                -- sends ACK, updates the state, and begins to synchronize.
+                  let ostate1 = { newState | synchronizing = True } in
+                  let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                  let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
+                  Just ( { model | state = state1 }, cmd )
           in
           case maybeNext of
             Just next ->
