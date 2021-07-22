@@ -294,7 +294,7 @@ update msg model =
                       PlayingGame { ostate0 | meta = { meta0 | players = players1 } }
 
                 WaitingStart users0 ->
-                  WaitingStart (users0 |> List.filter (\u -> u.userId /= user.userId))
+                  WaitingStart (users0 |> List.filter (\u -> u.userId /= userExited.userId))
           in
           let pstate1 = { pstate0 | game = game1, logs = pstate0.logs ++ [ LogExited userExited ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )

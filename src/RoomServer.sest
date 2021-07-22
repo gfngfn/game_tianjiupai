@@ -994,7 +994,66 @@ end = struct
       end
 
     val handle_disconnection_timeout(user_id : user_id, state : state) = act
-      /* TODO */
+      let _ =
+        assert Logger.info(
+          f'disconnection timeout (user_id: ~p)',
+          {user_id}
+        )
+      in
+      let room_state0 = state.room_state in
+      do room_state1 <-
+        case room_state0 of
+        | InternalWaiting(waiting_state) ->
+            let waiting_members0 = waiting_state.members in
+            case List.filter(fun(w) -> Binary.equal(w.user.user_id, user_id) end, waiting_members0) of
+            | [] ->
+                return(room_state0)
+
+            | w :: _ ->
+                let user = w.user in
+                let waiting_members1 =
+                  List.filter(
+                    fun(w) -> Bool.not(Binary.equal(w.user.user_id, user_id)) end,
+                    waiting_members0)
+                in
+                do dummy <-
+                  let user_ids =
+                    List.filter_map(
+                      fun(w) ->
+                        case w.disconnected of
+                        | None    -> Some(w.user.user_id)
+                        | Some(_) -> None
+                        end
+                      end,
+                      waiting_members0)
+                  in
+                  notify_for_each(user_ids, [Models.NotifyExited(user)])
+                in
+                return(InternalWaiting({ waiting_state | members = waiting_members1 }))
+            end
+
+        | InternalPlaying(game_state) ->
+            case find_user_seat(game_state, user_id) of
+            | None ->
+                return(room_state0)
+
+            | Some(seat) ->
+                let meta0 = game_state.meta in
+                let players0 = meta0.players in
+                let Some(player) = Quad.access(seat, players0) in
+                do dummy <-
+                  let user_ids =
+                    let user_id_opts = the_other_players(game_state, seat) in
+                    List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
+                  in
+                  notify_for_each(user_ids, [Models.NotifyExited(player.user)])
+                in
+                let players1 = Quad.update(seat, None, players0) in
+                return(InternalPlaying({ game_state | meta = { meta0 | players = players1 } }))
+            end
+        end
+      in
+      let state = { state | room_state = room_state1 } in
       GenServer.no_reply(state)
 
     val update_sync(user_id : user_id, state : state) = act
