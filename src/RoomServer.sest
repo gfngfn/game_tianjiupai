@@ -1056,6 +1056,16 @@ end = struct
           GenServer.no_reply(state)
       end
 
+    val send_room_deletion_to_user_server<$m> : fun(user_id) -> [$m]unit = external 1 ```
+      send_room_deletion_to_user_server(UserId) ->
+          try
+              _ = 'Tianjiupai.User':set_room(UserId, error),
+              ok
+          catch
+              _:_ -> ok
+          end.
+    ```
+
     val handle_disconnection_timeout(user_id : user_id, state : state) = act
       let _ =
         assert Logger.info(
@@ -1078,6 +1088,9 @@ end = struct
                   List.filter(
                     fun(w) -> Bool.not(Binary.equal(w.user.user_id, user_id)) end,
                     waiting_members0)
+                in
+                do dummy <-
+                  send_room_deletion_to_user_server(user_id)
                 in
                 do dummy <-
                   let user_ids =
