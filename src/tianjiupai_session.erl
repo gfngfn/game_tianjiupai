@@ -29,3 +29,7 @@ set(Info, Req0) ->
 -spec get(cowboy_req:req()) -> {undefined | info(), cowboy_req:req()}.
 get(Req0) ->
     cowboy_session:get(info, Req0).
+
+-spec expire(cowboy_req:req()) -> {ok, cowboy_req:req()}.
+expire(Req0) ->
+    cowboy_session:expire(Req0).

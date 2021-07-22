@@ -30,6 +30,8 @@ start(_StartType, _StartArgs) ->
                     tianjiupai_websocket, undefined},
                 {<<"/users">>,
                     tianjiupai_rest, all_users},
+                {<<"/users/:user_id">>,
+                    tianjiupai_rest, specific_user},
                 {<<"/rooms">>,
                     tianjiupai_rest, all_rooms},
                 {<<"/rooms/:room_id">>,

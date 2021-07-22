@@ -38,6 +38,7 @@
 -type endpoint() ::
     {page, bbmustache:template()}
   | all_users
+  | {specific_user, tianjiupai:user_id()}
   | all_rooms
   | {specific_room, tianjiupai:room_id()}
   | {specific_room_and_user, tianjiupai:room_id(), tianjiupai:user_id()}.
@@ -66,6 +67,9 @@ init(Req0, EndpointKind) ->
                 {page, Template};
             all_users ->
                 all_users;
+            specific_user ->
+                UserId = cowboy_req:binding(user_id, Req1, undefined),
+                {specific_user, UserId};
             all_rooms ->
                 all_rooms;
             specific_room ->
@@ -93,6 +97,7 @@ allowed_methods(Req, State) ->
         case Endpoint of
             {page, _}                      -> [<<"GET">>];
             all_users                      -> [<<"POST">>];
+            {specific_user, _}             -> [<<"DELETE">>];
             all_rooms                      -> [<<"GET">>, <<"POST">>];
             {specific_room, _}             -> [<<"PATCH">>];
             {specific_room_and_user, _, _} -> [<<"GET">>]
@@ -140,6 +145,12 @@ accept_json(Req0, State) ->
                 session_info = MaybeInfo
             } ->
                 handle_user_creation(Req0, MaybeInfo);
+            #state{
+                method       = <<"DELETE">>,
+                endpoint     = {specific_user, UserId},
+                session_info = MaybeInfo
+            } ->
+                handle_user_deletion(Req0, MaybeInfo, UserId);
             #state{
                 method       = <<"POST">>,
                 endpoint     = all_rooms,
@@ -228,6 +239,24 @@ handle_user_creation(Req0, MaybeInfo) ->
                     Req2 = set_failure_reason_to_resp_body(user_creation_failed, Req1),
                     {false, Req2}
             end
+    end.
+
+%% @doc `DELETE /users/<UserId>'
+-spec handle_user_deletion(
+    Req       :: cowboy_req:req(),
+    MaybeInfo :: undefined | tianjiupai_session:info(),
+    UserId    :: tianjiupai:user_id()
+) ->
+    {boolean(), cowboy_req:req()}.
+handle_user_deletion(Req0, MaybeInfo, UserId) ->
+    case validate_cookie(MaybeInfo, UserId) of
+        true ->
+            {ok, Req1} = tianjiupai_session:expire(Req0),
+            Req2 = cowboy_req:set_resp_body(<<"">>, Req1),
+            {true, Req2};
+        false ->
+            Req1 = set_failure_reason_to_resp_body(user_deletion_failed, Req0),
+            {false, Req1}
     end.
 
 %% @doc `POST /rooms'
