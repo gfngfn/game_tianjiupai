@@ -110,6 +110,11 @@ connection := {
   is_connected : bool,
 }
 
+midway_enter := {
+  user : user,
+  seat : seat,
+}
+
 log :=
   | LogComment    : comment
   | LogEntered    : user
@@ -119,13 +124,14 @@ log :=
   | LogConnection : connection
 
 notification :=
-  | NotifyComment    : comment
-  | NotifyEntered    : user
-  | NotifyExited     : user
-  | NotifyGameStart  : observable_game_state
+  | NotifyComment       : comment
+  | NotifyEntered       : user
+  | NotifyExited        : user
+  | NotifyGameStart     : observable_game_state
   | NotifyNextStep
-  | NotifySubmission : submission
-  | NotifyConnection : connection
+  | NotifySubmission    : submission
+  | NotifyConnection    : connection
+  | NotifyEnteredMidway : midway_enter
 
 last := {
   table : table,
@@ -233,7 +239,6 @@ snapshot_id := string
 
 game_player := {
   user         : user,
-  score        : int,
   is_connected : bool,
 }
 
@@ -241,7 +246,8 @@ game_meta := {
   inning_index     : int,
   num_consecutives : int,
   parent_seat      : seat,
-  players          : per_seat(game_player),
+  scores           : per_seat(int),
+  players          : per_seat(option(game_player)),
 }
 
 observable_inning_state := {

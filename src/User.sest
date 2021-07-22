@@ -1,3 +1,4 @@
+import Logger
 import Models
 import UserServerSup
 import UserServer
@@ -10,6 +11,8 @@ module User :> sig
   val create<$a> : fun(binary) -> [$a]result<user_id, GenServer.start_link_error>
 
   val exists<$a> : fun(user_id) -> [$a]bool
+
+  val delete<$a> : fun(user_id) -> [$a]unit
 
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
@@ -44,6 +47,23 @@ end = struct
 
   val exists(user_id) = act
     UserServer.exists(user_id)
+
+  val delete(user_id) = act
+    do proc_opt <- UserServer.get_proc(user_id) in
+    case proc_opt of
+    | None ->
+        return({})
+
+    | Some(proc) ->
+        do res <- UserServerSup.terminate_child(proc) in
+        let _ =
+          assert Logger.info(
+            f'user deleted (user_id: ~p, result: ~p)',
+            {user_id, res}
+          )
+        in
+        return({})
+    end
 
   val get_name(user_id) = act
     UserServer.get_name(user_id)

@@ -36,6 +36,8 @@ module UserServer :> sig
 
   val set_websocket_connection<$a> : fun(user_id, websocket_proc) -> [$a]option<unit>
 
+  val get_proc<$a> : fun(user_id) -> [$a]option<proc>
+
 end = struct
   open Stdlib
   open Models

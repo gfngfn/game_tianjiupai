@@ -8,7 +8,9 @@
     init/2,
     allowed_methods/2,
     content_types_accepted/2,
-    content_types_provided/2
+    content_types_provided/2,
+    delete_resource/2,
+    delete_completed/2
 ]).
 
 %%====================================================================================================
@@ -31,6 +33,7 @@
 -type endpoint_kind() ::
     {page, bbmustache:template()}
   | all_users
+  | specific_user
   | all_rooms
   | specific_room
   | specific_room_and_user.
@@ -38,6 +41,7 @@
 -type endpoint() ::
     {page, bbmustache:template()}
   | all_users
+  | {specific_user, tianjiupai:user_id()}
   | all_rooms
   | {specific_room, tianjiupai:room_id()}
   | {specific_room_and_user, tianjiupai:room_id(), tianjiupai:user_id()}.
@@ -66,6 +70,9 @@ init(Req0, EndpointKind) ->
                 {page, Template};
             all_users ->
                 all_users;
+            specific_user ->
+                UserId = cowboy_req:binding(user_id, Req1, undefined),
+                {specific_user, UserId};
             all_rooms ->
                 all_rooms;
             specific_room ->
@@ -93,6 +100,7 @@ allowed_methods(Req, State) ->
         case Endpoint of
             {page, _}                      -> [<<"GET">>];
             all_users                      -> [<<"POST">>];
+            {specific_user, _}             -> [<<"DELETE">>];
             all_rooms                      -> [<<"GET">>, <<"POST">>];
             {specific_room, _}             -> [<<"PATCH">>];
             {specific_room_and_user, _, _} -> [<<"GET">>]
@@ -127,6 +135,22 @@ content_types_provided(Req, State) ->
         end,
     {Table, Req, State}.
 
+-spec delete_completed(cowboy_req:req(), #state{}) -> {boolean(), cowboy_req:req(), #state{}}.
+delete_completed(Req0, State) ->
+    {true, Req0, State}.
+
+-spec delete_resource(cowboy_req:req(), #state{}) -> {boolean(), cowboy_req:req(), #state{}}.
+delete_resource(Req0, State) ->
+    case State of
+        #state{
+            method       = <<"DELETE">>,
+            endpoint     = {specific_user, UserId},
+            session_info = MaybeInfo
+        } ->
+            {B, Req1} = handle_user_deletion(Req0, MaybeInfo, UserId),
+            {B, Req1, State}
+    end.
+
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
@@ -159,38 +183,35 @@ accept_json(Req0, State) ->
 
 -spec provide_json(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
 provide_json(Req0, State) ->
-    RespBody =
-        case State of
-            #state{method = <<"GET">>, endpoint = all_rooms} ->
-                ?FRONT:get_all_rooms();
-            #state{
-                method       = <<"GET">>,
-                endpoint     = {specific_room_and_user, RoomId, UserId},
-                session_info = MaybeInfo
-            } ->
-                Validator = fun(UserId0) -> validate_cookie(MaybeInfo, UserId0) end,
-                case ?FRONT:get_personal_state(RoomId, UserId, Validator) of
-                    {ok, RespBody0} ->
-                        RespBody0;
-                    error ->
-                        encode_failure_response(failed_to_get_whole_state)
-                        %% TODO: error
-                end;
-            _ ->
-                <<"">> % TODO: error
-        end,
-    {RespBody, Req0, State}.
+    case State of
+        #state{method = <<"GET">>, endpoint = all_rooms} ->
+            RespBody = ?FRONT:get_all_rooms(),
+            {RespBody, Req0, State};
+        #state{
+            method       = <<"GET">>,
+            endpoint     = {specific_room_and_user, RoomId, UserId},
+            session_info = MaybeInfo
+        } ->
+            Validator = fun(UserId0) -> validate_cookie(MaybeInfo, UserId0) end,
+            case ?FRONT:get_personal_state(RoomId, UserId, Validator) of
+                {ok, RespBody} ->
+                    {RespBody, Req0, State};
+                error ->
+                    StatusCode = 404,
+                    Headers = #{},
+                    RespBody = jsone:encode(#{reason => <<"failed_to_get_personal_state">>}),
+                    Req1 = cowboy_req:reply(StatusCode, Headers, RespBody, Req0),
+                    {stop, Req1, State}
+            end
+    end.
 
 -spec provide_html(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
 provide_html(Req0, State) ->
-    RespBody =
-        case State of
-            #state{method = <<"GET">>, endpoint = {page, Template}, session_info = MaybeInfo} ->
-                handle_page(Template, MaybeInfo);
-            _ ->
-                <<"">>
-        end,
-    {RespBody, Req0, State}.
+    case State of
+        #state{method = <<"GET">>, endpoint = {page, Template}, session_info = MaybeInfo} ->
+            RespBody = handle_page(Template, MaybeInfo),
+            {RespBody, Req0, State}
+    end.
 
 %%====================================================================================================
 %% Internal Functions
@@ -228,6 +249,25 @@ handle_user_creation(Req0, MaybeInfo) ->
                     Req2 = set_failure_reason_to_resp_body(user_creation_failed, Req1),
                     {false, Req2}
             end
+    end.
+
+%% @doc `DELETE /users/<UserId>'
+-spec handle_user_deletion(
+    Req       :: cowboy_req:req(),
+    MaybeInfo :: undefined | tianjiupai_session:info(),
+    UserId    :: tianjiupai:user_id()
+) ->
+    {boolean(), cowboy_req:req(), #state{}}.
+handle_user_deletion(Req0, MaybeInfo, UserId) ->
+    case validate_cookie(MaybeInfo, UserId) of
+        true ->
+            Req1 = tianjiupai_session:expire(Req0),
+            _ = ?FRONT:delete_user(UserId),
+            Req2 = cowboy_req:set_resp_body(<<"">>, Req1),
+            {true, Req2};
+        false ->
+            Req1 = set_failure_reason_to_resp_body(user_deletion_failed, Req0),
+            {false, Req1}
     end.
 
 %% @doc `POST /rooms'

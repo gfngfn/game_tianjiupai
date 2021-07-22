@@ -32,6 +32,9 @@ module Api = struct
   val is_existent_user(user_id : user_id) = act
     User.exists(user_id)
 
+  val delete_user(user_id : user_id) = act
+    User.delete(user_id)
+
   val get_all_rooms() = act
     do room_summaries <- Room.get_all_rooms() in
     let enc = Models.encode_get_all_rooms_response() in

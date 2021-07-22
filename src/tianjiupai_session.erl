@@ -8,7 +8,8 @@
 ]).
 -export([
     set/2,
-    get/1
+    get/1,
+    expire/1
 ]).
 
 %%====================================================================================================
@@ -29,3 +30,8 @@ set(Info, Req0) ->
 -spec get(cowboy_req:req()) -> {undefined | info(), cowboy_req:req()}.
 get(Req0) ->
     cowboy_session:get(info, Req0).
+
+-spec expire(cowboy_req:req()) -> cowboy_req:req().
+expire(Req0) ->
+    {ok, Req1} = cowboy_session:expire(Req0),
+    Req1.
