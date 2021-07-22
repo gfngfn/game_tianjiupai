@@ -183,38 +183,35 @@ accept_json(Req0, State) ->
 
 -spec provide_json(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
 provide_json(Req0, State) ->
-    RespBody =
-        case State of
-            #state{method = <<"GET">>, endpoint = all_rooms} ->
-                ?FRONT:get_all_rooms();
-            #state{
-                method       = <<"GET">>,
-                endpoint     = {specific_room_and_user, RoomId, UserId},
-                session_info = MaybeInfo
-            } ->
-                Validator = fun(UserId0) -> validate_cookie(MaybeInfo, UserId0) end,
-                case ?FRONT:get_personal_state(RoomId, UserId, Validator) of
-                    {ok, RespBody0} ->
-                        RespBody0;
-                    error ->
-                        encode_failure_response(failed_to_get_personal_state)
-                        %% TODO: error
-                end;
-            _ ->
-                <<"">> % TODO: error
-        end,
-    {RespBody, Req0, State}.
+    case State of
+        #state{method = <<"GET">>, endpoint = all_rooms} ->
+            RespBody = ?FRONT:get_all_rooms(),
+            {RespBody, Req0, State};
+        #state{
+            method       = <<"GET">>,
+            endpoint     = {specific_room_and_user, RoomId, UserId},
+            session_info = MaybeInfo
+        } ->
+            Validator = fun(UserId0) -> validate_cookie(MaybeInfo, UserId0) end,
+            case ?FRONT:get_personal_state(RoomId, UserId, Validator) of
+                {ok, RespBody} ->
+                    {RespBody, Req0, State};
+                error ->
+                    StatusCode = 404,
+                    Headers = #{},
+                    RespBody = jsone:encode(#{reason => <<"failed_to_get_personal_state">>}),
+                    Req1 = cowboy_req:reply(StatusCode, Headers, RespBody, Req0),
+                    {stop, Req1, State}
+            end
+    end.
 
 -spec provide_html(cowboy_req:req(), #state{}) -> {binary(), cowboy_req:req(), #state{}}.
 provide_html(Req0, State) ->
-    RespBody =
-        case State of
-            #state{method = <<"GET">>, endpoint = {page, Template}, session_info = MaybeInfo} ->
-                handle_page(Template, MaybeInfo);
-            _ ->
-                <<"">>
-        end,
-    {RespBody, Req0, State}.
+    case State of
+        #state{method = <<"GET">>, endpoint = {page, Template}, session_info = MaybeInfo} ->
+            RespBody = handle_page(Template, MaybeInfo),
+            {RespBody, Req0, State}
+    end.
 
 %%====================================================================================================
 %% Internal Functions
