@@ -33,6 +33,9 @@ end = struct
   open Stdlib
   open Models
 
+  val disconnection_timeout() =
+    30000
+
   val todo<$a, $b> : fun($a) -> $b = external 1 ```
     todo(X) ->
       erlang:error({todo, X}).
@@ -45,7 +48,7 @@ end = struct
 
   type waiting_member = {
     user         : user,
-    is_connected : bool,
+    disconnected : option<Timer.t>,
   }
 
   type waiting_state = {
@@ -65,6 +68,7 @@ end = struct
     inning      : whole_inning,
     snapshot_id : snapshot_id,
     sync        : sync, /* Tracks whether each player is ready for the next step. */
+    timer       : Quad.t<option<Timer.t>>,
   }
 
   type internal_room_state =
@@ -100,7 +104,7 @@ end = struct
       | SetConnectionStatus(user_id, bool)
 
     type info =
-      | DummyInfo
+      | DisconnectionTimeout(user_id)
 
     type state = {
       settings      : settings,
@@ -243,6 +247,9 @@ end = struct
     val make_initial_sync() : Quad.t<bool> =
       Quad.make({false, false, false, false})
 
+    val make_ordinary_timer() : Quad.t<option<Timer.t>> =
+      Quad.make({None, None, None, None})
+
     val start_new_inning<$a>(game_meta : game_meta) : [$a]whole_game_state = act
       let next_parent_seat = game_meta.parent_seat in
       let inning = Inning.start(next_parent_seat) in
@@ -252,6 +259,7 @@ end = struct
         inning      = DuringInning(inning),
         snapshot_id = snapshot_id,
         sync        = WaitingSync(make_initial_sync()),
+        timer       = make_ordinary_timer(),
       })
 
     val warn_notification_failure(reason : RawValue.t, user_id : user_id, notifications : list<notification>) =
@@ -294,6 +302,12 @@ end = struct
         notify_for_each(user_ids, [Models.NotifyComment(comment)])
       in
       GenServer.reply(ChatSent, { state | reversed_logs = Models.LogComment(comment) :: state.reversed_logs })
+
+    val is_none(x) =
+      case x of
+      | None    -> true
+      | Some(_) -> false
+      end
 
     val handle_attend(user : user, state : state) = act
       let user_id = user.user_id in
@@ -375,9 +389,9 @@ end = struct
                 let u1 = w1.user in
                 let u2 = w2.user in
                 let player_quad =
-                  let player0 = { user = u0, is_connected = w0.is_connected } in
-                  let player1 = { user = u1, is_connected = w1.is_connected } in
-                  let player2 = { user = u2, is_connected = w2.is_connected } in
+                  let player0 = { user = u0, is_connected = is_none(w0.disconnected) } in
+                  let player1 = { user = u1, is_connected = is_none(w1.disconnected) } in
+                  let player2 = { user = u2, is_connected = is_none(w2.disconnected) } in
                   let player3 = { user = user, is_connected = true } in
                      /* TODO: specify an appropriate value for `is_connected` */
                   Quad.make({Some(player0), Some(player1), Some(player2), Some(player3)})
@@ -413,8 +427,8 @@ end = struct
                 GenServer.reply(Attended(Some(personal_state)), state)
 
             | _ ->
-                let w = { user = user, is_connected = true } in
-                  /* TODO: specify an appropriate value for `is_connected` */
+                let w = { user = user, disconnected = None } in
+                  /* TODO: specify an appropriate value for `disconnected` */
                 let waiting_state = { waiting_state | members = List.append(members, [w]) } in
                 do dummy <- notify_for_each(List.map(fun(w) -> w.user.user_id end, members), [notif_enter]) in
                 let state =
@@ -616,6 +630,7 @@ end = struct
                               inning      = DuringInning(inning),
                               snapshot_id = snapshot_id,
                               sync        = WaitingSync(make_initial_sync()),
+                              timer       = make_ordinary_timer(),
                             },
                             None
                           }
@@ -628,6 +643,7 @@ end = struct
                               inning      = DuringInning(inning),
                               snapshot_id = snapshot_id,
                               sync        = WaitingSync(make_initial_sync()),
+                              timer       = make_ordinary_timer(),
                             },
                             Some({table = last_table, hand = submitter_hand, diffs = diffs_opt})
                           }
@@ -640,6 +656,7 @@ end = struct
                               inning      = InningEnd(gains_quad, make_initial_sync()),
                               snapshot_id = snapshot_id,
                               sync        = WaitingSync(make_initial_sync()),
+                              timer       = make_ordinary_timer(),
                             },
                             Some({table = last_table, hand = [], diffs = Some(diffs)})
                           }
@@ -855,45 +872,65 @@ end = struct
       end
 
     val handle_set_connection_status(user_id : user_id, is_connected : bool, state : state) = act
-      let opt =
+      do opt <-
         case state.room_state of
         | InternalWaiting(waiting_state) ->
             let members0 = waiting_state.members in
             case List.filter(fun(w) -> Binary.equal(w.user.user_id, user_id) end, members0) of
             | [] ->
-                None
+                return(None)
 
             | w :: _ ->
                 let user = w.user in
-                let members1 =
-                  List.map(
-                    fun(w) ->
-                      if Binary.equal(w.user.user_id, user_id) then
-                        { w | is_connected = is_connected }
-                      else
-                        w
+                do acc <-
+                  List.foldl_effect(
+                    fun(acc, w0) -> act
+                      do w1 <-
+                        if Binary.equal(w0.user.user_id, user_id) then
+                          if is_connected then
+                            do dummy <-
+                              case w0.disconnected of
+                              | None        -> return(Ok({}))
+                              | Some(timer) -> Timer.cancel(timer)
+                              end
+                            in
+                            return({ w0 | disconnected = None })
+                          else
+                            do res <-
+                              Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
+                            in
+                            let Ok(timer) = res in
+                            return({ w0 | disconnected = Some(timer) })
+                        else
+                          return(w0)
+                      in
+                      return(w1 :: acc)
                     end,
+                    [],
                     members0,
                   )
                 in
+                let members1 = List.reverse(acc) in
                 let user_ids_for_notification =
                   List.filter_map(
                     fun(w) ->
-                      if w.is_connected then
-                        let u = w.user.user_id in
-                        if Binary.equal(u, user_id) then None else Some(u)
-                      else
-                        None
+                      case w.disconnected of
+                      | None ->
+                          let u = w.user.user_id in
+                          if Binary.equal(u, user_id) then None else Some(u)
+                      | Some(_) ->
+                          None
+                      end
                     end,
                     members1)
                 in
-                Some({user, user_ids_for_notification, InternalWaiting({ members = members1 })})
+                return(Some({user, user_ids_for_notification, InternalWaiting({ members = members1 })}))
             end
 
         | InternalPlaying(game_state) ->
             case find_user_seat(game_state, user_id) of
             | None ->
-                None
+                return(None)
 
             | Some(seat) ->
                 let game_meta = game_state.meta in
@@ -918,8 +955,25 @@ end = struct
                     Quad.to_list(players1)
                   )
                 in
+                do timer_quad <-
+                  let timer_quad = game_state.timer in
+                  if is_connected then
+                    case Quad.access(seat, timer_quad) of
+                    | None ->
+                        return(timer_quad)
+                    | Some(timer) ->
+                        do dummy <- Timer.cancel(timer) in
+                        return(Quad.update(seat, None, timer_quad))
+                    end
+                  else
+                    do res <-
+                      Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
+                    in
+                    let Ok(timer) = res in
+                    return(Quad.update(seat, Some(timer), timer_quad))
+                in
                 let game_state = { game_state | meta = { game_meta | players = players1 } } in
-                Some({p1.user, user_ids_for_notification, InternalPlaying(game_state)})
+                return(Some({p1.user, user_ids_for_notification, InternalPlaying(game_state)}))
             end
         end
       in
@@ -938,6 +992,10 @@ end = struct
           in
           GenServer.no_reply(state)
       end
+
+    val handle_disconnection_timeout(user_id : user_id, state : state) = act
+      /* TODO */
+      GenServer.no_reply(state)
 
     val update_sync(user_id : user_id, state : state) = act
       case state.room_state of
@@ -1007,8 +1065,14 @@ end = struct
       end
 
     val handle_info(info, state) = act
-      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
-      GenServer.no_reply(state)
+      case info of
+      | DisconnectionTimeout(user_id) ->
+          handle_disconnection_timeout(user_id, state)
+
+      | _ ->
+          let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
+          GenServer.no_reply(state)
+      end
 
     val terminate(state) = act
       let _ = assert Logger.info(f'terminate (room_id: ~p)', {state.settings.room_id}) in
