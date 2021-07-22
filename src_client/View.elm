@@ -192,10 +192,9 @@ viewRoom message user pstate indices chatTextInput =
           [ div []
               [ text "debug info" ]
           , ul []
-              [ li []
-                  [ text ("room ID: " ++ room.roomId) ]
-              , li []
-                  [ text ("members: " ++ members) ]
+              [ li [] [ text ("user ID: " ++ user.userId) ]
+              , li [] [ text ("room ID: " ++ room.roomId) ]
+              , li [] [ text ("members: " ++ members) ]
               ]
           ]
 
@@ -254,7 +253,8 @@ viewRoom message user pstate indices chatTextInput =
             elemsDebug =
               [ div [] [ text "debug info" ]
               , ul []
-                  [ li [] [ text ("room ID: " ++ room.roomId) ]
+                  [ li [] [ text ("user ID: " ++ user.userId) ]
+                  , li [] [ text ("room ID: " ++ room.roomId) ]
                   , li [] [ text ("snapshot ID: " ++ ostate.snapshotId) ]
                   , li [] [ text ("synchronizing: " ++ (if synchronizing then "Y" else "N")) ]
                   , li [] [ text ("your turn: " ++ (if turn then "Y" else "N")) ]
@@ -267,6 +267,8 @@ viewRoom message user pstate indices chatTextInput =
                   [ text room.roomName ]
               , div []
                   [ text (showGameIndex gameMeta.inningIndex gameMeta.numConsecutives) ]
+              , div []
+                  [ specialButton True "中断して退室" (ExitRoom room.roomId) ]
               , viewPlayer "東" players.east  scores.east
               , viewPlayer "南" players.south scores.south
               , viewPlayer "西" players.west  scores.west
