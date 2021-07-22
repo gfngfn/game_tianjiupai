@@ -36,6 +36,14 @@ end = struct
   val disconnection_timeout() =
     30000
 
+  val maximum_num_innings() =
+    1
+
+  val normal_atom : fun() -> RawValue.t = external 0 ```
+    normal_atom() ->
+        normal.
+  ```
+
   val todo<$a, $b> : fun($a) -> $b = external 1 ```
     todo(X) ->
       erlang:error({todo, X}).
@@ -851,6 +859,10 @@ end = struct
       | Some(game_state) -> GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
       end
 
+    type transition =
+      | RoomTransitionToNextInning(whole_game_state, option<game_index>)
+      | RoomClose
+
     val handle_require_next_inning(user_id : user_id, snapshot_id : snapshot_id, state : state) = act
       do opt <-
         case state.room_state of
@@ -879,31 +891,40 @@ end = struct
                       case Quad.decompose(inning_sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
-                          do game_state <- start_new_inning(game_state.meta, game_state.timers) in
+                          let inning_index = game_state.meta.inning_index in
                           let user_ids =
                             let user_id_opts = the_other_players(game_state, seat) in
                             List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
                           in
-                          do dummy <-
-                            List.for_each(
-                              fun(u) -> act
-                                let Some(obs) = make_observable_game_state(game_state, u) in
-                                notify(u, [Models.NotifyGameStart(obs)])
-                              end,
-                              user_id :: user_ids)
-                          in
-                          let game_index =
-                            let meta = game_state.meta in
-                            {
-                              inning_index     = meta.inning_index,
-                              num_consecutives = meta.num_consecutives,
-                            }
-                          in
-                          return(Some({game_state, Some(game_index)}))
+                          let user_ids_for_notification = user_id :: user_ids in
+                          if inning_index >= maximum_num_innings() then
+                          /* If the last inning has ended: */
+                            do dummy <-
+                              notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose])
+                            in
+                            return(Some(RoomClose))
+                          else
+                            do game_state <- start_new_inning(game_state.meta, game_state.timers) in
+                            do dummy <-
+                              List.for_each(
+                                fun(u) -> act
+                                  let Some(obs) = make_observable_game_state(game_state, u) in
+                                  notify(u, [Models.NotifyGameStart(obs)])
+                                end,
+                                user_id :: user_ids)
+                            in
+                            let game_index =
+                              let meta = game_state.meta in
+                              {
+                                inning_index     = inning_index,
+                                num_consecutives = meta.num_consecutives,
+                              }
+                            in
+                            return(Some(RoomTransitionToNextInning(game_state, Some(game_index))))
 
                       | _ ->
                           let game_state = { game_state | inning = InningEnd(gains_quad, inning_sync_quad) } in
-                          return(Some({game_state, None}))
+                          return(Some(RoomTransitionToNextInning(game_state, None)))
                       end
                   end
                 else
@@ -914,7 +935,11 @@ end = struct
       case opt of
       | None ->
           GenServer.no_reply(state)
-      | Some({game_state, game_index_opt}) ->
+
+      | Some(RoomClose) ->
+          GenServer.stop(normal_atom(), state)
+
+      | Some(RoomTransitionToNextInning(game_state, game_index_opt)) ->
           let state =
             case game_index_opt of
             | None             -> state
