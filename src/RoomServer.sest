@@ -63,12 +63,15 @@ end = struct
     | DuringInning(Inning.t)
     | InningEnd(Quad.t<list<Card.t>>, Quad.t<bool>)
 
+  type timer_quad =
+    Quad.t<option<Timer.t>>
+
   type whole_game_state = {
     meta        : game_meta,
     inning      : whole_inning,
     snapshot_id : snapshot_id,
     sync        : sync, /* Tracks whether each player is ready for the next step. */
-    timer       : Quad.t<option<Timer.t>>,
+    timers      : timer_quad,
   }
 
   type internal_room_state =
@@ -247,10 +250,7 @@ end = struct
     val make_initial_sync() : Quad.t<bool> =
       Quad.make({false, false, false, false})
 
-    val make_ordinary_timer() : Quad.t<option<Timer.t>> =
-      Quad.make({None, None, None, None})
-
-    val start_new_inning<$a>(game_meta : game_meta) : [$a]whole_game_state = act
+    val start_new_inning<$a>(game_meta : game_meta, timers : timer_quad) : [$a]whole_game_state = act
       let next_parent_seat = game_meta.parent_seat in
       let inning = Inning.start(next_parent_seat) in
       do snapshot_id <- SnapshotId.generate() in
@@ -259,7 +259,7 @@ end = struct
         inning      = DuringInning(inning),
         snapshot_id = snapshot_id,
         sync        = WaitingSync(make_initial_sync()),
-        timer       = make_ordinary_timer(),
+        timers      = timers,
       })
 
     val warn_notification_failure(reason : RawValue.t, user_id : user_id, notifications : list<notification>) =
@@ -407,7 +407,9 @@ end = struct
                   }
                 in
                 let game_index = { inning_index = 0, num_consecutives = 0 } in
-                do game_state <- start_new_inning(game_meta) in
+                let timer_quad = Quad.make({None, None, None, None}) in
+                  /* TODO: make `timer_quad` from `disconnected` of the elements of `members` */
+                do game_state <- start_new_inning(game_meta, timer_quad) in
                 do dummy <-
                   List.for_each(
                     fun(u) -> act
@@ -621,6 +623,7 @@ end = struct
                 | Some({submit_result, is_front}) ->
                     do snapshot_id <- SnapshotId.generate() in
                     let game_meta = game_state.meta in
+                    let timers = game_state.timers in
                     let {game_state, last_opt} =
                       case submit_result of
                       | Inning.Continues(inning) ->
@@ -630,7 +633,7 @@ end = struct
                               inning      = DuringInning(inning),
                               snapshot_id = snapshot_id,
                               sync        = WaitingSync(make_initial_sync()),
-                              timer       = make_ordinary_timer(),
+                              timers      = timers,
                             },
                             None
                           }
@@ -643,7 +646,7 @@ end = struct
                               inning      = DuringInning(inning),
                               snapshot_id = snapshot_id,
                               sync        = WaitingSync(make_initial_sync()),
-                              timer       = make_ordinary_timer(),
+                              timers      = timers,
                             },
                             Some({table = last_table, hand = submitter_hand, diffs = diffs_opt})
                           }
@@ -656,7 +659,7 @@ end = struct
                               inning      = InningEnd(gains_quad, make_initial_sync()),
                               snapshot_id = snapshot_id,
                               sync        = WaitingSync(make_initial_sync()),
-                              timer       = make_ordinary_timer(),
+                              timers      = timers,
                             },
                             Some({table = last_table, hand = [], diffs = Some(diffs)})
                           }
@@ -754,8 +757,8 @@ end = struct
                       let sync_quad = Quad.update(seat, true, sync_quad) in
                       let _ =
                         assert Logger.info(
-                          f'update sync (snapshot_id: ~p, quad: ~p)',
-                          {snapshot_id, sync_quad}
+                          f'update sync (snapshot_id: ~p, user_id: ~p, quad: ~p)',
+                          {snapshot_id, user_id, sync_quad}
                         )
                       in
                       case Quad.decompose(sync_quad) of
@@ -776,8 +779,8 @@ end = struct
                   | WaitingInput ->
                       let _ =
                         assert Logger.warning(
-                          f'waiting input (snapshot_id: ~p)',
-                          {snapshot_id}
+                          f'waiting input (snapshot_id: ~p, user_id: ~p)',
+                          {snapshot_id, user_id}
                         )
                       in
                       return(None)
@@ -785,8 +788,8 @@ end = struct
                 else
                   let _ =
                     assert Logger.warning(
-                      f'snapshot mismatch (got: ~p, expected: ~p)',
-                      {snapshot_id, game_state.snapshot_id}
+                      f'snapshot mismatch (got: ~p, expected: ~p, user_id: ~p)',
+                      {snapshot_id, game_state.snapshot_id, user_id}
                     )
                   in
                   return(None)
@@ -826,7 +829,7 @@ end = struct
                       case Quad.decompose(inning_sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
-                          do game_state <- start_new_inning(game_state.meta) in
+                          do game_state <- start_new_inning(game_state.meta, game_state.timers) in
                           let user_ids =
                             let user_id_opts = the_other_players(game_state, seat) in
                             List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
@@ -888,16 +891,33 @@ end = struct
                       do w1 <-
                         if Binary.equal(w0.user.user_id, user_id) then
                           if is_connected then
-                            do dummy <-
+                          /* When the user of `user_id` re-connects to the server: */
+                            do res <-
                               case w0.disconnected of
-                              | None        -> return(Ok({}))
-                              | Some(timer) -> Timer.cancel(timer)
+                              | None ->
+                                  return(Ok({}))
+                              | Some(timer) ->
+                                  do res <- Timer.cancel(timer) in
+                                  let _ =
+                                    assert Logger.info(
+                                      f'cancels timer (waiting, user_id: ~p, timer: ~p, result: ~p)',
+                                      {user_id, timer, res}
+                                    )
+                                  in
+                                  return(res)
                               end
                             in
                             return({ w0 | disconnected = None })
                           else
+                          /* When the user of `user_id` closes the connection: */
                             do res <-
                               Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
+                            in
+                            let _ =
+                              assert Logger.info(
+                                f'sets timer (waiting, user_id: ~p, result: ~p)',
+                                {user_id, res}
+                              )
                             in
                             let Ok(timer) = res in
                             return({ w0 | disconnected = Some(timer) })
@@ -956,23 +976,48 @@ end = struct
                   )
                 in
                 do timer_quad <-
-                  let timer_quad = game_state.timer in
+                  let timer_quad = game_state.timers in
                   if is_connected then
+                  /* When the user of `user_id` re-connects to the server: */
                     case Quad.access(seat, timer_quad) of
                     | None ->
+                        let _ =
+                          assert Logger.info(
+                            f'no timer (playing, seat: ~p, user_id: ~p)',
+                            {seat, user_id}
+                          )
+                        in
                         return(timer_quad)
                     | Some(timer) ->
-                        do dummy <- Timer.cancel(timer) in
+                        do res <- Timer.cancel(timer) in
+                        let _ =
+                          assert Logger.info(
+                            f'cancels timer (playing, user_id: ~p, timer: ~p, result: ~p)',
+                            {user_id, timer, res}
+                          )
+                        in
                         return(Quad.update(seat, None, timer_quad))
                     end
                   else
+                  /* When the user of `user_id` closes the connection: */
                     do res <-
                       Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
+                    in
+                    let _ =
+                      assert Logger.info(
+                        f'sets timer (playing, seat: ~p, user_id: ~p, result: ~p)',
+                        {seat, user_id, res}
+                      )
                     in
                     let Ok(timer) = res in
                     return(Quad.update(seat, Some(timer), timer_quad))
                 in
-                let game_state = { game_state | meta = { game_meta | players = players1 } } in
+                let game_state =
+                  { game_state |
+                    meta   = { game_meta | players = players1 },
+                    timers = timer_quad,
+                  }
+                in
                 return(Some({p1.user, user_ids_for_notification, InternalPlaying(game_state)}))
             end
         end
@@ -1001,13 +1046,13 @@ end = struct
         )
       in
       let room_state0 = state.room_state in
-      do room_state1 <-
+      do pair <-
         case room_state0 of
         | InternalWaiting(waiting_state) ->
             let waiting_members0 = waiting_state.members in
             case List.filter(fun(w) -> Binary.equal(w.user.user_id, user_id) end, waiting_members0) of
             | [] ->
-                return(room_state0)
+                return({None, room_state0})
 
             | w :: _ ->
                 let user = w.user in
@@ -1029,31 +1074,50 @@ end = struct
                   in
                   notify_for_each(user_ids, [Models.NotifyExited(user)])
                 in
-                return(InternalWaiting({ waiting_state | members = waiting_members1 }))
+                return({Some(user), InternalWaiting({ waiting_state | members = waiting_members1 })})
             end
 
         | InternalPlaying(game_state) ->
             case find_user_seat(game_state, user_id) of
             | None ->
-                return(room_state0)
+                return({None, room_state0})
 
             | Some(seat) ->
                 let meta0 = game_state.meta in
                 let players0 = meta0.players in
                 let Some(player) = Quad.access(seat, players0) in
+                let user = player.user in
                 do dummy <-
                   let user_ids =
                     let user_id_opts = the_other_players(game_state, seat) in
                     List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
                   in
-                  notify_for_each(user_ids, [Models.NotifyExited(player.user)])
+                  notify_for_each(user_ids, [Models.NotifyExited(user)])
                 in
                 let players1 = Quad.update(seat, None, players0) in
-                return(InternalPlaying({ game_state | meta = { meta0 | players = players1 } }))
+                let game_state =
+                  { game_state |
+                    meta   = { meta0 | players = players1 },
+                    timers = Quad.update(seat, None, game_state.timers),
+                  }
+                in
+                return({Some(user), InternalPlaying(game_state)})
             end
         end
       in
-      let state = { state | room_state = room_state1 } in
+      let {user_opt, room_state1} = pair in
+      let state =
+        case user_opt of
+        | Some(user) ->
+            { state |
+              reversed_logs = Models.LogExited(user) :: state.reversed_logs,
+              room_state    = room_state1,
+            }
+
+        | None ->
+            { state | room_state = room_state1 }
+        end
+      in
       GenServer.no_reply(state)
 
     val update_sync(user_id : user_id, state : state) = act

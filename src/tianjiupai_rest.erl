@@ -173,7 +173,7 @@ provide_json(Req0, State) ->
                     {ok, RespBody0} ->
                         RespBody0;
                     error ->
-                        encode_failure_response(failed_to_get_whole_state)
+                        encode_failure_response(failed_to_get_personal_state)
                         %% TODO: error
                 end;
             _ ->
