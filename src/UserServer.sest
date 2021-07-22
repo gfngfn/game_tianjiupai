@@ -36,6 +36,8 @@ module UserServer :> sig
 
   val set_websocket_connection<$a> : fun(user_id, websocket_proc) -> [$a]option<unit>
 
+  val stop<$a> : fun(user_id) -> [$a]unit
+
 end = struct
   open Stdlib
   open Models
@@ -307,5 +309,12 @@ end = struct
       | Callback.WebsocketConnectionSet -> return(Some({}))
       end
     end)
+
+  val stop(user_id) = act
+    do proc_opt <- get_proc(user_id) in
+    case proc_opt of
+    | None       -> return({})
+    | Some(proc) -> Impl.stop(proc)
+    end
 
 end

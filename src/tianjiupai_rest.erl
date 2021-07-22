@@ -262,6 +262,7 @@ handle_user_deletion(Req0, MaybeInfo, UserId) ->
     case validate_cookie(MaybeInfo, UserId) of
         true ->
             Req1 = tianjiupai_session:expire(Req0),
+            _ = ?FRONT:delete_user(UserId),
             Req2 = cowboy_req:set_resp_body(<<"">>, Req1),
             {true, Req2};
         false ->

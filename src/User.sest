@@ -11,6 +11,8 @@ module User :> sig
 
   val exists<$a> : fun(user_id) -> [$a]bool
 
+  val delete<$a> : fun(user_id) -> [$a]unit
+
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
   val get_info<$a> : fun(user_id) -> [$a]option<UserServer.user_state>
@@ -44,6 +46,9 @@ end = struct
 
   val exists(user_id) = act
     UserServer.exists(user_id)
+
+  val delete(user_id) = act
+    UserServer.stop(user_id)
 
   val get_name(user_id) = act
     UserServer.get_name(user_id)
