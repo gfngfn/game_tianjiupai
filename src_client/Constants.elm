@@ -103,7 +103,7 @@ leftPileX : Int
 leftPileX = 21
 
 leftPileY : Int
-leftPileY = 570
+leftPileY = 530
 
 selfSubmittedX : Int
 selfSubmittedX = 350
@@ -208,6 +208,11 @@ leftParentTilePath =
   "assets/parent-left.png"
 
 
+directionImagePath : Seat -> String
+directionImagePath seat =
+  "assets/direction" ++ stringifySeat seat ++ ".png"
+
+
 stringifyCard : Card -> String
 stringifyCard card =
   case card of
@@ -232,3 +237,12 @@ stringifyWen wen =
 stringifyWu : CardWu -> String
 stringifyWu wu =
   "wu" ++ String.fromInt wu.number ++ (if wu.design then "t" else "f")
+
+
+stringifySeat : Seat -> String
+stringifySeat seat =
+  case seat of
+    SeatA -> "1"
+    SeatB -> "2"
+    SeatC -> "3"
+    SeatD -> "4"
