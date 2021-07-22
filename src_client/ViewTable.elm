@@ -55,7 +55,8 @@ view userId selfSeat parentSeat handInfo observableInning =
             , SvgA.viewBox viewBoxText
             ]
             (List.concat
-              [ displayLeftHand (numCardsAtTrickBeginning - List.length relQuad.left.submitted)
+              [ displayDirection selfSeat
+              , displayLeftHand (numCardsAtTrickBeginning - List.length relQuad.left.submitted)
               , displayParentTile (PerSeat.relative { from = selfSeat, target = parentSeat })
               , displayGains relQuad
               , displayTable relQuad
@@ -73,16 +74,25 @@ view userId selfSeat parentSeat handInfo observableInning =
             [ SvgA.width widthText
             , SvgA.viewBox viewBoxText
             ]
-            (displayGains relQuad ++
-              [ displayButton
-                  (not handInfo.synchronizing)
-                  (SendRequest RequireNextInning)
-                  "次へ"
-                  C.goToNextButtonX
-                  C.goToNextButtonY
+            (List.concat
+              [ displayDirection selfSeat
+              , displayParentTile (PerSeat.relative { from = selfSeat, target = parentSeat })
+              , displayGains relQuad
+              , [ displayButton
+                    (not handInfo.synchronizing)
+                    (SendRequest RequireNextInning)
+                    "次へ"
+                    C.goToNextButtonX
+                    C.goToNextButtonY
+                ]
               ])
   in
   div [ class "table-container" ] [ mainElem ]
+
+
+displayDirection : Seat -> List (Svg Msg)
+displayDirection seat =
+  [ svgImage ( 0, 0 ) (C.directionImagePath seat) ]
 
 
 displayTable : RelativeQuad -> List (Svg Msg)
