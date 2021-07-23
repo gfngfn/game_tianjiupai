@@ -1,0 +1,306 @@
+body {
+  margin-top: 0px;
+  margin-left: 0px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+  padding-top: 0px;
+  padding-left: 0px;
+  padding-right: 0px;
+  padding-bottom: 0px; }
+
+a {
+  color: #ccffff; }
+
+.background-table, .entrance-middle, .room-grid-element-center {
+  background-color: #226622;
+  background-image: url("./background.png");
+  background-size: 100% 100%; }
+
+.table-container {
+  width: min(100%, 700px);
+  margin-left: auto;
+  margin-right: auto; }
+
+.simple-grid-container {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  display: grid;
+  grid-template-columns: 100vw;
+  grid-template-rows: 30px calc(100vh - 60px) 30px; }
+
+.simple-grid-element-header {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 1;
+  grid-row-end: 2;
+  background-color: #444444;
+  color: #eeeeee; }
+
+.simple-grid-element-middle {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 2;
+  grid-row-end: 3;
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px; }
+
+.entrance-middle {
+  color: #eeeeee; }
+
+.plaza-middle {
+  background-color: #ffffff;
+  color: #444444; }
+
+.simple-grid-element-footer {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 3;
+  grid-row-end: 4;
+  background-color: #444444;
+  color: #eeeeee; }
+
+.room-grid-container {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  display: grid;
+  grid-template-columns: min(250px, 20vw) auto min(250px, 20vw);
+  grid-template-rows: 30px calc(100vh - 60px) 30px; }
+
+.room-grid-element-header {
+  grid-column-start: 1;
+  grid-column-end: 4;
+  grid-row-start: 1;
+  grid-row-end: 2;
+  background-color: #444444;
+  color: #eeeeee; }
+
+.room-grid-element-left {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 2;
+  grid-row-end: 3;
+  border-style: solid;
+  border-width: 1px;
+  border-color: gray;
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px; }
+
+.room-grid-element-center {
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 2;
+  grid-row-end: 3;
+  color: #eeeeee; }
+
+.room-grid-element-right {
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 2;
+  grid-row-end: 3;
+  border-style: solid;
+  border-width: 1px;
+  border-color: gray; }
+
+.room-grid-element-footer {
+  grid-column-start: 1;
+  grid-column-end: 4;
+  grid-row-start: 3;
+  grid-row-end: 4; }
+
+.footer-style-normal {
+  background-color: #444444;
+  color: #eeeeee; }
+
+.footer-style-warning {
+  background-color: #ee2222;
+  color: #eeeeee; }
+
+.svg-button-enabled {
+  fill: #ee6622;
+  stroke: #aa4400;
+  stroke-width: 2px; }
+
+.svg-button-front {
+  fill: #ffffff00; }
+
+.svg-button-front:hover {
+  fill: #ffffff44;
+  stroke: #ffffff44;
+  stroke-width: 2px; }
+
+.svg-button-disabled {
+  fill: #aaaaaa;
+  stroke: #888888;
+  stroke-width: 2px; }
+
+.svg-button-text-enabled {
+  fill: #eeeeee; }
+
+.svg-button-text-disabled {
+  fill: #888888; }
+
+.svg-room-close-text {
+  fill: #eeeeee;
+  font-style: sans-serif;
+  font-size: 24px; }
+
+.room-name {
+  color: #444444;
+  font-style: sans-serif;
+  font-size: 24px; }
+
+.player-name {
+  color: #444444;
+  font-style: sans-serif;
+  font-size: 20px; }
+
+.panel, .plaza-panel {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  box-shadow: 0px 1px 2px #dddddd;
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px;
+  background-color: #ffffee;
+  color: #444444; }
+
+.button-scheme, .untouched-button-scheme, .enabled-button, .enabled-button:hover, .disabled-button, .enabled-button:active {
+  display: inline;
+  border-radius: 6px;
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px;
+  user-select: none;
+  cursor: pointer;
+  font-size: 14px; }
+
+.untouched-button-scheme, .enabled-button, .enabled-button:hover, .disabled-button {
+  position: relative;
+  top: -2px;
+  box-shadow: 0px 1px 2px #44444466; }
+
+.enabled-button {
+  background-color: #ee6622;
+  color: #eeeeee; }
+
+.enabled-button:hover {
+  background-color: #ff8855;
+  color: #ffffff; }
+
+.enabled-button:active {
+  position: relative;
+  top: -1px;
+  background-color: #cc4400;
+  color: #cccccc; }
+
+.disabled-button {
+  background-color: #aaaaaa;
+  color: #888888; }
+
+.plaza-panel {
+  width: calc($plaza-width - $text-frame-padding-horizontal * 2); }
+
+.plaza-panel-left {
+  display: inline-block;
+  width: 600px; }
+
+.plaza-panel-right {
+  display: inline-block;
+  width: 50px; }
+
+.plaza-container {
+  width: 666px;
+  margin-right: auto;
+  margin-left: auto; }
+
+.entrance-container {
+  width: 700px;
+  margin-left: auto;
+  margin-right: auto; }
+
+.entrance-input-group {
+  width: 240px;
+  margin-top: 16px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 16px; }
+
+.entrance-explanation {
+  border-radius: 12px;
+  padding-top: 16px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 16px;
+  background-color: #115511; }
+
+.input-main {
+  width: 100%;
+  border: none;
+  outline: none;
+  background-color: transparent; }
+
+.input-container {
+  display: inline-block;
+  width: 150px;
+  border-radius: 4px;
+  margin-left: 4px;
+  margin-right: 4px;
+  padding-top: 4px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 4px;
+  box-shadow: 0px 1px 2px #444444 inset;
+  background-color: #dddddd; }
+
+.debug-info {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  border: 1px dashed #dddddd;
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px;
+  color: #bbbbbb;
+  font-size: 10px; }
+
+.log-area {
+  height: calc(100% - 52px);
+  overflow-y: scroll;
+  padding-top: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-bottom: 8px; }
+
+.log-entry {
+  font-size: 14px; }
+
+.chat-input-container {
+  height: 36px; }
+
+.room-creation-input-group {
+  margin-left: auto;
+  margin-right: 0px;
+  width: 220px;
+  border-radius: 6px;
+  padding-top: 8px;
+  padding-left: 4px;
+  padding-right: 8px;
+  padding-bottom: 8px;
+  background-color: #eeeeee; }
+
+.status-text {
+  margin-top: 4px;
+  margin-bottom: 4px; }
+
+/*# sourceMappingURL=style.css.map */

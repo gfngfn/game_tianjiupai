@@ -1,8 +1,7 @@
 -module('Tianjiupai.UserServerSup.Impl').
 -behaviour(supervisor).
--export(['init_impl'/1, 'init'/1, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'start_child'/2, 'which_children'/1]).
-'init_impl'(S1251InitArg) -> 'Tianjiupai.UserServerSup.Callback':'init'(S1251InitArg).
-
+-export(['init_impl'/1, 'init'/1, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'start_child'/2, 'which_children'/1, 'terminate_child'/2]).
+'init_impl'(S2172InitArg) -> 'Tianjiupai.UserServerSup.Callback':'init'(S2172InitArg).
       init(InitArg) ->
           % io:format("debug L('o' )J (~p) init:~n  ~p~n", [?MODULE, InitArg]),
           {SupFlagsImpl, ChildSpecImpl} = init_impl(InitArg),
@@ -37,26 +36,22 @@
           },
           {ok, {SupFlags, [ChildSpec]}}.
     
-
       as_pid(Pid) -> Pid.
     
-
       from_pid(Pid) -> Pid.
     
-
       start_link(InitArg) ->
           case supervisor:start_link(?MODULE, InitArg) of
               {ok, SupPid} when is_pid(SupPid) -> {ok, SupPid};
               {error, _} = Err                 -> Err
           end.
     
-
       start_link_name(InitArg, NameImpl) ->
           % io:format("debug L('o' )J (~p) start_link_name (pre):~n  ~p~n", [?MODULE, InitArg]),
           Name =
               case NameImpl of
                   {local, Bin} -> {local, erlang:binary_to_atom(Bin, utf8)};
-                  {global, X}  -> {global, {?MODULE, X}}
+                  {global, X}  -> {via, global, {?MODULE, X}}
               end,
           % io:format("debug L('o' )J (~p) start_link_name (arg):~n  ~p~n", [?MODULE, InitArg]),
           Result = supervisor:start_link(Name, ?MODULE, InitArg),
@@ -66,7 +61,6 @@
               {error, _} = Err                        -> Err
           end.
     
-
       where_is_local(NameBin) ->
           NameAtom = erlang:binary_to_atom(NameBin, utf8),
           case erlang:whereis(NameAtom) of
@@ -74,14 +68,12 @@
               _                           -> error
           end.
     
-
       where_is_global(X) ->
           case global:whereis_name({?MODULE, X}) of
               Pid when erlang:is_pid(Pid) -> {ok, Pid};
               undefined                   -> error
           end.
     
-
       start_child(SupPid, StartArg) ->
           % io:format("debug L('o' )J (~p) start_child (arg):~n  ~p~n", [?MODULE, StartArg]),
           Result = supervisor:start_child(SupPid, [StartArg]),
@@ -91,7 +83,6 @@
               {error, _} = Err                     -> Err
           end.
     
-
       which_children(SupPid) ->
           Children = supervisor:which_children(SupPid),
           lists:filtermap(
@@ -101,4 +92,11 @@
                       false
               end,
               Children).
+    
+      terminate_child(SupPid, ChildPid) ->
+          Result = supervisor:terminate_child(SupPid, ChildPid),
+          case Result of
+              ok               -> {ok, ok};
+              {error, _} = Err -> Err
+          end.
     

@@ -1,6 +1,6 @@
 -module('SesterlStdlib.Result').
 -export(['map'/2, 'map_error'/2, 'bind'/2, 'from_option'/2]).
-'map'(S25F, S26Res) -> case S26Res of {'ok', S27V} -> {'ok', S25F(S27V)}; {'error', S28E} -> {'error', S28E} end.
-'map_error'(S30G, S31Res) -> case S31Res of {'ok', S32V} -> {'ok', S32V}; {'error', S33E} -> {'error', S30G(S33E)} end.
-'bind'(S35Res, S36F) -> case S35Res of {'ok', S37V} -> S36F(S37V); {'error', S38E} -> {'error', S38E} end.
-'from_option'(S40Opt, S41E) -> case S40Opt of {'ok', S42V} -> {'ok', S42V}; 'error' -> {'error', S41E} end.
+'map'(S29F, S30Res) -> case S30Res of {'ok', S31V} -> {'ok', S29F(S31V)}; {'error', S32E} -> {'error', S32E} end.
+'map_error'(S34G, S35Res) -> case S35Res of {'ok', S36V} -> {'ok', S36V}; {'error', S37E} -> {'error', S34G(S37E)} end.
+'bind'(S39Res, S40F) -> case S39Res of {'ok', S41V} -> S40F(S41V); {'error', S42E} -> {'error', S42E} end.
+'from_option'(S44Opt, S45E) -> case S44Opt of {'ok', S46V} -> {'ok', S46V}; 'error' -> {'error', S45E} end.

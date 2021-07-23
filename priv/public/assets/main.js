@@ -5155,8 +5155,14 @@ var author$project$Common$ReceiveNotification = function (a) {
 var author$project$Models$NotifyComment = function (a) {
 	return {$: 'NotifyComment', a: a};
 };
+var author$project$Models$NotifyConnection = function (a) {
+	return {$: 'NotifyConnection', a: a};
+};
 var author$project$Models$NotifyEntered = function (a) {
 	return {$: 'NotifyEntered', a: a};
+};
+var author$project$Models$NotifyEnteredMidway = function (a) {
+	return {$: 'NotifyEnteredMidway', a: a};
 };
 var author$project$Models$NotifyExited = function (a) {
 	return {$: 'NotifyExited', a: a};
@@ -5165,6 +5171,7 @@ var author$project$Models$NotifyGameStart = function (a) {
 	return {$: 'NotifyGameStart', a: a};
 };
 var author$project$Models$NotifyNextStep = {$: 'NotifyNextStep'};
+var author$project$Models$NotifyRoomClose = {$: 'NotifyRoomClose'};
 var author$project$Models$NotifySubmission = function (a) {
 	return {$: 'NotifySubmission', a: a};
 };
@@ -5194,20 +5201,66 @@ var author$project$Models$decodeComment = A2(
 	A2(elm$json$Json$Decode$field, 'from', author$project$Models$decodeUser));
 var elm$json$Json$Decode$bool = _Json_decodeBool;
 var author$project$Models$decodeBool = elm$json$Json$Decode$bool;
-var elm$json$Json$Decode$int = _Json_decodeInt;
-var author$project$Models$decodeInt = elm$json$Json$Decode$int;
-var author$project$Models$decodeGamePlayer = A2(
+var author$project$Models$decodeConnection = A2(
 	elm$json$Json$Decode$andThen,
-	function (localKeyScore) {
+	function (localKeyIsConnected) {
 		return A2(
 			elm$json$Json$Decode$andThen,
 			function (localKeyUser) {
 				return elm$json$Json$Decode$succeed(
-					{score: localKeyScore, user: localKeyUser});
+					{isConnected: localKeyIsConnected, user: localKeyUser});
 			},
 			A2(elm$json$Json$Decode$field, 'user', author$project$Models$decodeUser));
 	},
-	A2(elm$json$Json$Decode$field, 'score', author$project$Models$decodeInt));
+	A2(elm$json$Json$Decode$field, 'is_connected', author$project$Models$decodeBool));
+var author$project$Models$SeatA = {$: 'SeatA'};
+var author$project$Models$SeatB = {$: 'SeatB'};
+var author$project$Models$SeatC = {$: 'SeatC'};
+var author$project$Models$SeatD = {$: 'SeatD'};
+var author$project$Models$decodeSeat = A2(
+	elm$json$Json$Decode$andThen,
+	function (temp) {
+		switch (temp) {
+			case 'SeatA':
+				return elm$json$Json$Decode$succeed(author$project$Models$SeatA);
+			case 'SeatB':
+				return elm$json$Json$Decode$succeed(author$project$Models$SeatB);
+			case 'SeatC':
+				return elm$json$Json$Decode$succeed(author$project$Models$SeatC);
+			case 'SeatD':
+				return elm$json$Json$Decode$succeed(author$project$Models$SeatD);
+			default:
+				var other = temp;
+				return elm$json$Json$Decode$fail(other);
+		}
+	},
+	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
+var author$project$Models$decodeMidwayEnter = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeySeat) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyUser) {
+				return elm$json$Json$Decode$succeed(
+					{seat: localKeySeat, user: localKeyUser});
+			},
+			A2(elm$json$Json$Decode$field, 'user', author$project$Models$decodeUser));
+	},
+	A2(elm$json$Json$Decode$field, 'seat', author$project$Models$decodeSeat));
+var author$project$Models$decodeGamePlayer = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeyIsConnected) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyUser) {
+				return elm$json$Json$Decode$succeed(
+					{isConnected: localKeyIsConnected, user: localKeyUser});
+			},
+			A2(elm$json$Json$Decode$field, 'user', author$project$Models$decodeUser));
+	},
+	A2(elm$json$Json$Decode$field, 'is_connected', author$project$Models$decodeBool));
+var elm$json$Json$Decode$int = _Json_decodeInt;
+var author$project$Models$decodeInt = elm$json$Json$Decode$int;
 var author$project$Models$decodePerSeat = function (localParamA) {
 	return A2(
 		elm$json$Json$Decode$andThen,
@@ -5232,7 +5285,6 @@ var author$project$Models$decodePerSeat = function (localParamA) {
 		},
 		A2(elm$json$Json$Decode$field, 'east', localParamA));
 };
-var author$project$Models$decodeSeat = author$project$Models$decodeInt;
 var author$project$Models$decodeGameMeta = A2(
 	elm$json$Json$Decode$andThen,
 	function (localKeyInningIndex) {
@@ -5245,13 +5297,22 @@ var author$project$Models$decodeGameMeta = A2(
 						return A2(
 							elm$json$Json$Decode$andThen,
 							function (localKeyPlayers) {
-								return elm$json$Json$Decode$succeed(
-									{inningIndex: localKeyInningIndex, numConsecutives: localKeyNumConsecutives, parentSeat: localKeyParentSeat, players: localKeyPlayers});
+								return A2(
+									elm$json$Json$Decode$andThen,
+									function (localKeyScores) {
+										return elm$json$Json$Decode$succeed(
+											{inningIndex: localKeyInningIndex, numConsecutives: localKeyNumConsecutives, parentSeat: localKeyParentSeat, players: localKeyPlayers, scores: localKeyScores});
+									},
+									A2(
+										elm$json$Json$Decode$field,
+										'scores',
+										author$project$Models$decodePerSeat(author$project$Models$decodeInt)));
 							},
 							A2(
 								elm$json$Json$Decode$field,
 								'players',
-								author$project$Models$decodePerSeat(author$project$Models$decodeGamePlayer)));
+								author$project$Models$decodePerSeat(
+									author$project$Models$decodeOption(author$project$Models$decodeGamePlayer))));
 					},
 					A2(elm$json$Json$Decode$field, 'parent_seat', author$project$Models$decodeSeat));
 			},
@@ -5307,38 +5368,59 @@ var author$project$Models$decodeCard = A2(
 	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
 var elm$json$Json$Decode$list = _Json_decodeList;
 var author$project$Models$decodeList = elm$json$Json$Decode$list;
+var author$project$Models$DoubleBoth = function (a) {
+	return {$: 'DoubleBoth', a: a};
+};
+var author$project$Models$DoubleWen = function (a) {
+	return {$: 'DoubleWen', a: a};
+};
+var author$project$Models$DoubleWu = function (a) {
+	return {$: 'DoubleWu', a: a};
+};
+var author$project$Models$Quadruple = function (a) {
+	return {$: 'Quadruple', a: a};
+};
+var author$project$Models$SingleWen = function (a) {
+	return {$: 'SingleWen', a: a};
+};
+var author$project$Models$SingleWu = function (a) {
+	return {$: 'SingleWu', a: a};
+};
 var author$project$Models$Starting = {$: 'Starting'};
-var author$project$Models$TrickDoubleBoth = function (a) {
-	return {$: 'TrickDoubleBoth', a: a};
+var author$project$Models$TripleWen = function (a) {
+	return {$: 'TripleWen', a: a};
 };
-var author$project$Models$TrickDoubleWen = function (a) {
-	return {$: 'TrickDoubleWen', a: a};
+var author$project$Models$TripleWu = function (a) {
+	return {$: 'TripleWu', a: a};
 };
-var author$project$Models$TrickDoubleWu = function (a) {
-	return {$: 'TrickDoubleWu', a: a};
+var author$project$Models$Wenzun = function (a) {
+	return {$: 'Wenzun', a: a};
 };
-var author$project$Models$TrickQuadruple = function (a) {
-	return {$: 'TrickQuadruple', a: a};
+var author$project$Models$Wuzun = function (a) {
+	return {$: 'Wuzun', a: a};
 };
-var author$project$Models$TrickSingleWen = function (a) {
-	return {$: 'TrickSingleWen', a: a};
-};
-var author$project$Models$TrickSingleWu = function (a) {
-	return {$: 'TrickSingleWu', a: a};
-};
-var author$project$Models$TrickTripleWen = function (a) {
-	return {$: 'TrickTripleWen', a: a};
-};
-var author$project$Models$TrickTripleWu = function (a) {
-	return {$: 'TrickTripleWu', a: a};
-};
-var author$project$Models$TrickWenzun = function (a) {
-	return {$: 'TrickWenzun', a: a};
-};
-var author$project$Models$TrickWuzun = function (a) {
-	return {$: 'TrickWuzun', a: a};
-};
-var author$project$Models$decodeCardBig = author$project$Models$decodeInt;
+var author$project$Models$BigA = {$: 'BigA'};
+var author$project$Models$BigB = {$: 'BigB'};
+var author$project$Models$BigC = {$: 'BigC'};
+var author$project$Models$BigD = {$: 'BigD'};
+var author$project$Models$decodeCardBig = A2(
+	elm$json$Json$Decode$andThen,
+	function (temp) {
+		switch (temp) {
+			case 'BigA':
+				return elm$json$Json$Decode$succeed(author$project$Models$BigA);
+			case 'BigB':
+				return elm$json$Json$Decode$succeed(author$project$Models$BigB);
+			case 'BigC':
+				return elm$json$Json$Decode$succeed(author$project$Models$BigC);
+			case 'BigD':
+				return elm$json$Json$Decode$succeed(author$project$Models$BigD);
+			default:
+				var other = temp;
+				return elm$json$Json$Decode$fail(other);
+		}
+	},
+	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
 var author$project$Models$decodeBigWithDesign = A2(
 	elm$json$Json$Decode$andThen,
 	function (localKeyDesign) {
@@ -5392,12 +5474,28 @@ var author$project$Models$decodeExposed = function (localParamA) {
 		},
 		A2(elm$json$Json$Decode$field, 'first', localParamA));
 };
-var author$project$Models$Unit = {$: 'Unit'};
-var author$project$Models$decodeUnit = A2(
+var author$project$Models$WenzunMajor = {$: 'WenzunMajor'};
+var author$project$Models$WenzunMinor = {$: 'WenzunMinor'};
+var author$project$Models$decodeWenzunElement = A2(
 	elm$json$Json$Decode$andThen,
 	function (temp) {
-		if (temp === 'Unit') {
-			return elm$json$Json$Decode$succeed(author$project$Models$Unit);
+		switch (temp) {
+			case 'WenzunMajor':
+				return elm$json$Json$Decode$succeed(author$project$Models$WenzunMajor);
+			case 'WenzunMinor':
+				return elm$json$Json$Decode$succeed(author$project$Models$WenzunMinor);
+			default:
+				var other = temp;
+				return elm$json$Json$Decode$fail(other);
+		}
+	},
+	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
+var author$project$Models$WuzunUnit = {$: 'WuzunUnit'};
+var author$project$Models$decodeWuzunElement = A2(
+	elm$json$Json$Decode$andThen,
+	function (temp) {
+		if (temp === 'WuzunUnit') {
+			return elm$json$Json$Decode$succeed(author$project$Models$WuzunUnit);
 		} else {
 			var other = temp;
 			return elm$json$Json$Decode$fail(other);
@@ -5408,88 +5506,88 @@ var author$project$Models$decodeTable = A2(
 	elm$json$Json$Decode$andThen,
 	function (temp) {
 		switch (temp) {
+			case 'DoubleBoth':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(
+						elm$json$Json$Decode$map,
+						author$project$Models$DoubleBoth,
+						author$project$Models$decodeExposed(author$project$Models$decodeBigWithDesign)));
+			case 'DoubleWen':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(
+						elm$json$Json$Decode$map,
+						author$project$Models$DoubleWen,
+						author$project$Models$decodeExposed(author$project$Models$decodeCardWen)));
+			case 'DoubleWu':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(
+						elm$json$Json$Decode$map,
+						author$project$Models$DoubleWu,
+						author$project$Models$decodeExposed(author$project$Models$decodeCardWuNumber)));
+			case 'Quadruple':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(
+						elm$json$Json$Decode$map,
+						author$project$Models$Quadruple,
+						author$project$Models$decodeExposed(author$project$Models$decodeCardBig)));
+			case 'SingleWen':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(
+						elm$json$Json$Decode$map,
+						author$project$Models$SingleWen,
+						author$project$Models$decodeExposed(author$project$Models$decodeCardWen)));
+			case 'SingleWu':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(
+						elm$json$Json$Decode$map,
+						author$project$Models$SingleWu,
+						author$project$Models$decodeExposed(author$project$Models$decodeCardWu)));
 			case 'Starting':
 				return elm$json$Json$Decode$succeed(author$project$Models$Starting);
-			case 'TrickDoubleBoth':
+			case 'TripleWen':
 				return A2(
 					elm$json$Json$Decode$field,
 					'_arg',
 					A2(
 						elm$json$Json$Decode$map,
-						author$project$Models$TrickDoubleBoth,
+						author$project$Models$TripleWen,
 						author$project$Models$decodeExposed(author$project$Models$decodeBigWithDesign)));
-			case 'TrickDoubleWen':
+			case 'TripleWu':
 				return A2(
 					elm$json$Json$Decode$field,
 					'_arg',
 					A2(
 						elm$json$Json$Decode$map,
-						author$project$Models$TrickDoubleWen,
-						author$project$Models$decodeExposed(author$project$Models$decodeCardWen)));
-			case 'TrickDoubleWu':
-				return A2(
-					elm$json$Json$Decode$field,
-					'_arg',
-					A2(
-						elm$json$Json$Decode$map,
-						author$project$Models$TrickDoubleWu,
-						author$project$Models$decodeExposed(author$project$Models$decodeCardWuNumber)));
-			case 'TrickQuadruple':
-				return A2(
-					elm$json$Json$Decode$field,
-					'_arg',
-					A2(
-						elm$json$Json$Decode$map,
-						author$project$Models$TrickQuadruple,
+						author$project$Models$TripleWu,
 						author$project$Models$decodeExposed(author$project$Models$decodeCardBig)));
-			case 'TrickSingleWen':
+			case 'Wenzun':
 				return A2(
 					elm$json$Json$Decode$field,
 					'_arg',
 					A2(
 						elm$json$Json$Decode$map,
-						author$project$Models$TrickSingleWen,
-						author$project$Models$decodeExposed(author$project$Models$decodeCardWen)));
-			case 'TrickSingleWu':
+						author$project$Models$Wenzun,
+						author$project$Models$decodeExposed(author$project$Models$decodeWenzunElement)));
+			case 'Wuzun':
 				return A2(
 					elm$json$Json$Decode$field,
 					'_arg',
 					A2(
 						elm$json$Json$Decode$map,
-						author$project$Models$TrickSingleWu,
-						author$project$Models$decodeExposed(author$project$Models$decodeCardWu)));
-			case 'TrickTripleWen':
-				return A2(
-					elm$json$Json$Decode$field,
-					'_arg',
-					A2(
-						elm$json$Json$Decode$map,
-						author$project$Models$TrickTripleWen,
-						author$project$Models$decodeExposed(author$project$Models$decodeBigWithDesign)));
-			case 'TrickTripleWu':
-				return A2(
-					elm$json$Json$Decode$field,
-					'_arg',
-					A2(
-						elm$json$Json$Decode$map,
-						author$project$Models$TrickTripleWu,
-						author$project$Models$decodeExposed(author$project$Models$decodeCardBig)));
-			case 'TrickWenzun':
-				return A2(
-					elm$json$Json$Decode$field,
-					'_arg',
-					A2(
-						elm$json$Json$Decode$map,
-						author$project$Models$TrickWenzun,
-						author$project$Models$decodeExposed(author$project$Models$decodeBool)));
-			case 'TrickWuzun':
-				return A2(
-					elm$json$Json$Decode$field,
-					'_arg',
-					A2(
-						elm$json$Json$Decode$map,
-						author$project$Models$TrickWuzun,
-						author$project$Models$decodeExposed(author$project$Models$decodeUnit)));
+						author$project$Models$Wuzun,
+						author$project$Models$decodeExposed(author$project$Models$decodeWuzunElement)));
 			default:
 				var other = temp;
 				return elm$json$Json$Decode$fail(other);
@@ -5572,6 +5670,106 @@ var author$project$Models$decodeObservableGameState = A2(
 			A2(elm$json$Json$Decode$field, 'observable_inning', author$project$Models$decodeObservableInning));
 	},
 	A2(elm$json$Json$Decode$field, 'meta', author$project$Models$decodeGameMeta));
+var author$project$Models$NormalInningEnd = {$: 'NormalInningEnd'};
+var author$project$Models$SpecialInningEnd = function (a) {
+	return {$: 'SpecialInningEnd', a: a};
+};
+var author$project$Models$SpecialTrickEnd = function (a) {
+	return {$: 'SpecialTrickEnd', a: a};
+};
+var author$project$Models$InningEndWithBazhijie = {$: 'InningEndWithBazhijie'};
+var author$project$Models$InningEndWithQizhijie = {$: 'InningEndWithQizhijie'};
+var author$project$Models$InningEndWithSidahe = {$: 'InningEndWithSidahe'};
+var author$project$Models$InningEndWithYaojie = {$: 'InningEndWithYaojie'};
+var author$project$Models$InningEndWithZhizun = {$: 'InningEndWithZhizun'};
+var author$project$Models$decodeSpecialInningEnd = A2(
+	elm$json$Json$Decode$andThen,
+	function (temp) {
+		switch (temp) {
+			case 'InningEndWithBazhijie':
+				return elm$json$Json$Decode$succeed(author$project$Models$InningEndWithBazhijie);
+			case 'InningEndWithQizhijie':
+				return elm$json$Json$Decode$succeed(author$project$Models$InningEndWithQizhijie);
+			case 'InningEndWithSidahe':
+				return elm$json$Json$Decode$succeed(author$project$Models$InningEndWithSidahe);
+			case 'InningEndWithYaojie':
+				return elm$json$Json$Decode$succeed(author$project$Models$InningEndWithYaojie);
+			case 'InningEndWithZhizun':
+				return elm$json$Json$Decode$succeed(author$project$Models$InningEndWithZhizun);
+			default:
+				var other = temp;
+				return elm$json$Json$Decode$fail(other);
+		}
+	},
+	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
+var author$project$Models$TrickEndWithSidahe = {$: 'TrickEndWithSidahe'};
+var author$project$Models$TrickEndWithZhizun = {$: 'TrickEndWithZhizun'};
+var author$project$Models$decodeSpecialTrickEnd = A2(
+	elm$json$Json$Decode$andThen,
+	function (temp) {
+		switch (temp) {
+			case 'TrickEndWithSidahe':
+				return elm$json$Json$Decode$succeed(author$project$Models$TrickEndWithSidahe);
+			case 'TrickEndWithZhizun':
+				return elm$json$Json$Decode$succeed(author$project$Models$TrickEndWithZhizun);
+			default:
+				var other = temp;
+				return elm$json$Json$Decode$fail(other);
+		}
+	},
+	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
+var author$project$Models$decodeChangeReason = A2(
+	elm$json$Json$Decode$andThen,
+	function (temp) {
+		switch (temp) {
+			case 'NormalInningEnd':
+				return elm$json$Json$Decode$succeed(author$project$Models$NormalInningEnd);
+			case 'SpecialInningEnd':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(elm$json$Json$Decode$map, author$project$Models$SpecialInningEnd, author$project$Models$decodeSpecialInningEnd));
+			case 'SpecialTrickEnd':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(elm$json$Json$Decode$map, author$project$Models$SpecialTrickEnd, author$project$Models$decodeSpecialTrickEnd));
+			default:
+				var other = temp;
+				return elm$json$Json$Decode$fail(other);
+		}
+	},
+	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
+var author$project$Models$decodeChangePerTrickEnd = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeyChangeReason) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyDiffs) {
+				return elm$json$Json$Decode$succeed(
+					{changeReason: localKeyChangeReason, diffs: localKeyDiffs});
+			},
+			A2(
+				elm$json$Json$Decode$field,
+				'diffs',
+				author$project$Models$decodePerSeat(author$project$Models$decodeInt)));
+	},
+	A2(elm$json$Json$Decode$field, 'change_reason', author$project$Models$decodeChangeReason));
+var author$project$Models$decodeObservableLast = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeyChanges) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyTable) {
+				return elm$json$Json$Decode$succeed(
+					{changes: localKeyChanges, table: localKeyTable});
+			},
+			A2(elm$json$Json$Decode$field, 'table', author$project$Models$decodeTable));
+	},
+	A2(
+		elm$json$Json$Decode$field,
+		'changes',
+		author$project$Models$decodeOption(author$project$Models$decodeChangePerTrickEnd)));
 var author$project$Models$decodeSubmission = A2(
 	elm$json$Json$Decode$andThen,
 	function (localKeyNewState) {
@@ -5590,7 +5788,7 @@ var author$project$Models$decodeSubmission = A2(
 							A2(
 								elm$json$Json$Decode$field,
 								'trick_last',
-								author$project$Models$decodeOption(author$project$Models$decodeTable)));
+								author$project$Models$decodeOption(author$project$Models$decodeObservableLast)));
 					},
 					A2(
 						elm$json$Json$Decode$field,
@@ -5610,11 +5808,21 @@ var author$project$Models$decodeNotification = A2(
 					elm$json$Json$Decode$field,
 					'_arg',
 					A2(elm$json$Json$Decode$map, author$project$Models$NotifyComment, author$project$Models$decodeComment));
+			case 'NotifyConnection':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(elm$json$Json$Decode$map, author$project$Models$NotifyConnection, author$project$Models$decodeConnection));
 			case 'NotifyEntered':
 				return A2(
 					elm$json$Json$Decode$field,
 					'_arg',
 					A2(elm$json$Json$Decode$map, author$project$Models$NotifyEntered, author$project$Models$decodeUser));
+			case 'NotifyEnteredMidway':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(elm$json$Json$Decode$map, author$project$Models$NotifyEnteredMidway, author$project$Models$decodeMidwayEnter));
 			case 'NotifyExited':
 				return A2(
 					elm$json$Json$Decode$field,
@@ -5627,6 +5835,8 @@ var author$project$Models$decodeNotification = A2(
 					A2(elm$json$Json$Decode$map, author$project$Models$NotifyGameStart, author$project$Models$decodeObservableGameState));
 			case 'NotifyNextStep':
 				return elm$json$Json$Decode$succeed(author$project$Models$NotifyNextStep);
+			case 'NotifyRoomClose':
+				return elm$json$Json$Decode$succeed(author$project$Models$NotifyRoomClose);
 			case 'NotifySubmission':
 				return A2(
 					elm$json$Json$Decode$field,
@@ -7354,6 +7564,47 @@ var author$project$HttpClient$createUser = F2(
 				url: origin + '/users'
 			});
 	});
+var author$project$Common$UserDeleted = F2(
+	function (a, b) {
+		return {$: 'UserDeleted', a: a, b: b};
+	});
+var elm$json$Json$Encode$int = _Json_wrap;
+var author$project$Models$encodeInt = elm$json$Json$Encode$int;
+var elm$http$Http$expectBytesResponse = F2(
+	function (toMsg, toResult) {
+		return A3(
+			_Http_expect,
+			'arraybuffer',
+			_Http_toDataView,
+			A2(elm$core$Basics$composeR, toResult, toMsg));
+	});
+var elm$http$Http$expectWhatever = function (toMsg) {
+	return A2(
+		elm$http$Http$expectBytesResponse,
+		toMsg,
+		elm$http$Http$resolve(
+			function (_n0) {
+				return elm$core$Result$Ok(_Utils_Tuple0);
+			}));
+};
+var author$project$HttpClient$deleteUser = F2(
+	function (origin, userId) {
+		return elm$http$Http$request(
+			{
+				body: elm$http$Http$jsonBody(
+					author$project$Models$encodeInt(0)),
+				expect: elm$http$Http$expectWhatever(
+					A2(
+						elm$core$Basics$composeL,
+						author$project$Common$ReceiveResponse,
+						author$project$Common$UserDeleted(userId))),
+				headers: _List_Nil,
+				method: 'DELETE',
+				timeout: elm$core$Maybe$Nothing,
+				tracker: elm$core$Maybe$Nothing,
+				url: origin + ('/users/' + userId)
+			});
+	});
 var author$project$Common$RoomEntered = F2(
 	function (a, b) {
 		return {$: 'RoomEntered', a: a, b: b};
@@ -7361,8 +7612,14 @@ var author$project$Common$RoomEntered = F2(
 var author$project$Models$RoomRequestToEnterRoom = function (a) {
 	return {$: 'RoomRequestToEnterRoom', a: a};
 };
+var author$project$Models$LogChanges = function (a) {
+	return {$: 'LogChanges', a: a};
+};
 var author$project$Models$LogComment = function (a) {
 	return {$: 'LogComment', a: a};
+};
+var author$project$Models$LogConnection = function (a) {
+	return {$: 'LogConnection', a: a};
 };
 var author$project$Models$LogEntered = function (a) {
 	return {$: 'LogEntered', a: a};
@@ -7370,16 +7627,40 @@ var author$project$Models$LogEntered = function (a) {
 var author$project$Models$LogExited = function (a) {
 	return {$: 'LogExited', a: a};
 };
-var author$project$Models$LogGameStart = {$: 'LogGameStart'};
+var author$project$Models$LogGameStart = function (a) {
+	return {$: 'LogGameStart', a: a};
+};
+var author$project$Models$decodeGameIndex = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeyInningIndex) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyNumConsecutives) {
+				return elm$json$Json$Decode$succeed(
+					{inningIndex: localKeyInningIndex, numConsecutives: localKeyNumConsecutives});
+			},
+			A2(elm$json$Json$Decode$field, 'num_consecutives', author$project$Models$decodeInt));
+	},
+	A2(elm$json$Json$Decode$field, 'inning_index', author$project$Models$decodeInt));
 var author$project$Models$decodeLog = A2(
 	elm$json$Json$Decode$andThen,
 	function (temp) {
 		switch (temp) {
+			case 'LogChanges':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(elm$json$Json$Decode$map, author$project$Models$LogChanges, author$project$Models$decodeChangePerTrickEnd));
 			case 'LogComment':
 				return A2(
 					elm$json$Json$Decode$field,
 					'_arg',
 					A2(elm$json$Json$Decode$map, author$project$Models$LogComment, author$project$Models$decodeComment));
+			case 'LogConnection':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(elm$json$Json$Decode$map, author$project$Models$LogConnection, author$project$Models$decodeConnection));
 			case 'LogEntered':
 				return A2(
 					elm$json$Json$Decode$field,
@@ -7391,7 +7672,10 @@ var author$project$Models$decodeLog = A2(
 					'_arg',
 					A2(elm$json$Json$Decode$map, author$project$Models$LogExited, author$project$Models$decodeUser));
 			case 'LogGameStart':
-				return elm$json$Json$Decode$succeed(author$project$Models$LogGameStart);
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(elm$json$Json$Decode$map, author$project$Models$LogGameStart, author$project$Models$decodeGameIndex));
 			default:
 				var other = temp;
 				return elm$json$Json$Decode$fail(other);
@@ -7404,7 +7688,7 @@ var author$project$Models$PlayingGame = function (a) {
 var author$project$Models$WaitingStart = function (a) {
 	return {$: 'WaitingStart', a: a};
 };
-var author$project$Models$decodePersonalRoomState = A2(
+var author$project$Models$decodeObservableRoomState = A2(
 	elm$json$Json$Decode$andThen,
 	function (temp) {
 		switch (temp) {
@@ -7459,7 +7743,7 @@ var author$project$Models$decodePersonalState = A2(
 				'logs',
 				author$project$Models$decodeList(author$project$Models$decodeLog)));
 	},
-	A2(elm$json$Json$Decode$field, 'game', author$project$Models$decodePersonalRoomState));
+	A2(elm$json$Json$Decode$field, 'game', author$project$Models$decodeObservableRoomState));
 var author$project$Models$decodeEnterRoomResponse = author$project$Models$decodePersonalState;
 var author$project$Models$encodeEnterRoomRequest = function (localParamTemp) {
 	return elm$json$Json$Encode$object(
@@ -7470,8 +7754,6 @@ var author$project$Models$encodeEnterRoomRequest = function (localParamTemp) {
 				author$project$Models$encodeUserId(localParamTemp.userId))
 			]));
 };
-var elm$json$Json$Encode$int = _Json_wrap;
-var author$project$Models$encodeInt = elm$json$Json$Encode$int;
 var author$project$Models$encodeCardWen = author$project$Models$encodeInt;
 var author$project$Models$encodeCardWuNumber = author$project$Models$encodeInt;
 var elm$json$Json$Encode$bool = _Json_wrap;
@@ -7539,30 +7821,43 @@ var author$project$Models$encodeSubmitCardsRequest = function (localParamTemp) {
 			]));
 };
 var author$project$Models$encodeRoomRequest = function (temp) {
-	if (temp.$ === 'RoomRequestToEnterRoom') {
-		var sub = temp.a;
-		return elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2(
-					'_label',
-					elm$json$Json$Encode$string('RoomRequestToEnterRoom')),
-					_Utils_Tuple2(
-					'_arg',
-					author$project$Models$encodeEnterRoomRequest(sub))
-				]));
-	} else {
-		var sub = temp.a;
-		return elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2(
-					'_label',
-					elm$json$Json$Encode$string('RoomRequestToSubmitCards')),
-					_Utils_Tuple2(
-					'_arg',
-					author$project$Models$encodeSubmitCardsRequest(sub))
-				]));
+	switch (temp.$) {
+		case 'RoomRequestToEnterRoom':
+			var sub = temp.a;
+			return elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'_label',
+						elm$json$Json$Encode$string('RoomRequestToEnterRoom')),
+						_Utils_Tuple2(
+						'_arg',
+						author$project$Models$encodeEnterRoomRequest(sub))
+					]));
+		case 'RoomRequestToExitRoom':
+			var sub = temp.a;
+			return elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'_label',
+						elm$json$Json$Encode$string('RoomRequestToExitRoom')),
+						_Utils_Tuple2(
+						'_arg',
+						author$project$Models$encodeEnterRoomRequest(sub))
+					]));
+		default:
+			var sub = temp.a;
+			return elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'_label',
+						elm$json$Json$Encode$string('RoomRequestToSubmitCards')),
+						_Utils_Tuple2(
+						'_arg',
+						author$project$Models$encodeSubmitCardsRequest(sub))
+					]));
 	}
 };
 var author$project$HttpClient$enterRoom = F3(
@@ -7580,6 +7875,37 @@ var author$project$HttpClient$enterRoom = F3(
 						author$project$Common$ReceiveResponse,
 						author$project$Common$RoomEntered(roomId)),
 					author$project$Models$decodeEnterRoomResponse),
+				headers: _List_Nil,
+				method: 'PATCH',
+				timeout: elm$core$Maybe$Nothing,
+				tracker: elm$core$Maybe$Nothing,
+				url: origin + ('/rooms/' + roomId)
+			});
+	});
+var author$project$Common$RoomExited = F2(
+	function (a, b) {
+		return {$: 'RoomExited', a: a, b: b};
+	});
+var author$project$Models$RoomRequestToExitRoom = function (a) {
+	return {$: 'RoomRequestToExitRoom', a: a};
+};
+var author$project$Models$decodeExitRoomResponse = elm$json$Json$Decode$succeed(
+	{});
+var author$project$HttpClient$exitRoom = F3(
+	function (origin, userId, roomId) {
+		return elm$http$Http$request(
+			{
+				body: elm$http$Http$jsonBody(
+					author$project$Models$encodeRoomRequest(
+						author$project$Models$RoomRequestToExitRoom(
+							{userId: userId}))),
+				expect: A2(
+					elm$http$Http$expectJson,
+					A2(
+						elm$core$Basics$composeL,
+						author$project$Common$ReceiveResponse,
+						author$project$Common$RoomExited(roomId)),
+					author$project$Models$decodeExitRoomResponse),
 				headers: _List_Nil,
 				method: 'PATCH',
 				timeout: elm$core$Maybe$Nothing,
@@ -7660,6 +7986,29 @@ var author$project$Common$SubmissionDone = function (a) {
 var author$project$Models$RoomRequestToSubmitCards = function (a) {
 	return {$: 'RoomRequestToSubmitCards', a: a};
 };
+var author$project$Models$decodeLast = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeyChanges) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyHand) {
+				return A2(
+					elm$json$Json$Decode$andThen,
+					function (localKeyTable) {
+						return elm$json$Json$Decode$succeed(
+							{changes: localKeyChanges, hand: localKeyHand, table: localKeyTable});
+					},
+					A2(elm$json$Json$Decode$field, 'table', author$project$Models$decodeTable));
+			},
+			A2(
+				elm$json$Json$Decode$field,
+				'hand',
+				author$project$Models$decodeList(author$project$Models$decodeCard)));
+	},
+	A2(
+		elm$json$Json$Decode$field,
+		'changes',
+		author$project$Models$decodeOption(author$project$Models$decodeChangePerTrickEnd)));
 var author$project$Models$decodeSubmitCardsResponse = A2(
 	elm$json$Json$Decode$andThen,
 	function (localKeyNewState) {
@@ -7672,7 +8021,7 @@ var author$project$Models$decodeSubmitCardsResponse = A2(
 			A2(
 				elm$json$Json$Decode$field,
 				'trick_last',
-				author$project$Models$decodeOption(author$project$Models$decodeTable)));
+				author$project$Models$decodeOption(author$project$Models$decodeLast)));
 	},
 	A2(elm$json$Json$Decode$field, 'new_state', author$project$Models$decodeObservableGameState));
 var author$project$HttpClient$submitCards = F4(
@@ -7761,8 +8110,14 @@ var author$project$Main$showNotification = function (notification) {
 			return 'NotifyGameStart';
 		case 'NotifyNextStep':
 			return 'NotifyNextStep';
-		default:
+		case 'NotifySubmission':
 			return 'NotifySubmission';
+		case 'NotifyConnection':
+			return 'NotifyConnection';
+		case 'NotifyEnteredMidway':
+			return 'NotifyEnteredMidway';
+		default:
+			return 'NotifyRoomClose';
 	}
 };
 var author$project$Main$showResponse = function (resp) {
@@ -7807,6 +8162,31 @@ var author$project$Main$showMessage = function (msg) {
 			return 'WindowResized';
 	}
 };
+var author$project$PerSeat$find = F2(
+	function (f, p) {
+		return f(p.east) ? elm$core$Maybe$Just(author$project$Models$SeatA) : (f(p.south) ? elm$core$Maybe$Just(author$project$Models$SeatB) : (f(p.west) ? elm$core$Maybe$Just(author$project$Models$SeatC) : (f(p.north) ? elm$core$Maybe$Just(author$project$Models$SeatD) : elm$core$Maybe$Nothing)));
+	});
+var author$project$PerSeat$update = F3(
+	function (seat, x, p) {
+		switch (seat.$) {
+			case 'SeatA':
+				return _Utils_update(
+					p,
+					{east: x});
+			case 'SeatB':
+				return _Utils_update(
+					p,
+					{south: x});
+			case 'SeatC':
+				return _Utils_update(
+					p,
+					{west: x});
+			default:
+				return _Utils_update(
+					p,
+					{north: x});
+		}
+	});
 var author$project$Models$CommandNextInning = function (a) {
 	return {$: 'CommandNextInning', a: a};
 };
@@ -7918,6 +8298,18 @@ var author$project$WebSocketClient$sendHeartbeat = function (ws) {
 	return author$project$Port$sendWebSocketMessage(
 		_Utils_Tuple2(ws, s));
 };
+var elm$core$Basics$neq = _Utils_notEqual;
+var elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2(elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
 var elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
@@ -8067,7 +8459,7 @@ var author$project$Main$update = F2(
 				var user = _n0.b;
 				var roomNameInput0 = _n0.c;
 				var maybeRooms = _n0.d;
-				_n9$9:
+				_n9$11:
 				while (true) {
 					switch (msg.$) {
 						case 'WindowResized':
@@ -8094,12 +8486,16 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n9$9;
+								break _n9$11;
 							}
 						case 'SendRequest':
 							switch (msg.a.$) {
-								case 'CreateRoom':
+								case 'DeleteUser':
 									var _n11 = msg.a;
+									var cmd = A2(author$project$HttpClient$deleteUser, model.origin, user.userId);
+									return _Utils_Tuple2(model, cmd);
+								case 'CreateRoom':
+									var _n14 = msg.a;
 									var cmd = A3(author$project$HttpClient$createRoom, model.origin, user.userId, roomNameInput0);
 									return _Utils_Tuple2(
 										_Utils_update(
@@ -8113,7 +8509,7 @@ var author$project$Main$update = F2(
 									var cmd = A3(author$project$HttpClient$enterRoom, model.origin, user.userId, roomId);
 									return _Utils_Tuple2(model, cmd);
 								default:
-									break _n9$9;
+									break _n9$11;
 							}
 						case 'ReceiveResponse':
 							switch (msg.a.$) {
@@ -8144,10 +8540,34 @@ var author$project$Main$update = F2(
 												}),
 											elm$core$Platform$Cmd$none);
 									}
-								case 'RoomCreated':
+								case 'UserDeleted':
 									var _n12 = msg.a;
-									var roomName = _n12.a;
+									var userId = _n12.a;
 									var result = _n12.b;
+									if (result.$ === 'Ok') {
+										var message = _Utils_Tuple2(author$project$Common$Information, 'delted user ' + userId);
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{
+													message: message,
+													state: A2(author$project$Common$AtEntrance, '', elm$core$Maybe$Nothing)
+												}),
+											elm$core$Platform$Cmd$none);
+									} else {
+										var err = result.a;
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{
+													message: A2(author$project$Main$makeErrorMessage, 'user deletion', err)
+												}),
+											elm$core$Platform$Cmd$none);
+									}
+								case 'RoomCreated':
+									var _n15 = msg.a;
+									var roomName = _n15.a;
+									var result = _n15.b;
 									if (result.$ === 'Ok') {
 										var responseBody = result.a;
 										if (maybeRooms.$ === 'Just') {
@@ -8158,10 +8578,7 @@ var author$project$Main$update = F2(
 												members: _List_Nil,
 												room: {roomId: roomId, roomName: roomName}
 											};
-											var roomSummaries1 = _Utils_ap(
-												roomSummaries0,
-												_List_fromArray(
-													[roomSummary]));
+											var roomSummaries1 = A2(elm$core$List$cons, roomSummary, roomSummaries0);
 											return _Utils_Tuple2(
 												_Utils_update(
 													model,
@@ -8188,13 +8605,13 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								case 'RoomEntered':
-									var _n15 = msg.a;
-									var roomId = _n15.a;
-									var result = _n15.b;
+									var _n18 = msg.a;
+									var roomId = _n18.a;
+									var result = _n18.b;
 									if (result.$ === 'Ok') {
 										var pstate0 = result.a;
-										var _n17 = pstate0.game;
-										if (_n17.$ === 'WaitingStart') {
+										var _n20 = pstate0.game;
+										if (_n20.$ === 'WaitingStart') {
 											return _Utils_Tuple2(
 												_Utils_update(
 													model,
@@ -8203,11 +8620,9 @@ var author$project$Main$update = F2(
 													}),
 												elm$core$Platform$Cmd$none);
 										} else {
-											var ostate0 = _n17.a;
+											var ostate0 = _n20.a;
 											var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate0.snapshotId);
-											var ostate1 = _Utils_update(
-												ostate0,
-												{synchronizing: true});
+											var ostate1 = ostate0;
 											var pstate1 = _Utils_update(
 												pstate0,
 												{
@@ -8215,7 +8630,7 @@ var author$project$Main$update = F2(
 												});
 											return A2(
 												elm$core$Debug$log,
-												'RoomEntered (+)',
+												'RoomEntered (+)/(0)',
 												_Utils_Tuple2(
 													_Utils_update(
 														model,
@@ -8235,9 +8650,9 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								case 'RoomGot':
-									var _n18 = msg.a;
-									var roomId = _n18.a;
-									var result = _n18.b;
+									var _n21 = msg.a;
+									var roomId = _n21.a;
+									var result = _n21.b;
 									if (result.$ === 'Ok') {
 										var pstate = result.a;
 										return _Utils_Tuple2(
@@ -8258,10 +8673,10 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								default:
-									break _n9$9;
+									break _n9$11;
 							}
 						default:
-							break _n9$9;
+							break _n9$11;
 					}
 				}
 				return _Utils_Tuple2(
@@ -8279,14 +8694,14 @@ var author$project$Main$update = F2(
 				var pstate0 = _n0.c;
 				var indices0 = _n0.d;
 				var chatTextInput0 = _n0.e;
-				var _n20 = _Utils_Tuple2(pstate0.game, msg);
-				_n20$17:
+				var _n23 = _Utils_Tuple2(pstate0.game, msg);
+				_n23$22:
 				while (true) {
-					switch (_n20.b.$) {
+					switch (_n23.b.$) {
 						case 'WindowResized':
-							var _n21 = _n20.b;
-							var width = _n21.a;
-							var height = _n21.b;
+							var _n24 = _n23.b;
+							var width = _n24.a;
+							var height = _n24.b;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -8298,12 +8713,12 @@ var author$project$Main$update = F2(
 									}),
 								elm$core$Platform$Cmd$none);
 						case 'Heartbeat':
-							var _n22 = _n20.b;
+							var _n25 = _n23.b;
 							var cmd = author$project$WebSocketClient$sendHeartbeat(ws);
 							return _Utils_Tuple2(model, cmd);
 						case 'UpdateInput':
-							if (_n20.b.a.$ === 'ChatInput') {
-								var chatTextInput1 = _n20.b.a.a;
+							if (_n23.b.a.$ === 'ChatInput') {
+								var chatTextInput1 = _n23.b.a.a;
 								return _Utils_Tuple2(
 									_Utils_update(
 										model,
@@ -8312,124 +8727,162 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n20$17;
+								break _n23$22;
 							}
 						case 'ReceiveResponse':
-							if ((_n20.a.$ === 'PlayingGame') && (_n20.b.a.$ === 'SubmissionDone')) {
-								var ostate0 = _n20.a.a;
-								var res = _n20.b.a.a;
-								var nextResult = function () {
+							switch (_n23.b.a.$) {
+								case 'RoomExited':
+									var _n27 = _n23.b.a;
+									var roomId = _n27.a;
+									var res = _n27.b;
 									if (res.$ === 'Ok') {
-										var submissionResponse = res.a;
-										var newState = submissionResponse.newState;
-										var _n29 = _Utils_Tuple2(submissionResponse.trickLast, ostate0.observableInning);
-										if (_n29.a.$ === 'Just') {
-											if (_n29.b.$ === 'ObservableDuringInning') {
-												var lastTable = _n29.a.a;
-												var oinning0 = _n29.b.a;
-												var ostate1 = _Utils_update(
-													ostate0,
-													{
-														observableInning: author$project$Models$ObservableDuringInning(
-															_Utils_update(
-																oinning0,
-																{table: lastTable}))
-													});
-												var state1 = A5(
-													author$project$Common$InRoom,
-													ws,
-													user,
-													_Utils_update(
-														pstate0,
-														{
-															game: author$project$Models$PlayingGame(ostate1)
-														}),
-													indices0,
-													chatTextInput0);
-												var cmd = A2(
-													author$project$Common$sendAfter,
-													author$project$Constants$trickLastTimeMs,
-													author$project$Common$TransitionToNextTrick(newState));
-												var message = ostate0.synchronizing ? model.message : _Utils_Tuple2(
-													author$project$Common$Warning,
-													'not synchronizing: ' + author$project$Main$showMessage(msg));
-												return elm$core$Result$Ok(
-													_Utils_Tuple2(
-														_Utils_update(
-															model,
-															{message: message, state: state1}),
-														cmd));
-											} else {
-												return elm$core$Result$Err(
-													_Utils_Tuple2(
-														author$project$Common$Warning,
-														'unexpected message (Just, _): ' + author$project$Main$showMessage(msg)));
-											}
-										} else {
-											var _n30 = _n29.a;
-											var ostate1 = newState;
-											var state1 = A5(
-												author$project$Common$InRoom,
-												ws,
-												user,
-												_Utils_update(
-													pstate0,
-													{
-														game: author$project$Models$PlayingGame(ostate1)
-													}),
-												indices0,
-												chatTextInput0);
-											var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate1.snapshotId);
-											var message = ostate0.synchronizing ? model.message : _Utils_Tuple2(
-												author$project$Common$Warning,
-												'not synchronizing: ' + author$project$Main$showMessage(msg));
-											return elm$core$Result$Ok(
-												_Utils_Tuple2(
-													_Utils_update(
-														model,
-														{message: message, state: state1}),
-													cmd));
-										}
+										var cmd = author$project$HttpClient$getAllRooms(model.origin);
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{
+													state: A4(author$project$Common$AtPlaza, ws, user, '', elm$core$Maybe$Nothing)
+												}),
+											cmd);
 									} else {
 										var err = res.a;
-										return elm$core$Result$Err(
-											A2(author$project$Main$makeErrorMessage, 'submission', err));
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{
+													message: A2(author$project$Main$makeErrorMessage, 'room exit', err)
+												}),
+											elm$core$Platform$Cmd$none);
 									}
-								}();
-								if (nextResult.$ === 'Ok') {
-									var next = nextResult.a;
-									return A2(elm$core$Debug$log, 'SubmissionDone', next);
-								} else {
-									var message = nextResult.a;
-									var ostate1 = _Utils_update(
-										ostate0,
-										{synchronizing: false});
-									return _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{
-												message: message,
-												state: A5(
-													author$project$Common$InRoom,
-													ws,
-													user,
-													_Utils_update(
-														pstate0,
-														{
-															game: author$project$Models$PlayingGame(ostate1)
-														}),
-													indices0,
-													chatTextInput0)
-											}),
-										elm$core$Platform$Cmd$none);
-								}
-							} else {
-								break _n20$17;
+								case 'SubmissionDone':
+									if (_n23.a.$ === 'PlayingGame') {
+										var ostate0 = _n23.a.a;
+										var res = _n23.b.a.a;
+										var nextResult = function () {
+											if (res.$ === 'Ok') {
+												var submissionResponse = res.a;
+												var newState = submissionResponse.newState;
+												var _n40 = _Utils_Tuple2(submissionResponse.trickLast, ostate0.observableInning);
+												if (_n40.a.$ === 'Just') {
+													if (_n40.b.$ === 'ObservableDuringInning') {
+														var last = _n40.a.a;
+														var oinning0 = _n40.b.a;
+														var oinning1 = _Utils_update(
+															oinning0,
+															{table: last.table, yourHand: last.hand});
+														var ostate1 = _Utils_update(
+															ostate0,
+															{
+																observableInning: author$project$Models$ObservableDuringInning(oinning1)
+															});
+														var logs1 = function () {
+															var _n41 = last.changes;
+															if (_n41.$ === 'Nothing') {
+																return pstate0.logs;
+															} else {
+																var changes = _n41.a;
+																return _Utils_ap(
+																	pstate0.logs,
+																	_List_fromArray(
+																		[
+																			author$project$Models$LogChanges(changes)
+																		]));
+															}
+														}();
+														var pstate1 = _Utils_update(
+															pstate0,
+															{
+																game: author$project$Models$PlayingGame(ostate1),
+																logs: logs1
+															});
+														var state1 = A5(author$project$Common$InRoom, ws, user, pstate1, indices0, chatTextInput0);
+														var cmd = A2(
+															author$project$Common$sendAfter,
+															author$project$Constants$trickLastTimeMs,
+															author$project$Common$TransitionToNextTrick(newState));
+														var message = ostate0.synchronizing ? model.message : _Utils_Tuple2(
+															author$project$Common$Warning,
+															'not synchronizing: ' + author$project$Main$showMessage(msg));
+														return elm$core$Result$Ok(
+															_Utils_Tuple2(
+																_Utils_update(
+																	model,
+																	{message: message, state: state1}),
+																cmd));
+													} else {
+														return elm$core$Result$Err(
+															_Utils_Tuple2(
+																author$project$Common$Warning,
+																'unexpected message (Just, _): ' + author$project$Main$showMessage(msg)));
+													}
+												} else {
+													var _n42 = _n40.a;
+													var ostate1 = newState;
+													var state1 = A5(
+														author$project$Common$InRoom,
+														ws,
+														user,
+														_Utils_update(
+															pstate0,
+															{
+																game: author$project$Models$PlayingGame(ostate1)
+															}),
+														indices0,
+														chatTextInput0);
+													var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate1.snapshotId);
+													var message = ostate0.synchronizing ? model.message : _Utils_Tuple2(
+														author$project$Common$Warning,
+														'not synchronizing: ' + author$project$Main$showMessage(msg));
+													return elm$core$Result$Ok(
+														_Utils_Tuple2(
+															_Utils_update(
+																model,
+																{message: message, state: state1}),
+															cmd));
+												}
+											} else {
+												var err = res.a;
+												return elm$core$Result$Err(
+													A2(author$project$Main$makeErrorMessage, 'submission', err));
+											}
+										}();
+										if (nextResult.$ === 'Ok') {
+											var next = nextResult.a;
+											return A2(elm$core$Debug$log, 'SubmissionDone', next);
+										} else {
+											var message = nextResult.a;
+											var ostate1 = _Utils_update(
+												ostate0,
+												{synchronizing: false});
+											return _Utils_Tuple2(
+												_Utils_update(
+													model,
+													{
+														message: message,
+														state: A5(
+															author$project$Common$InRoom,
+															ws,
+															user,
+															_Utils_update(
+																pstate0,
+																{
+																	game: author$project$Models$PlayingGame(ostate1)
+																}),
+															indices0,
+															chatTextInput0)
+													}),
+												elm$core$Platform$Cmd$none);
+										}
+									} else {
+										break _n23$22;
+									}
+								default:
+									break _n23$22;
 							}
 						case 'TransitionToNextTrick':
-							if (_n20.a.$ === 'PlayingGame') {
-								var ostate0 = _n20.a.a;
-								var ostate1 = _n20.b.a;
+							if (_n23.a.$ === 'PlayingGame') {
+								var ostate0 = _n23.a.a;
+								var ostate1 = _n23.b.a;
 								if (ostate0.synchronizing) {
 									var ostate2 = _Utils_update(
 										ostate1,
@@ -8466,11 +8919,11 @@ var author$project$Main$update = F2(
 										elm$core$Platform$Cmd$none);
 								}
 							} else {
-								break _n20$17;
+								break _n23$22;
 							}
 						case 'ReceiveNotification':
-							if (_n20.b.a.$ === 'Err') {
-								var err = _n20.b.a.a;
+							if (_n23.b.a.$ === 'Err') {
+								var err = _n23.b.a.a;
 								return _Utils_Tuple2(
 									_Utils_update(
 										model,
@@ -8481,9 +8934,9 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								switch (_n20.b.a.a.$) {
+								switch (_n23.b.a.a.$) {
 									case 'NotifyComment':
-										var comment = _n20.b.a.a.a;
+										var comment = _n23.b.a.a.a;
 										var pstate1 = _Utils_update(
 											pstate0,
 											{
@@ -8502,15 +8955,99 @@ var author$project$Main$update = F2(
 												}),
 											elm$core$Platform$Cmd$none);
 									case 'NotifyEntered':
-										var userIdEntered = _n20.b.a.a.a;
+										if (_n23.a.$ === 'WaitingStart') {
+											var users0 = _n23.a.a;
+											var userEntered = _n23.b.a.a.a;
+											var users1 = function () {
+												var _n29 = A2(
+													elm$core$List$filter,
+													function (u) {
+														return _Utils_eq(u.userId, userEntered.userId);
+													},
+													users0);
+												if (!_n29.b) {
+													return _Utils_ap(
+														users0,
+														_List_fromArray(
+															[userEntered]));
+												} else {
+													return A2(elm$core$Debug$log, 'Warning: received NotifyEntered, but already contains ' + userEntered.userId, users0);
+												}
+											}();
+											var pstate1 = _Utils_update(
+												pstate0,
+												{
+													game: author$project$Models$WaitingStart(users1),
+													logs: _Utils_ap(
+														pstate0.logs,
+														_List_fromArray(
+															[
+																author$project$Models$LogEntered(userEntered)
+															]))
+												});
+											return _Utils_Tuple2(
+												_Utils_update(
+													model,
+													{
+														state: A5(author$project$Common$InRoom, ws, user, pstate1, indices0, chatTextInput0)
+													}),
+												elm$core$Platform$Cmd$none);
+										} else {
+											break _n23$22;
+										}
+									case 'NotifyExited':
+										var game0 = _n23.a;
+										var userExited = _n23.b.a.a.a;
+										var game1 = function () {
+											if (game0.$ === 'PlayingGame') {
+												var ostate0 = game0.a;
+												var meta0 = ostate0.meta;
+												var players0 = meta0.players;
+												var _n31 = A2(
+													author$project$PerSeat$find,
+													function (maybePlayer) {
+														if (maybePlayer.$ === 'Nothing') {
+															return false;
+														} else {
+															var player = maybePlayer.a;
+															return _Utils_eq(player.user.userId, userExited.userId);
+														}
+													},
+													players0);
+												if (_n31.$ === 'Nothing') {
+													return A2(elm$core$Debug$log, 'Warning: received NotifyExited, but already no ' + userExited.userId, game0);
+												} else {
+													var seat = _n31.a;
+													var players1 = A3(author$project$PerSeat$update, seat, elm$core$Maybe$Nothing, players0);
+													return author$project$Models$PlayingGame(
+														_Utils_update(
+															ostate0,
+															{
+																meta: _Utils_update(
+																	meta0,
+																	{players: players1})
+															}));
+												}
+											} else {
+												var users0 = game0.a;
+												return author$project$Models$WaitingStart(
+													A2(
+														elm$core$List$filter,
+														function (u) {
+															return !_Utils_eq(u.userId, userExited.userId);
+														},
+														users0));
+											}
+										}();
 										var pstate1 = _Utils_update(
 											pstate0,
 											{
+												game: game1,
 												logs: _Utils_ap(
 													pstate0.logs,
 													_List_fromArray(
 														[
-															author$project$Models$LogEntered(userIdEntered)
+															author$project$Models$LogExited(userExited)
 														]))
 											});
 										return _Utils_Tuple2(
@@ -8520,8 +9057,8 @@ var author$project$Main$update = F2(
 													state: A5(author$project$Common$InRoom, ws, user, pstate1, indices0, chatTextInput0)
 												}),
 											elm$core$Platform$Cmd$none);
-									case 'NotifyExited':
-										var userIdExited = _n20.b.a.a.a;
+									case 'NotifyConnection':
+										var connection = _n23.b.a.a.a;
 										var pstate1 = _Utils_update(
 											pstate0,
 											{
@@ -8529,7 +9066,7 @@ var author$project$Main$update = F2(
 													pstate0.logs,
 													_List_fromArray(
 														[
-															author$project$Models$LogExited(userIdExited)
+															author$project$Models$LogConnection(connection)
 														]))
 											});
 										return _Utils_Tuple2(
@@ -8540,11 +9077,13 @@ var author$project$Main$update = F2(
 												}),
 											elm$core$Platform$Cmd$none);
 									case 'NotifyGameStart':
-										var ostate0 = _n20.b.a.a.a;
+										var ostate0 = _n23.b.a.a.a;
 										var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate0.snapshotId);
 										var ostate1 = _Utils_update(
 											ostate0,
 											{synchronizing: true});
+										var meta = ostate1.meta;
+										var gameIndex = {inningIndex: meta.inningIndex, numConsecutives: meta.numConsecutives};
 										var pstate1 = _Utils_update(
 											pstate0,
 											{
@@ -8552,7 +9091,9 @@ var author$project$Main$update = F2(
 												logs: _Utils_ap(
 													pstate0.logs,
 													_List_fromArray(
-														[author$project$Models$LogGameStart]))
+														[
+															author$project$Models$LogGameStart(gameIndex)
+														]))
 											});
 										var state1 = A5(author$project$Common$InRoom, ws, user, pstate1, indices0, chatTextInput0);
 										return A2(
@@ -8563,77 +9104,134 @@ var author$project$Main$update = F2(
 													model,
 													{state: state1}),
 												cmd));
+									case 'NotifyRoomClose':
+										var _n33 = _n23.b.a.a;
+										var cmd = author$project$HttpClient$getAllRooms(model.origin);
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{
+													state: A4(author$project$Common$AtPlaza, ws, user, '', elm$core$Maybe$Nothing)
+												}),
+											cmd);
+									case 'NotifyEnteredMidway':
+										if (_n23.a.$ === 'PlayingGame') {
+											var ostate0 = _n23.a.a;
+											var midwayEnter = _n23.b.a.a.a;
+											var userEntered = midwayEnter.user;
+											var seat = midwayEnter.seat;
+											var meta0 = ostate0.meta;
+											var players1 = A3(
+												author$project$PerSeat$update,
+												seat,
+												elm$core$Maybe$Just(
+													{isConnected: true, user: user}),
+												meta0.players);
+											var ostate1 = _Utils_update(
+												ostate0,
+												{
+													meta: _Utils_update(
+														meta0,
+														{players: players1})
+												});
+											var pstate1 = _Utils_update(
+												pstate0,
+												{
+													game: author$project$Models$PlayingGame(ostate1),
+													logs: _Utils_ap(
+														pstate0.logs,
+														_List_fromArray(
+															[
+																author$project$Models$LogEntered(userEntered)
+															]))
+												});
+											return _Utils_Tuple2(
+												_Utils_update(
+													model,
+													{
+														state: A5(author$project$Common$InRoom, ws, user, pstate1, indices0, chatTextInput0)
+													}),
+												elm$core$Platform$Cmd$none);
+										} else {
+											break _n23$22;
+										}
 									case 'NotifySubmission':
-										if (_n20.a.$ === 'PlayingGame') {
-											var ostate0 = _n20.a.a;
-											var submission = _n20.b.a.a.a;
+										if (_n23.a.$ === 'PlayingGame') {
+											var ostate0 = _n23.a.a;
+											var submission = _n23.b.a.a.a;
 											var newState = submission.newState;
 											var maybeNext = function () {
-												if (ostate0.synchronizing) {
-													return elm$core$Maybe$Nothing;
-												} else {
-													var _n25 = _Utils_Tuple2(submission.trickLast, ostate0.observableInning);
-													if (_n25.a.$ === 'Just') {
-														if (_n25.b.$ === 'ObservableDuringInning') {
-															var lastTable = _n25.a.a;
-															var oinning0 = _n25.b.a;
-															var ostate1 = _Utils_update(
-																ostate0,
-																{
-																	observableInning: author$project$Models$ObservableDuringInning(
-																		_Utils_update(
-																			oinning0,
-																			{table: lastTable})),
-																	synchronizing: true
-																});
-															var state1 = A5(
-																author$project$Common$InRoom,
-																ws,
-																user,
-																_Utils_update(
-																	pstate0,
-																	{
-																		game: author$project$Models$PlayingGame(ostate1)
-																	}),
-																indices0,
-																chatTextInput0);
-															var cmd = A2(
-																author$project$Common$sendAfter,
-																author$project$Constants$trickLastTimeMs,
-																author$project$Common$TransitionToNextTrick(newState));
-															return elm$core$Maybe$Just(
-																_Utils_Tuple2(
-																	_Utils_update(
-																		model,
-																		{state: state1}),
-																	cmd));
-														} else {
-															return elm$core$Maybe$Nothing;
-														}
-													} else {
-														var _n26 = _n25.a;
+												var _n35 = _Utils_Tuple2(submission.trickLast, ostate0.observableInning);
+												if (_n35.a.$ === 'Just') {
+													if (_n35.b.$ === 'ObservableDuringInning') {
+														var observableLast = _n35.a.a;
+														var oinning0 = _n35.b.a;
+														var oinning1 = _Utils_update(
+															oinning0,
+															{table: observableLast.table});
 														var ostate1 = _Utils_update(
-															newState,
-															{synchronizing: true});
-														var state1 = A5(
-															author$project$Common$InRoom,
-															ws,
-															user,
-															_Utils_update(
-																pstate0,
-																{
-																	game: author$project$Models$PlayingGame(ostate1)
-																}),
-															indices0,
-															chatTextInput0);
-														var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate1.snapshotId);
+															ostate0,
+															{
+																observableInning: author$project$Models$ObservableDuringInning(oinning1),
+																synchronizing: true
+															});
+														var logs1 = function () {
+															var _n36 = observableLast.changes;
+															if (_n36.$ === 'Nothing') {
+																return pstate0.logs;
+															} else {
+																var changes = _n36.a;
+																return _Utils_ap(
+																	pstate0.logs,
+																	_List_fromArray(
+																		[
+																			author$project$Models$LogChanges(changes)
+																		]));
+															}
+														}();
+														var pstate1 = _Utils_update(
+															pstate0,
+															{
+																game: author$project$Models$PlayingGame(ostate1),
+																logs: logs1
+															});
+														var state1 = A5(author$project$Common$InRoom, ws, user, pstate1, indices0, chatTextInput0);
+														var cmd = A2(
+															author$project$Common$sendAfter,
+															author$project$Constants$trickLastTimeMs,
+															author$project$Common$TransitionToNextTrick(newState));
 														return elm$core$Maybe$Just(
 															_Utils_Tuple2(
 																_Utils_update(
 																	model,
 																	{state: state1}),
 																cmd));
+													} else {
+														return elm$core$Maybe$Nothing;
 													}
+												} else {
+													var _n37 = _n35.a;
+													var ostate1 = _Utils_update(
+														newState,
+														{synchronizing: true});
+													var state1 = A5(
+														author$project$Common$InRoom,
+														ws,
+														user,
+														_Utils_update(
+															pstate0,
+															{
+																game: author$project$Models$PlayingGame(ostate1)
+															}),
+														indices0,
+														chatTextInput0);
+													var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate1.snapshotId);
+													return elm$core$Maybe$Just(
+														_Utils_Tuple2(
+															_Utils_update(
+																model,
+																{state: state1}),
+															cmd));
 												}
 											}();
 											if (maybeNext.$ === 'Just') {
@@ -8650,12 +9248,12 @@ var author$project$Main$update = F2(
 													elm$core$Platform$Cmd$none);
 											}
 										} else {
-											break _n20$17;
+											break _n23$22;
 										}
 									default:
-										if (_n20.a.$ === 'PlayingGame') {
-											var ostate0 = _n20.a.a;
-											var _n31 = _n20.b.a.a;
+										if (_n23.a.$ === 'PlayingGame') {
+											var ostate0 = _n23.a.a;
+											var _n43 = _n23.b.a.a;
 											if (ostate0.synchronizing) {
 												var ostate1 = _Utils_update(
 													ostate0,
@@ -8691,14 +9289,14 @@ var author$project$Main$update = F2(
 													elm$core$Platform$Cmd$none);
 											}
 										} else {
-											break _n20$17;
+											break _n23$22;
 										}
 								}
 							}
 						case 'SendRequest':
-							switch (_n20.b.a.$) {
+							switch (_n23.b.a.$) {
 								case 'SendChat':
-									var _n23 = _n20.b.a;
+									var _n26 = _n23.b.a;
 									var cmd = A2(author$project$WebSocketClient$sendChat, ws, chatTextInput0);
 									return _Utils_Tuple2(
 										_Utils_update(
@@ -8707,13 +9305,17 @@ var author$project$Main$update = F2(
 												state: A5(author$project$Common$InRoom, ws, user, pstate0, indices0, '')
 											}),
 										cmd);
+								case 'ExitRoom':
+									var roomId = _n23.b.a.a;
+									var cmd = A3(author$project$HttpClient$exitRoom, model.origin, user.userId, roomId);
+									return _Utils_Tuple2(model, cmd);
 								case 'SubmitCards':
-									if (_n20.a.$ === 'PlayingGame') {
-										var ostate0 = _n20.a.a;
-										var _n32 = _n20.b.a;
-										var _n33 = ostate0.observableInning;
-										if (_n33.$ === 'ObservableDuringInning') {
-											var inning = _n33.a;
+									if (_n23.a.$ === 'PlayingGame') {
+										var ostate0 = _n23.a.a;
+										var _n44 = _n23.b.a;
+										var _n45 = ostate0.observableInning;
+										if (_n45.$ === 'ObservableDuringInning') {
+											var inning = _n45.a;
 											var ostate1 = _Utils_update(
 												ostate0,
 												{synchronizing: true});
@@ -8749,12 +9351,12 @@ var author$project$Main$update = F2(
 												elm$core$Platform$Cmd$none);
 										}
 									} else {
-										break _n20$17;
+										break _n23$22;
 									}
 								case 'RequireNextInning':
-									if (_n20.a.$ === 'PlayingGame') {
-										var ostate0 = _n20.a.a;
-										var _n34 = _n20.b.a;
+									if (_n23.a.$ === 'PlayingGame') {
+										var ostate0 = _n23.a.a;
+										var _n46 = _n23.b.a;
 										var cmd = A2(author$project$WebSocketClient$requireNextInning, ws, ostate0.snapshotId);
 										var ostate1 = _Utils_update(
 											ostate0,
@@ -8779,14 +9381,14 @@ var author$project$Main$update = F2(
 													{state: state1}),
 												cmd));
 									} else {
-										break _n20$17;
+										break _n23$22;
 									}
 								default:
-									break _n20$17;
+									break _n23$22;
 							}
 						case 'SelectCard':
-							if (_n20.a.$ === 'PlayingGame') {
-								var index = _n20.b.a;
+							if (_n23.a.$ === 'PlayingGame') {
+								var index = _n23.b.a;
 								var indices1 = A2(elm$core$Set$insert, index, indices0);
 								return _Utils_Tuple2(
 									_Utils_update(
@@ -8796,11 +9398,11 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n20$17;
+								break _n23$22;
 							}
 						case 'UnselectCard':
-							if (_n20.a.$ === 'PlayingGame') {
-								var index = _n20.b.a;
+							if (_n23.a.$ === 'PlayingGame') {
+								var index = _n23.b.a;
 								var indices1 = A2(elm$core$Set$remove, index, indices0);
 								return _Utils_Tuple2(
 									_Utils_update(
@@ -8810,10 +9412,10 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n20$17;
+								break _n23$22;
 							}
 						default:
-							break _n20$17;
+							break _n23$22;
 					}
 				}
 				return _Utils_Tuple2(
@@ -8828,18 +9430,13 @@ var author$project$Main$update = F2(
 		}
 	});
 var author$project$Common$CreateUser = {$: 'CreateUser'};
-var author$project$Common$SendRequest = function (a) {
-	return {$: 'SendRequest', a: a};
-};
-var author$project$Common$UpdateInput = function (a) {
-	return {$: 'UpdateInput', a: a};
-};
 var author$project$Common$UserNameInput = function (a) {
 	return {$: 'UserNameInput', a: a};
 };
-var elm$html$Html$button = _VirtualDom_node('button');
-var elm$html$Html$div = _VirtualDom_node('div');
-var elm$html$Html$input = _VirtualDom_node('input');
+var author$project$Common$SendRequest = function (a) {
+	return {$: 'SendRequest', a: a};
+};
+var elm$html$Html$span = _VirtualDom_node('span');
 var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
 var elm$html$Html$Attributes$stringProperty = F2(
@@ -8849,11 +9446,7 @@ var elm$html$Html$Attributes$stringProperty = F2(
 			key,
 			elm$json$Json$Encode$string(string));
 	});
-var elm$html$Html$Attributes$placeholder = elm$html$Html$Attributes$stringProperty('placeholder');
-var elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
-var elm$html$Html$Attributes$style = elm$virtual_dom$VirtualDom$style;
-var elm$html$Html$Attributes$type_ = elm$html$Html$Attributes$stringProperty('type');
-var elm$html$Html$Attributes$value = elm$html$Html$Attributes$stringProperty('value');
+var elm$html$Html$Attributes$class = elm$html$Html$Attributes$stringProperty('className');
 var elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
 };
@@ -8871,6 +9464,37 @@ var elm$html$Html$Events$onClick = function (msg) {
 		'click',
 		elm$json$Json$Decode$succeed(msg));
 };
+var author$project$View$specialButton = F3(
+	function (enabled, buttonText, req) {
+		return enabled ? A2(
+			elm$html$Html$span,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$class('enabled-button'),
+					elm$html$Html$Events$onClick(
+					author$project$Common$SendRequest(req))
+				]),
+			_List_fromArray(
+				[
+					elm$html$Html$text(buttonText)
+				])) : A2(
+			elm$html$Html$span,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$class('disabled-button')
+				]),
+			_List_fromArray(
+				[
+					elm$html$Html$text(buttonText)
+				]));
+	});
+var author$project$Common$UpdateInput = function (a) {
+	return {$: 'UpdateInput', a: a};
+};
+var elm$html$Html$input = _VirtualDom_node('input');
+var elm$html$Html$Attributes$placeholder = elm$html$Html$Attributes$stringProperty('placeholder');
+var elm$html$Html$Attributes$type_ = elm$html$Html$Attributes$stringProperty('type');
+var elm$html$Html$Attributes$value = elm$html$Html$Attributes$stringProperty('value');
 var elm$html$Html$Events$alwaysStop = function (x) {
 	return _Utils_Tuple2(x, true);
 };
@@ -8902,125 +9526,276 @@ var elm$html$Html$Events$onInput = function (tagger) {
 			elm$html$Html$Events$alwaysStop,
 			A2(elm$json$Json$Decode$map, tagger, elm$html$Html$Events$targetValue)));
 };
-var author$project$View$viewEntrance = F2(
-	function (_n0, userNameInput) {
-		var level = _n0.a;
-		var message = _n0.b;
-		var sty = function () {
-			if (level.$ === 'Information') {
-				return A2(elm$html$Html$Attributes$style, 'color', 'gray');
-			} else {
-				return A2(elm$html$Html$Attributes$style, 'color', 'red');
-			}
-		}();
-		return _List_fromArray(
+var author$project$View$specialInput = function (data) {
+	return A2(
+		elm$html$Html$span,
+		_List_fromArray(
 			[
-				A2(
-				elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						elm$html$Html$div,
-						_List_fromArray(
-							[sty]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(message)
-							]))
-					])),
+				elm$html$Html$Attributes$class('input-container')
+			]),
+		_List_fromArray(
+			[
 				A2(
 				elm$html$Html$input,
 				_List_fromArray(
 					[
 						elm$html$Html$Attributes$type_('text'),
-						elm$html$Html$Attributes$placeholder('ユーザ名'),
-						elm$html$Html$Attributes$value(userNameInput),
+						elm$html$Html$Attributes$class('input-main'),
+						elm$html$Html$Attributes$placeholder(data.placeholder),
+						elm$html$Html$Attributes$value(data.value),
 						elm$html$Html$Events$onInput(
-						A2(elm$core$Basics$composeL, author$project$Common$UpdateInput, author$project$Common$UserNameInput))
+						A2(elm$core$Basics$composeL, author$project$Common$UpdateInput, data.update))
 					]),
-				_List_Nil),
+				_List_Nil)
+			]));
+};
+var author$project$View$footerStyleFromLevel = function (level) {
+	if (level.$ === 'Information') {
+		return 'footer-style-normal';
+	} else {
+		return 'footer-style-warning';
+	}
+};
+var elm$html$Html$div = _VirtualDom_node('div');
+var author$project$View$viewSimpleGridScheme = function (gridScheme) {
+	var _n0 = gridScheme.footer;
+	var level = _n0.a;
+	var messageText = _n0.b;
+	return _List_fromArray(
+		[
+			A2(
+			elm$html$Html$div,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$class('simple-grid-container')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('simple-grid-element-header')
+						]),
+					gridScheme.header),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('simple-grid-element-middle'),
+							elm$html$Html$Attributes$class(gridScheme.style)
+						]),
+					gridScheme.middle),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('simple-grid-element-footer'),
+							elm$html$Html$Attributes$class(
+							author$project$View$footerStyleFromLevel(level))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(messageText)
+						]))
+				]))
+		]);
+};
+var elm$core$Basics$not = _Basics_not;
+var elm$html$Html$a = _VirtualDom_node('a');
+var elm$html$Html$li = _VirtualDom_node('li');
+var elm$html$Html$ul = _VirtualDom_node('ul');
+var elm$html$Html$Attributes$href = function (url) {
+	return A2(
+		elm$html$Html$Attributes$stringProperty,
+		'href',
+		_VirtualDom_noJavaScriptUri(url));
+};
+var author$project$View$viewEntrance = F2(
+	function (message, userNameInput) {
+		var middle = _List_fromArray(
+			[
 				A2(
-				elm$html$Html$button,
+				elm$html$Html$div,
 				_List_fromArray(
 					[
-						elm$html$Html$Events$onClick(
-						author$project$Common$SendRequest(author$project$Common$CreateUser))
+						elm$html$Html$Attributes$class('entrance-container')
 					]),
 				_List_fromArray(
 					[
-						elm$html$Html$text('開始')
+						A2(
+						elm$html$Html$div,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('entrance-input-group')
+							]),
+						_List_fromArray(
+							[
+								author$project$View$specialInput(
+								{placeholder: 'ユーザ名', update: author$project$Common$UserNameInput, value: userNameInput}),
+								A3(
+								author$project$View$specialButton,
+								!elm$core$String$isEmpty(userNameInput),
+								'開始',
+								author$project$Common$CreateUser)
+							])),
+						A2(
+						elm$html$Html$div,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('entrance-explanation')
+							]),
+						_List_fromArray(
+							[
+								A2(
+								elm$html$Html$ul,
+								_List_Nil,
+								_List_fromArray(
+									[
+										A2(
+										elm$html$Html$li,
+										_List_Nil,
+										_List_fromArray(
+											[
+												elm$html$Html$text('アカウント登録なしで遊べます．'),
+												A2(
+												elm$html$Html$ul,
+												_List_Nil,
+												_List_fromArray(
+													[
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('ユーザはcookieによって識別されます．')
+															])),
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('ユーザ名はユーザを一意に識別するIDではなく表示上の文字列です．')
+															]))
+													]))
+											])),
+										A2(
+										elm$html$Html$li,
+										_List_Nil,
+										_List_fromArray(
+											[
+												elm$html$Html$text('機能上は対戦データ等を永続化して記録することは特にありません．')
+											])),
+										A2(
+										elm$html$Html$li,
+										_List_Nil,
+										_List_fromArray(
+											[
+												elm$html$Html$text('ゲームの途中で接続が切れてもある程度回復できる設計になっています．'),
+												A2(
+												elm$html$Html$ul,
+												_List_Nil,
+												_List_fromArray(
+													[
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('接続が切れて30秒以内に再接続しない場合は自動で退出扱いになります．')
+															])),
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('途中退出で空席が生じたら，誰かが途中参加するまで中断となります．')
+															]))
+													]))
+											])),
+										A2(
+										elm$html$Html$li,
+										_List_Nil,
+										_List_fromArray(
+											[
+												elm$html$Html$text('ただし，現時点では実装が万全とは限りませんのでご了承ください．'),
+												A2(
+												elm$html$Html$ul,
+												_List_Nil,
+												_List_fromArray(
+													[
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('もしも何か不整合が起きた場合，リロードを試してください．')
+															])),
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('リロードで解決しない場合はログアウト後再ログインをお願いします．')
+															])),
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('5xxエラーが生じた場合は回復が困難かもしれません．')
+															])),
+														A2(
+														elm$html$Html$li,
+														_List_Nil,
+														_List_fromArray(
+															[
+																elm$html$Html$text('天九のゲーム進行のロジック自体はある程度自動テストをしています．')
+															]))
+													]))
+											])),
+										A2(
+										elm$html$Html$li,
+										_List_Nil,
+										_List_fromArray(
+											[
+												elm$html$Html$text('実装が公開されています： '),
+												A2(
+												elm$html$Html$a,
+												_List_fromArray(
+													[
+														elm$html$Html$Attributes$href('https://github.com/gfngfn/game_tianjiupai')
+													]),
+												_List_fromArray(
+													[
+														elm$html$Html$text('リポジトリ')
+													]))
+											]))
+									]))
+							]))
 					]))
 			]);
+		return author$project$View$viewSimpleGridScheme(
+			{
+				footer: message,
+				header: _List_fromArray(
+					[
+						elm$html$Html$text('天九 Online')
+					]),
+				middle: middle,
+				style: 'entrance-middle'
+			});
 	});
 var author$project$Common$CreateRoom = {$: 'CreateRoom'};
+var author$project$Common$DeleteUser = {$: 'DeleteUser'};
 var author$project$Common$RoomNameInput = function (a) {
 	return {$: 'RoomNameInput', a: a};
 };
 var author$project$Common$EnterRoom = function (a) {
 	return {$: 'EnterRoom', a: a};
 };
-var elm$html$Html$li = _VirtualDom_node('li');
-var elm$html$Html$ul = _VirtualDom_node('ul');
 var author$project$View$viewRoomList = function (maybeRoomSummaries) {
 	if (maybeRoomSummaries.$ === 'Nothing') {
-		return A2(
-			elm$html$Html$div,
-			_List_Nil,
-			_List_fromArray(
-				[
-					elm$html$Html$text('(Rooms will be displayed here)')
-				]));
-	} else {
-		var roomSummaries = maybeRoomSummaries.a;
-		var elems = A2(
-			elm$core$List$map,
-			function (roomSummary) {
-				var room = roomSummary.room;
-				var members = A2(
-					elm$core$String$join,
-					', ',
-					A2(
-						elm$core$List$map,
-						function (u) {
-							return u.userName;
-						},
-						roomSummary.members));
-				return A2(
-					elm$html$Html$li,
-					_List_Nil,
-					_List_fromArray(
-						[
-							elm$html$Html$text(room.roomName + (' (部屋ID: ' + (room.roomId + (', 参加者: ' + (members + ')'))))),
-							A2(
-							elm$html$Html$button,
-							_List_fromArray(
-								[
-									elm$html$Html$Events$onClick(
-									author$project$Common$SendRequest(
-										author$project$Common$EnterRoom(room.roomId)))
-								]),
-							_List_fromArray(
-								[
-									elm$html$Html$text('参加')
-								]))
-						]));
-			},
-			roomSummaries);
-		return A2(elm$html$Html$ul, _List_Nil, elems);
-	}
-};
-var author$project$View$viewPlaza = F4(
-	function (_n0, user, roomNameInput, maybeRoomSummaries) {
-		var level = _n0.a;
-		var message = _n0.b;
-		var sty = function () {
-			if (level.$ === 'Information') {
-				return A2(elm$html$Html$Attributes$style, 'color', 'gray');
-			} else {
-				return A2(elm$html$Html$Attributes$style, 'color', 'red');
-			}
-		}();
 		return _List_fromArray(
 			[
 				A2(
@@ -9028,67 +9803,177 @@ var author$project$View$viewPlaza = F4(
 				_List_Nil,
 				_List_fromArray(
 					[
-						A2(
-						elm$html$Html$div,
-						_List_fromArray(
-							[sty]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(message)
-							]))
-					])),
-				A2(
-				elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						elm$html$Html$text('ようこそ，' + (user.userName + (' さん (ユーザID: ' + (user.userId + ')'))))
-					])),
-				author$project$View$viewRoomList(maybeRoomSummaries),
-				A2(
-				elm$html$Html$div,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						elm$html$Html$input,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$type_('text'),
-								elm$html$Html$Attributes$placeholder('部屋名'),
-								elm$html$Html$Attributes$value(roomNameInput),
-								elm$html$Html$Events$onInput(
-								A2(elm$core$Basics$composeL, author$project$Common$UpdateInput, author$project$Common$RoomNameInput))
-							]),
-						_List_Nil),
-						A2(
-						elm$html$Html$button,
-						_List_fromArray(
-							[
-								elm$html$Html$Events$onClick(
-								author$project$Common$SendRequest(author$project$Common$CreateRoom))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text('作成')
-							]))
+						elm$html$Html$text('部屋一覧取得中……')
 					]))
 			]);
+	} else {
+		if (!maybeRoomSummaries.a.b) {
+			return _List_fromArray(
+				[
+					A2(
+					elm$html$Html$div,
+					_List_Nil,
+					_List_fromArray(
+						[
+							elm$html$Html$text('まだ部屋がありません．右上の入力部分から部屋を作成できます．')
+						]))
+				]);
+		} else {
+			var roomSummaries = maybeRoomSummaries.a;
+			return A2(
+				elm$core$List$map,
+				function (roomSummary) {
+					var statusText = roomSummary.isPlaying ? '対局中' : '待機中';
+					var room = roomSummary.room;
+					var members = A2(
+						elm$core$String$join,
+						', ',
+						A2(
+							elm$core$List$map,
+							function (u) {
+								return u.userName;
+							},
+							roomSummary.members));
+					return A2(
+						elm$html$Html$div,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('plaza-panel')
+							]),
+						_List_fromArray(
+							[
+								A2(
+								elm$html$Html$div,
+								_List_fromArray(
+									[
+										elm$html$Html$Attributes$class('plaza-panel-left')
+									]),
+								_List_fromArray(
+									[
+										A2(
+										elm$html$Html$div,
+										_List_fromArray(
+											[
+												elm$html$Html$Attributes$class('room-name')
+											]),
+										_List_fromArray(
+											[
+												elm$html$Html$text(room.roomName)
+											])),
+										A2(
+										elm$html$Html$div,
+										_List_Nil,
+										_List_fromArray(
+											[
+												elm$html$Html$text('参加者: ' + members)
+											]))
+									])),
+								A2(
+								elm$html$Html$div,
+								_List_fromArray(
+									[
+										elm$html$Html$Attributes$class('plaza-panel-right')
+									]),
+								_List_fromArray(
+									[
+										A2(
+										elm$html$Html$div,
+										_List_fromArray(
+											[
+												elm$html$Html$Attributes$class('status-text')
+											]),
+										_List_fromArray(
+											[
+												elm$html$Html$text(statusText)
+											])),
+										A2(
+										elm$html$Html$div,
+										_List_Nil,
+										_List_fromArray(
+											[
+												A3(
+												author$project$View$specialButton,
+												true,
+												'参加',
+												author$project$Common$EnterRoom(room.roomId))
+											]))
+									]))
+							]));
+				},
+				roomSummaries);
+		}
+	}
+};
+var elm$html$Html$h1 = _VirtualDom_node('h1');
+var author$project$View$viewPlaza = F4(
+	function (message, user, roomNameInput, maybeRoomSummaries) {
+		var middle = _List_fromArray(
+			[
+				A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('plaza-container')
+					]),
+				_Utils_ap(
+					_List_fromArray(
+						[
+							A2(
+							elm$html$Html$h1,
+							_List_Nil,
+							_List_fromArray(
+								[
+									elm$html$Html$text('部屋一覧')
+								])),
+							A2(
+							elm$html$Html$div,
+							_List_fromArray(
+								[
+									elm$html$Html$Attributes$class('room-creation-input-group')
+								]),
+							_List_fromArray(
+								[
+									author$project$View$specialInput(
+									{placeholder: '部屋名', update: author$project$Common$RoomNameInput, value: roomNameInput}),
+									A3(
+									author$project$View$specialButton,
+									!elm$core$String$isEmpty(roomNameInput),
+									'作成',
+									author$project$Common$CreateRoom)
+								]))
+						]),
+					author$project$View$viewRoomList(maybeRoomSummaries)))
+			]);
+		return author$project$View$viewSimpleGridScheme(
+			{
+				footer: message,
+				header: _List_fromArray(
+					[
+						elm$html$Html$text('天九 Online | ' + (user.userName + ' さん')),
+						A3(author$project$View$specialButton, true, 'ログアウト', author$project$Common$DeleteUser)
+					]),
+				middle: middle,
+				style: 'plaza-middle'
+			});
 	});
 var author$project$Common$ChatInput = function (a) {
 	return {$: 'ChatInput', a: a};
 };
+var author$project$Common$ExitRoom = function (a) {
+	return {$: 'ExitRoom', a: a};
+};
 var author$project$Common$SendChat = {$: 'SendChat'};
-var author$project$PerSeat$find = F2(
-	function (f, p) {
-		return f(p.east) ? elm$core$Maybe$Just(0) : (f(p.south) ? elm$core$Maybe$Just(1) : (f(p.west) ? elm$core$Maybe$Just(2) : (f(p.north) ? elm$core$Maybe$Just(3) : elm$core$Maybe$Nothing)));
-	});
 var author$project$Game$getMySeat = F2(
 	function (userId, ostate) {
 		return A2(
 			author$project$PerSeat$find,
-			function (player) {
-				return _Utils_eq(player.user.userId, userId);
+			function (maybePlayer) {
+				if (maybePlayer.$ === 'Just') {
+					var player = maybePlayer.a;
+					return _Utils_eq(player.user.userId, userId);
+				} else {
+					return false;
+				}
 			},
 			ostate.meta.players);
 	});
@@ -9099,31 +9984,31 @@ var author$project$Game$getTableSize = function (table) {
 	switch (table.$) {
 		case 'Starting':
 			return 0;
-		case 'TrickWuzun':
+		case 'Wuzun':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickWenzun':
+		case 'Wenzun':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickSingleWen':
+		case 'SingleWen':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickSingleWu':
+		case 'SingleWu':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickDoubleWen':
+		case 'DoubleWen':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickDoubleWu':
+		case 'DoubleWu':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickDoubleBoth':
+		case 'DoubleBoth':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickTripleWen':
+		case 'TripleWen':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
-		case 'TrickTripleWu':
+		case 'TripleWu':
 			var e = table.a;
 			return author$project$Game$getExposedSize(e);
 		default:
@@ -9131,10 +10016,40 @@ var author$project$Game$getTableSize = function (table) {
 			return author$project$Game$getExposedSize(e);
 	}
 };
-var elm$core$Basics$modBy = _Basics_modBy;
+var author$project$PerSeat$succSeat = function (seat) {
+	switch (seat.$) {
+		case 'SeatA':
+			return author$project$Models$SeatB;
+		case 'SeatB':
+			return author$project$Models$SeatC;
+		case 'SeatC':
+			return author$project$Models$SeatD;
+		default:
+			return author$project$Models$SeatA;
+	}
+};
 var author$project$PerSeat$advanceSeat = F2(
 	function (seat, n) {
-		return A2(elm$core$Basics$modBy, 4, seat + n);
+		advanceSeat:
+		while (true) {
+			if (n < 0) {
+				var $temp$seat = seat,
+					$temp$n = n + 4;
+				seat = $temp$seat;
+				n = $temp$n;
+				continue advanceSeat;
+			} else {
+				if (!n) {
+					return seat;
+				} else {
+					var $temp$seat = author$project$PerSeat$succSeat(seat),
+						$temp$n = n - 1;
+					seat = $temp$seat;
+					n = $temp$n;
+					continue advanceSeat;
+				}
+			}
+		}
 	});
 var author$project$Game$getNextSubmitterSeat = function (oinning) {
 	var tableSize = author$project$Game$getTableSize(oinning.table);
@@ -9163,63 +10078,193 @@ var author$project$Game$isMyTurn = F2(
 			}
 		}
 	});
-var elm$html$Html$Attributes$class = elm$html$Html$Attributes$stringProperty('className');
-var author$project$View$viewGridScheme = function (gridScheme) {
-	return _List_fromArray(
-		[
-			A2(
-			elm$html$Html$div,
-			_List_fromArray(
-				[
-					elm$html$Html$Attributes$class('grid-container')
-				]),
-			_List_fromArray(
-				[
-					A2(
-					elm$html$Html$div,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$class('grid-element-header')
-						]),
-					gridScheme.header),
-					A2(
-					elm$html$Html$div,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$class('grid-element-left')
-						]),
-					gridScheme.left),
-					A2(
-					elm$html$Html$div,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$class('grid-element-center')
-						]),
-					gridScheme.center),
-					A2(
-					elm$html$Html$div,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$class('grid-element-right')
-						]),
-					gridScheme.right),
-					A2(
-					elm$html$Html$div,
-					_List_fromArray(
-						[
-							elm$html$Html$Attributes$class('grid-element-footer')
-						]),
-					gridScheme.footer)
-				]))
-		]);
+var author$project$View$showInningIndex = function (inningIndex) {
+	return (inningIndex < 0) ? elm$core$Maybe$Nothing : ((inningIndex < 4) ? elm$core$Maybe$Just(
+		'東' + (elm$core$String$fromInt(inningIndex + 1) + '局')) : ((inningIndex < 8) ? elm$core$Maybe$Just(
+		'南' + (elm$core$String$fromInt(inningIndex - 3) + '局')) : elm$core$Maybe$Nothing));
 };
-var author$project$View$viewPlayer = F2(
-	function (direction, player) {
+var author$project$View$showGameIndex = F2(
+	function (inningIndex, numConsecutives) {
+		var _n0 = author$project$View$showInningIndex(inningIndex);
+		if (_n0.$ === 'Just') {
+			var s = _n0.a;
+			return s + ('・' + (elm$core$String$fromInt(numConsecutives + 1) + '倍場'));
+		} else {
+			return '終局';
+		}
+	});
+var elm$html$Html$b = _VirtualDom_node('b');
+var author$project$View$viewLogEntry = function (log) {
+	switch (log.$) {
+		case 'LogComment':
+			var comment = log.a;
+			return A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('log-entry')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$b,
+						_List_Nil,
+						_List_fromArray(
+							[
+								elm$html$Html$text(comment.from.userName)
+							])),
+						elm$html$Html$text(': ' + comment.text)
+					]));
+		case 'LogEntered':
+			var u = log.a;
+			return A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('log-entry')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$b,
+						_List_Nil,
+						_List_fromArray(
+							[
+								elm$html$Html$text(u.userName)
+							])),
+						elm$html$Html$text(' さんが参加しました')
+					]));
+		case 'LogExited':
+			var u = log.a;
+			return A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('log-entry')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$b,
+						_List_Nil,
+						_List_fromArray(
+							[
+								elm$html$Html$text(u.userName)
+							])),
+						elm$html$Html$text(' さんが退室しました')
+					]));
+		case 'LogGameStart':
+			var gameIndex = log.a;
+			var s = A2(author$project$View$showGameIndex, gameIndex.inningIndex, gameIndex.numConsecutives);
+			return A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('log-entry')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$b,
+						_List_Nil,
+						_List_fromArray(
+							[
+								elm$html$Html$text(s + ' 開始！')
+							]))
+					]));
+		case 'LogChanges':
+			var changes = log.a;
+			var reasonText = function () {
+				var _n1 = changes.changeReason;
+				switch (_n1.$) {
+					case 'SpecialTrickEnd':
+						if (_n1.a.$ === 'TrickEndWithZhizun') {
+							var _n2 = _n1.a;
+							return '（至尊）';
+						} else {
+							var _n3 = _n1.a;
+							return '（四大賀）';
+						}
+					case 'SpecialInningEnd':
+						switch (_n1.a.$) {
+							case 'InningEndWithZhizun':
+								var _n4 = _n1.a;
+								return '（包尊）';
+							case 'InningEndWithSidahe':
+								var _n5 = _n1.a;
+								return '（四大包）';
+							case 'InningEndWithYaojie':
+								var _n6 = _n1.a;
+								return '（么結）';
+							case 'InningEndWithQizhijie':
+								var _n7 = _n1.a;
+								return '（七支結）';
+							default:
+								var _n8 = _n1.a;
+								return '（八支結）';
+						}
+					default:
+						return '';
+				}
+			}();
+			var diffs = changes.diffs;
+			var diffText = A2(
+				elm$core$String$join,
+				', ',
+				A2(
+					elm$core$List$map,
+					elm$core$String$fromInt,
+					_List_fromArray(
+						[diffs.east, diffs.south, diffs.west, diffs.north])));
+			return A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('log-entry')
+					]),
+				_List_fromArray(
+					[
+						elm$html$Html$text(
+						_Utils_ap(diffText, reasonText))
+					]));
+		default:
+			var connection = log.a;
+			var u = connection.user;
+			var suffix = connection.isConnected ? ' さんが再接続しました' : ' さんの接続が切れました';
+			return A2(
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('log-entry')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						elm$html$Html$b,
+						_List_Nil,
+						_List_fromArray(
+							[
+								elm$html$Html$text(u.userName)
+							])),
+						elm$html$Html$text(suffix)
+					]));
+	}
+};
+var author$project$View$viewPlayer = F3(
+	function (direction, maybePlayer, score) {
+		var userName = function () {
+			if (maybePlayer.$ === 'Just') {
+				var player = maybePlayer.a;
+				return player.user.userName;
+			} else {
+				return '空席';
+			}
+		}();
 		return A2(
 			elm$html$Html$div,
 			_List_fromArray(
 				[
-					elm$html$Html$Attributes$class('player-frame')
+					elm$html$Html$Attributes$class('panel')
 				]),
 			_List_fromArray(
 				[
@@ -9231,7 +10276,7 @@ var author$project$View$viewPlayer = F2(
 						]),
 					_List_fromArray(
 						[
-							elm$html$Html$text(direction + (' ' + player.user.userName))
+							elm$html$Html$text(direction + (' ' + userName))
 						])),
 					A2(
 					elm$html$Html$div,
@@ -9239,17 +10284,99 @@ var author$project$View$viewPlayer = F2(
 					_List_fromArray(
 						[
 							elm$html$Html$text(
-							'得点： ' + elm$core$String$fromInt(player.score))
+							'得点： ' + elm$core$String$fromInt(score))
 						]))
 				]));
 	});
+var author$project$View$viewRoomGridScheme = function (gridScheme) {
+	var _n0 = gridScheme.footer;
+	var level = _n0.a;
+	var messageText = _n0.b;
+	return _List_fromArray(
+		[
+			A2(
+			elm$html$Html$div,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$class('room-grid-container')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('room-grid-element-header')
+						]),
+					gridScheme.header),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('room-grid-element-left')
+						]),
+					gridScheme.left),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('room-grid-element-center')
+						]),
+					gridScheme.center),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('room-grid-element-right')
+						]),
+					gridScheme.right),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('room-grid-element-footer'),
+							elm$html$Html$Attributes$class(
+							author$project$View$footerStyleFromLevel(level))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(messageText)
+						]))
+				]))
+		]);
+};
 var author$project$Common$RequireNextInning = {$: 'RequireNextInning'};
 var author$project$Constants$svgButtonWidth = 70;
 var author$project$Constants$goToNextButtonX = 350 - ((author$project$Constants$svgButtonWidth / 2) | 0);
 var author$project$Constants$svgButtonHeight = 40;
 var author$project$Constants$goToNextButtonY = 340 - ((author$project$Constants$svgButtonHeight / 2) | 0);
+var author$project$Constants$maximumNumInnings = 8;
+var author$project$Constants$roomCloseButtonX = 350;
+var author$project$Constants$roomCloseButtonY = 470 - ((author$project$Constants$svgButtonHeight / 2) | 0);
+var author$project$Constants$roomCloseTextLeading = 32;
+var author$project$Constants$roomCloseTextX = author$project$Constants$roomCloseButtonX;
+var author$project$Constants$roomCloseTextY = 230;
 var author$project$Constants$svgHeight = 670;
 var author$project$Constants$svgWidth = 700;
+var author$project$PerSeat$Front = {$: 'Front'};
+var author$project$PerSeat$Left = {$: 'Left'};
+var author$project$PerSeat$Right = {$: 'Right'};
+var author$project$PerSeat$Self = {$: 'Self'};
+var author$project$PerSeat$relative = function (r) {
+	var target = r.target;
+	var self = r.from;
+	if (_Utils_eq(target, self)) {
+		return author$project$PerSeat$Self;
+	} else {
+		var right = author$project$PerSeat$succSeat(self);
+		if (_Utils_eq(target, right)) {
+			return author$project$PerSeat$Right;
+		} else {
+			var front = author$project$PerSeat$succSeat(right);
+			return _Utils_eq(target, front) ? author$project$PerSeat$Front : author$project$PerSeat$Left;
+		}
+	}
+};
 var author$project$Constants$svgButtonTextDepth = 25;
 var elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
 var elm$svg$Svg$g = elm$svg$Svg$trustedNode('g');
@@ -9351,18 +10478,21 @@ var author$project$ViewTable$displayButton = F5(
 						]))
 				]));
 	});
-var author$project$Constants$frontPileX = 90;
-var author$project$Constants$frontPileY = 20;
-var author$project$Constants$horizontalTileTopHeight = 34;
-var author$project$Constants$leftPileX = 21;
-var author$project$Constants$leftPileY = 570;
-var author$project$Constants$rightPileX = 575;
-var author$project$Constants$rightPileY = 100;
-var author$project$Constants$selfPileX = 610;
-var author$project$Constants$selfPileY = 495;
-var author$project$Constants$verticalTileImageWidth = 40;
-var author$project$Constants$tileThickness = 16;
-var author$project$Constants$horizontalClosedCardPath = 'assets/closeh.png';
+var author$project$Constants$stringifySeat = function (seat) {
+	switch (seat.$) {
+		case 'SeatA':
+			return '1';
+		case 'SeatB':
+			return '2';
+		case 'SeatC':
+			return '3';
+		default:
+			return '4';
+	}
+};
+var author$project$Constants$directionImagePath = function (seat) {
+	return 'assets/direction' + (author$project$Constants$stringifySeat(seat) + '.png');
+};
 var elm$svg$Svg$image = elm$svg$Svg$trustedNode('image');
 var elm$svg$Svg$Attributes$xlinkHref = function (value) {
 	return A3(
@@ -9371,8 +10501,10 @@ var elm$svg$Svg$Attributes$xlinkHref = function (value) {
 		'xlink:href',
 		_VirtualDom_noJavaScriptUri(value));
 };
-var author$project$ViewTable$displayHorizontalClosedCard = F2(
-	function (x, y) {
+var author$project$ViewTable$svgImage = F2(
+	function (_n0, path) {
+		var x = _n0.a;
+		var y = _n0.b;
 		return A2(
 			elm$svg$Svg$image,
 			_List_fromArray(
@@ -9381,9 +10513,59 @@ var author$project$ViewTable$displayHorizontalClosedCard = F2(
 					elm$core$String$fromInt(x)),
 					elm$svg$Svg$Attributes$y(
 					elm$core$String$fromInt(y)),
-					elm$svg$Svg$Attributes$xlinkHref(author$project$Constants$horizontalClosedCardPath)
+					elm$svg$Svg$Attributes$xlinkHref(path)
 				]),
 			_List_Nil);
+	});
+var author$project$ViewTable$displayDirection = function (seat) {
+	return _List_fromArray(
+		[
+			A2(
+			author$project$ViewTable$svgImage,
+			_Utils_Tuple2(0, 0),
+			author$project$Constants$directionImagePath(seat))
+		]);
+};
+var author$project$Constants$selfHandX = 190;
+var author$project$Constants$verticalTileImageWidth = 40;
+var author$project$Constants$frontHandX = author$project$Constants$selfHandX + (author$project$Constants$verticalTileImageWidth * 8);
+var author$project$Constants$frontHandY = 50;
+var author$project$Constants$verticalClosedStandingCardPath = 'assets/standv.png';
+var author$project$ViewTable$displayClosedStandingCard = F2(
+	function (x, y) {
+		return A2(
+			author$project$ViewTable$svgImage,
+			_Utils_Tuple2(x, y),
+			author$project$Constants$verticalClosedStandingCardPath);
+	});
+var author$project$ViewTable$displayFrontHand = function (numCards) {
+	var indices = A2(elm$core$List$range, 0, numCards - 1);
+	var x0 = author$project$Constants$frontHandX - (author$project$Constants$verticalTileImageWidth * numCards);
+	return A2(
+		elm$core$List$map,
+		function (index) {
+			var x = x0 + (author$project$Constants$verticalTileImageWidth * index);
+			return A2(author$project$ViewTable$displayClosedStandingCard, x, author$project$Constants$frontHandY);
+		},
+		indices);
+};
+var author$project$Constants$frontPileX = 90;
+var author$project$Constants$frontPileY = 20;
+var author$project$Constants$horizontalTileTopHeight = 34;
+var author$project$Constants$leftPileX = 21;
+var author$project$Constants$leftPileY = 530;
+var author$project$Constants$rightPileX = 575;
+var author$project$Constants$rightPileY = 100;
+var author$project$Constants$selfPileX = 610;
+var author$project$Constants$selfPileY = 495;
+var author$project$Constants$tileThickness = 16;
+var author$project$Constants$horizontalClosedCardPath = 'assets/closeh.png';
+var author$project$ViewTable$displayHorizontalClosedCard = F2(
+	function (x, y) {
+		return A2(
+			author$project$ViewTable$svgImage,
+			_Utils_Tuple2(x, y),
+			author$project$Constants$horizontalClosedCardPath);
 	});
 var author$project$Constants$stringifyWen = function (wen) {
 	return 'wen' + elm$core$String$fromInt(wen);
@@ -9406,17 +10588,9 @@ var author$project$Constants$horizontalOpenCardPath = function (card) {
 var author$project$ViewTable$displayHorizontalOpenCard = F3(
 	function (card, x, y) {
 		return A2(
-			elm$svg$Svg$image,
-			_List_fromArray(
-				[
-					elm$svg$Svg$Attributes$x(
-					elm$core$String$fromInt(x)),
-					elm$svg$Svg$Attributes$y(
-					elm$core$String$fromInt(y)),
-					elm$svg$Svg$Attributes$xlinkHref(
-					author$project$Constants$horizontalOpenCardPath(card))
-				]),
-			_List_Nil);
+			author$project$ViewTable$svgImage,
+			_Utils_Tuple2(x, y),
+			author$project$Constants$horizontalOpenCardPath(card));
 	});
 var elm$core$List$append = F2(
 	function (xs, ys) {
@@ -9451,16 +10625,9 @@ var author$project$Constants$verticalClosedCardPath = 'assets/closev.png';
 var author$project$ViewTable$displayVerticalClosedCard = F2(
 	function (x, y) {
 		return A2(
-			elm$svg$Svg$image,
-			_List_fromArray(
-				[
-					elm$svg$Svg$Attributes$x(
-					elm$core$String$fromInt(x)),
-					elm$svg$Svg$Attributes$y(
-					elm$core$String$fromInt(y)),
-					elm$svg$Svg$Attributes$xlinkHref(author$project$Constants$verticalClosedCardPath)
-				]),
-			_List_Nil);
+			author$project$ViewTable$svgImage,
+			_Utils_Tuple2(x, y),
+			author$project$Constants$verticalClosedCardPath);
 	});
 var author$project$Constants$verticalOpenCardPath = function (card) {
 	return 'assets/openv-' + (author$project$Constants$stringifyCard(card) + '.png');
@@ -9468,17 +10635,9 @@ var author$project$Constants$verticalOpenCardPath = function (card) {
 var author$project$ViewTable$displayVerticalOpenCard = F3(
 	function (card, x, y) {
 		return A2(
-			elm$svg$Svg$image,
-			_List_fromArray(
-				[
-					elm$svg$Svg$Attributes$x(
-					elm$core$String$fromInt(x)),
-					elm$svg$Svg$Attributes$y(
-					elm$core$String$fromInt(y)),
-					elm$svg$Svg$Attributes$xlinkHref(
-					author$project$Constants$verticalOpenCardPath(card))
-				]),
-			_List_Nil);
+			author$project$ViewTable$svgImage,
+			_Utils_Tuple2(x, y),
+			author$project$Constants$verticalOpenCardPath(card));
 	});
 var author$project$ViewTable$displayVerticalPile = F3(
 	function (x0, y0, gains) {
@@ -9533,7 +10692,6 @@ var author$project$Common$getSelectedCards = F2(
 var author$project$Constants$decisionButtonGap = 15;
 var author$project$Constants$decisionButtonY = 620 - author$project$Constants$svgButtonHeight;
 var author$project$Constants$selectionShift = 10;
-var author$project$Constants$selfHandX = 190;
 var author$project$Constants$selfHandY = 515;
 var author$project$Game$areTheSameBig = F2(
 	function (wen, wu) {
@@ -9665,31 +10823,31 @@ var author$project$Game$isSubmittable = F2(
 		switch (table.$) {
 			case 'Starting':
 				return author$project$Game$isStartable(cards);
-			case 'TrickWuzun':
+			case 'Wuzun':
 				var e = table.a;
 				return elm$core$List$length(cards) === 2;
-			case 'TrickWenzun':
+			case 'Wenzun':
 				var e = table.a;
 				return elm$core$List$length(cards) === 2;
-			case 'TrickSingleWen':
+			case 'SingleWen':
 				var e = table.a;
 				return elm$core$List$length(cards) === 1;
-			case 'TrickSingleWu':
+			case 'SingleWu':
 				var e = table.a;
 				return elm$core$List$length(cards) === 1;
-			case 'TrickDoubleWen':
+			case 'DoubleWen':
 				var e = table.a;
 				return elm$core$List$length(cards) === 2;
-			case 'TrickDoubleWu':
+			case 'DoubleWu':
 				var e = table.a;
 				return elm$core$List$length(cards) === 2;
-			case 'TrickDoubleBoth':
+			case 'DoubleBoth':
 				var e = table.a;
 				return elm$core$List$length(cards) === 2;
-			case 'TrickTripleWen':
+			case 'TripleWen':
 				var e = table.a;
 				return elm$core$List$length(cards) === 3;
-			case 'TrickTripleWu':
+			case 'TripleWu':
 				var e = table.a;
 				return elm$core$List$length(cards) === 3;
 			default:
@@ -9802,6 +10960,88 @@ var author$project$ViewTable$displayHand = F2(
 		}();
 		return _Utils_ap(svgsCard, svgsButton);
 	});
+var author$project$Constants$leftHandX = 50;
+var author$project$Constants$leftHandY = 170;
+var author$project$Constants$horizontalClosedStandingCardPath = 'assets/standh.png';
+var author$project$ViewTable$displayHorizontalStandingCard = F2(
+	function (x, y) {
+		return A2(
+			author$project$ViewTable$svgImage,
+			_Utils_Tuple2(x, y),
+			author$project$Constants$horizontalClosedStandingCardPath);
+	});
+var author$project$ViewTable$displayLeftHand = function (numCards) {
+	var indices = A2(elm$core$List$range, 0, numCards - 1);
+	return A2(
+		elm$core$List$map,
+		function (index) {
+			var y = author$project$Constants$leftHandY + (author$project$Constants$horizontalTileTopHeight * index);
+			return A2(author$project$ViewTable$displayHorizontalStandingCard, author$project$Constants$leftHandX, y);
+		},
+		indices);
+};
+var author$project$Constants$frontParentTilePath = 'assets/parent-front.png';
+var author$project$Constants$frontParentTileX = 138;
+var author$project$Constants$frontParentTileY = 190;
+var author$project$Constants$leftParentTilePath = 'assets/parent-left.png';
+var author$project$Constants$leftParentTileX = 135;
+var author$project$Constants$leftParentTileY = 430;
+var author$project$Constants$rightParentTilePath = 'assets/parent-right.png';
+var author$project$Constants$rightParentTileX = 480;
+var author$project$Constants$rightParentTileY = 180;
+var author$project$Constants$selfParentTilePath = 'assets/parent-self.png';
+var author$project$Constants$selfParentTileX = 440;
+var author$project$Constants$selfParentTileY = 435;
+var author$project$ViewTable$displayParentTile = function (relParentSeat) {
+	switch (relParentSeat.$) {
+		case 'Self':
+			return _List_fromArray(
+				[
+					A2(
+					author$project$ViewTable$svgImage,
+					_Utils_Tuple2(author$project$Constants$selfParentTileX, author$project$Constants$selfParentTileY),
+					author$project$Constants$selfParentTilePath)
+				]);
+		case 'Right':
+			return _List_fromArray(
+				[
+					A2(
+					author$project$ViewTable$svgImage,
+					_Utils_Tuple2(author$project$Constants$rightParentTileX, author$project$Constants$rightParentTileY),
+					author$project$Constants$rightParentTilePath)
+				]);
+		case 'Front':
+			return _List_fromArray(
+				[
+					A2(
+					author$project$ViewTable$svgImage,
+					_Utils_Tuple2(author$project$Constants$frontParentTileX, author$project$Constants$frontParentTileY),
+					author$project$Constants$frontParentTilePath)
+				]);
+		default:
+			return _List_fromArray(
+				[
+					A2(
+					author$project$ViewTable$svgImage,
+					_Utils_Tuple2(author$project$Constants$leftParentTileX, author$project$Constants$leftParentTileY),
+					author$project$Constants$leftParentTilePath)
+				]);
+	}
+};
+var author$project$Constants$horizontalStandingTileThickness = 28;
+var author$project$Constants$rightHandX = (author$project$Constants$svgWidth - author$project$Constants$leftHandX) - author$project$Constants$horizontalStandingTileThickness;
+var author$project$Constants$rightHandY = author$project$Constants$leftHandY + (author$project$Constants$horizontalTileTopHeight * 8);
+var author$project$ViewTable$displayRightHand = function (numCards) {
+	var indices = A2(elm$core$List$range, 0, numCards - 1);
+	var y0 = author$project$Constants$rightHandY - (author$project$Constants$horizontalTileTopHeight * numCards);
+	return A2(
+		elm$core$List$map,
+		function (index) {
+			var y = y0 + (author$project$Constants$horizontalTileTopHeight * index);
+			return A2(author$project$ViewTable$displayHorizontalStandingCard, author$project$Constants$rightHandX, y);
+		},
+		indices);
+};
 var author$project$Constants$frontSubmittedX = 350;
 var author$project$Constants$frontSubmittedY = 195;
 var author$project$Constants$leftSubmittedX = 146;
@@ -9874,38 +11114,68 @@ var author$project$ViewTable$displayTable = function (relQuad) {
 				A3(author$project$ViewTable$displayHorizontalSubmitted, author$project$Constants$leftSubmittedX, author$project$Constants$leftSubmittedY, relQuad.left.submitted)
 			]));
 };
+var elm$core$List$sort = function (xs) {
+	return A2(elm$core$List$sortBy, elm$core$Basics$identity, xs);
+};
+var author$project$ViewTable$getWinners = function (gameMeta) {
+	var scores = gameMeta.scores;
+	var players = gameMeta.players;
+	var pairs = _List_fromArray(
+		[
+			_Utils_Tuple2(players.east, scores.east),
+			_Utils_Tuple2(players.south, scores.south),
+			_Utils_Tuple2(players.west, scores.west),
+			_Utils_Tuple2(players.north, scores.north)
+		]);
+	var _n0 = elm$core$List$reverse(
+		elm$core$List$sort(
+			A2(
+				elm$core$List$map,
+				function (_n1) {
+					var score = _n1.b;
+					return score;
+				},
+				pairs)));
+	if (!_n0.b) {
+		return _List_Nil;
+	} else {
+		var maxScore = _n0.a;
+		return A2(
+			elm$core$List$filter,
+			function (_n2) {
+				var score = _n2.b;
+				return _Utils_eq(score, maxScore);
+			},
+			pairs);
+	}
+};
 var author$project$ViewTable$makeRelativeQuad = F3(
 	function (selfSeat, gainsQuad, submittedQuad) {
 		var elem0 = {gains: gainsQuad.east, submitted: submittedQuad.east};
 		var elem1 = {gains: gainsQuad.south, submitted: submittedQuad.south};
 		var elem2 = {gains: gainsQuad.west, submitted: submittedQuad.west};
 		var elem3 = {gains: gainsQuad.north, submitted: submittedQuad.north};
-		var elemX = {gains: _List_Nil, submitted: _List_Nil};
-		switch (selfSeat) {
-			case 0:
+		switch (selfSeat.$) {
+			case 'SeatA':
 				return {front: elem2, left: elem3, right: elem1, self: elem0};
-			case 1:
+			case 'SeatB':
 				return {front: elem3, left: elem0, right: elem2, self: elem1};
-			case 2:
+			case 'SeatC':
 				return {front: elem0, left: elem1, right: elem3, self: elem2};
-			case 3:
-				return {front: elem1, left: elem2, right: elem0, self: elem3};
 			default:
-				return {front: elemX, left: elemX, right: elemX, self: elemX};
+				return {front: elem1, left: elem2, right: elem0, self: elem3};
 		}
 	});
 var author$project$Game$bigToWenAndWu = function (big) {
-	switch (big) {
-		case 1:
+	switch (big.$) {
+		case 'BigA':
 			return _Utils_Tuple2(8, 5);
-		case 2:
+		case 'BigB':
 			return _Utils_Tuple2(9, 7);
-		case 3:
+		case 'BigC':
 			return _Utils_Tuple2(10, 8);
-		case 4:
-			return _Utils_Tuple2(11, 9);
 		default:
-			return _Utils_Tuple2(0, 0);
+			return _Utils_Tuple2(11, 9);
 	}
 };
 var elm$core$List$repeatHelp = F3(
@@ -9955,7 +11225,7 @@ var author$project$Game$tableToCards = function (table) {
 	switch (table.$) {
 		case 'Starting':
 			return _List_Nil;
-		case 'TrickWuzun':
+		case 'Wuzun':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -9971,13 +11241,13 @@ var author$project$Game$tableToCards = function (table) {
 						]);
 				},
 				e);
-		case 'TrickWenzun':
+		case 'Wenzun':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
 				2,
-				function (b) {
-					if (!b) {
+				function (elem) {
+					if (elem.$ === 'WenzunMinor') {
 						return _List_fromArray(
 							[
 								author$project$Models$Wen(1),
@@ -9992,7 +11262,7 @@ var author$project$Game$tableToCards = function (table) {
 					}
 				},
 				e);
-		case 'TrickSingleWen':
+		case 'SingleWen':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -10004,7 +11274,7 @@ var author$project$Game$tableToCards = function (table) {
 						]);
 				},
 				e);
-		case 'TrickSingleWu':
+		case 'SingleWu':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -10016,7 +11286,7 @@ var author$project$Game$tableToCards = function (table) {
 						]);
 				},
 				e);
-		case 'TrickDoubleWen':
+		case 'DoubleWen':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -10029,7 +11299,7 @@ var author$project$Game$tableToCards = function (table) {
 						]);
 				},
 				e);
-		case 'TrickDoubleWu':
+		case 'DoubleWu':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -10044,7 +11314,7 @@ var author$project$Game$tableToCards = function (table) {
 						]);
 				},
 				e);
-		case 'TrickDoubleBoth':
+		case 'DoubleBoth':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -10061,7 +11331,7 @@ var author$project$Game$tableToCards = function (table) {
 						]);
 				},
 				e);
-		case 'TrickTripleWen':
+		case 'TripleWen':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -10079,7 +11349,7 @@ var author$project$Game$tableToCards = function (table) {
 						]);
 				},
 				e);
-		case 'TrickTripleWu':
+		case 'TripleWu':
 			var e = table.a;
 			return A3(
 				author$project$Game$exposedToList,
@@ -10158,262 +11428,305 @@ var author$project$ViewTable$makeSubmittedQuad = F2(
 				}
 			}
 		}();
-		switch (startSeat) {
-			case 0:
+		switch (startSeat.$) {
+			case 'SeatA':
 				return {east: t.x0, north: t.x3, south: t.x1, west: t.x2};
-			case 1:
+			case 'SeatB':
 				return {east: t.x3, north: t.x2, south: t.x0, west: t.x1};
-			case 2:
+			case 'SeatC':
 				return {east: t.x2, north: t.x1, south: t.x3, west: t.x0};
-			case 3:
-				return {east: t.x1, north: t.x0, south: t.x2, west: t.x3};
 			default:
-				return {east: _List_Nil, north: _List_Nil, south: _List_Nil, west: _List_Nil};
+				return {east: t.x1, north: t.x0, south: t.x2, west: t.x3};
 		}
 	});
-var elm$core$Basics$not = _Basics_not;
+var elm$core$Basics$ge = _Utils_ge;
 var elm$svg$Svg$svg = elm$svg$Svg$trustedNode('svg');
 var elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
-var author$project$ViewTable$view = F4(
-	function (userId, selfSeat, handInfo, observableInning) {
-		if (observableInning.$ === 'ObservableDuringInning') {
-			var oinning = observableInning.a;
-			var yourHand = oinning.yourHand;
-			var submittedQuad = A2(author$project$ViewTable$makeSubmittedQuad, oinning.startsAt, oinning.table);
-			var relQuad = A3(author$project$ViewTable$makeRelativeQuad, selfSeat, oinning.gains, submittedQuad);
-			return A2(
-				elm$svg$Svg$svg,
-				_List_fromArray(
-					[
-						elm$svg$Svg$Attributes$width(
-						elm$core$String$fromInt(author$project$Constants$svgWidth)),
-						elm$svg$Svg$Attributes$height(
-						elm$core$String$fromInt(author$project$Constants$svgHeight)),
-						elm$svg$Svg$Attributes$viewBox(
-						'0 0 ' + (elm$core$String$fromInt(author$project$Constants$svgWidth) + (' ' + elm$core$String$fromInt(author$project$Constants$svgHeight))))
-					]),
-				elm$core$List$concat(
+var author$project$ViewTable$view = F6(
+	function (userId, selfSeat, parentSeat, handInfo, gameMeta, observableInning) {
+		var widthText = 'min(100%, ' + (elm$core$String$fromInt(author$project$Constants$svgWidth) + 'px)');
+		var viewBoxText = '0 0 ' + (elm$core$String$fromInt(author$project$Constants$svgWidth) + (' ' + elm$core$String$fromInt(author$project$Constants$svgHeight)));
+		var mainElem = function () {
+			if (observableInning.$ === 'ObservableDuringInning') {
+				var oinning = observableInning.a;
+				var yourHand = oinning.yourHand;
+				var submittedQuad = A2(author$project$ViewTable$makeSubmittedQuad, oinning.startsAt, oinning.table);
+				var relQuad = A3(author$project$ViewTable$makeRelativeQuad, selfSeat, oinning.gains, submittedQuad);
+				var numCardsAtTrickBeginning = elm$core$List$length(yourHand) + elm$core$List$length(relQuad.self.submitted);
+				return A2(
+					elm$svg$Svg$svg,
 					_List_fromArray(
 						[
-							author$project$ViewTable$displayGains(relQuad),
-							author$project$ViewTable$displayTable(relQuad),
-							A2(author$project$ViewTable$displayHand, handInfo, yourHand)
-						])));
-		} else {
-			var gainsQuad = observableInning.a;
-			var submittedQuad = {east: _List_Nil, north: _List_Nil, south: _List_Nil, west: _List_Nil};
-			var relQuad = A3(author$project$ViewTable$makeRelativeQuad, selfSeat, gainsQuad, submittedQuad);
-			return A2(
-				elm$svg$Svg$svg,
-				_List_fromArray(
-					[
-						elm$svg$Svg$Attributes$width(
-						elm$core$String$fromInt(author$project$Constants$svgWidth)),
-						elm$svg$Svg$Attributes$height(
-						elm$core$String$fromInt(author$project$Constants$svgHeight)),
-						elm$svg$Svg$Attributes$viewBox(
-						'0 0 ' + (elm$core$String$fromInt(author$project$Constants$svgWidth) + (' ' + elm$core$String$fromInt(author$project$Constants$svgHeight))))
-					]),
-				_Utils_ap(
-					author$project$ViewTable$displayGains(relQuad),
+							elm$svg$Svg$Attributes$width(widthText),
+							elm$svg$Svg$Attributes$viewBox(viewBoxText)
+						]),
+					elm$core$List$concat(
+						_List_fromArray(
+							[
+								author$project$ViewTable$displayDirection(selfSeat),
+								author$project$ViewTable$displayLeftHand(
+								numCardsAtTrickBeginning - elm$core$List$length(relQuad.left.submitted)),
+								author$project$ViewTable$displayParentTile(
+								author$project$PerSeat$relative(
+									{from: selfSeat, target: parentSeat})),
+								author$project$ViewTable$displayGains(relQuad),
+								author$project$ViewTable$displayTable(relQuad),
+								author$project$ViewTable$displayRightHand(
+								numCardsAtTrickBeginning - elm$core$List$length(relQuad.right.submitted)),
+								author$project$ViewTable$displayFrontHand(
+								numCardsAtTrickBeginning - elm$core$List$length(relQuad.front.submitted)),
+								A2(author$project$ViewTable$displayHand, handInfo, yourHand)
+							])));
+			} else {
+				var gainsQuad = observableInning.a;
+				var submittedQuad = {east: _List_Nil, north: _List_Nil, south: _List_Nil, west: _List_Nil};
+				var relQuad = A3(author$project$ViewTable$makeRelativeQuad, selfSeat, gainsQuad, submittedQuad);
+				var elemsMain = function () {
+					if (_Utils_cmp(gameMeta.inningIndex, author$project$Constants$maximumNumInnings) > -1) {
+						var winners = author$project$ViewTable$getWinners(gameMeta);
+						var winnerTexts = A2(
+							elm$core$List$map,
+							function (_n1) {
+								var maybePlayer = _n1.a;
+								var score = _n1.b;
+								var userName = function () {
+									if (maybePlayer.$ === 'Nothing') {
+										return '-';
+									} else {
+										var player = maybePlayer.a;
+										return player.user.userName;
+									}
+								}();
+								return userName + (' さん（' + (elm$core$String$fromInt(score) + ' 点）'));
+							},
+							winners);
+						var elemsText = A2(
+							elm$core$List$indexedMap,
+							F2(
+								function (i, s) {
+									return A2(
+										elm$svg$Svg$text_,
+										_List_fromArray(
+											[
+												elm$svg$Svg$Attributes$x(
+												elm$core$String$fromInt(author$project$Constants$roomCloseTextX)),
+												elm$svg$Svg$Attributes$y(
+												elm$core$String$fromInt(author$project$Constants$roomCloseTextY + (author$project$Constants$roomCloseTextLeading * i))),
+												elm$svg$Svg$Attributes$textAnchor('middle'),
+												elm$svg$Svg$Attributes$class('svg-room-close-text')
+											]),
+										_List_fromArray(
+											[
+												elm$svg$Svg$text(s)
+											]));
+								}),
+							A2(elm$core$List$cons, '優勝', winnerTexts));
+						return _Utils_ap(
+							elemsText,
+							_List_fromArray(
+								[
+									A5(
+									author$project$ViewTable$displayButton,
+									!handInfo.synchronizing,
+									author$project$Common$SendRequest(author$project$Common$RequireNextInning),
+									'終了',
+									author$project$Constants$roomCloseButtonX,
+									author$project$Constants$roomCloseButtonY)
+								]));
+					} else {
+						return _List_fromArray(
+							[
+								A5(
+								author$project$ViewTable$displayButton,
+								!handInfo.synchronizing,
+								author$project$Common$SendRequest(author$project$Common$RequireNextInning),
+								'次へ',
+								author$project$Constants$goToNextButtonX,
+								author$project$Constants$goToNextButtonY)
+							]);
+					}
+				}();
+				return A2(
+					elm$svg$Svg$svg,
 					_List_fromArray(
 						[
-							A5(
-							author$project$ViewTable$displayButton,
-							!handInfo.synchronizing,
-							author$project$Common$SendRequest(author$project$Common$RequireNextInning),
-							'次へ',
-							author$project$Constants$goToNextButtonX,
-							author$project$Constants$goToNextButtonY)
-						])));
-		}
+							elm$svg$Svg$Attributes$width(widthText),
+							elm$svg$Svg$Attributes$viewBox(viewBoxText)
+						]),
+					elm$core$List$concat(
+						_List_fromArray(
+							[
+								author$project$ViewTable$displayDirection(selfSeat),
+								author$project$ViewTable$displayParentTile(
+								author$project$PerSeat$relative(
+									{from: selfSeat, target: parentSeat})),
+								author$project$ViewTable$displayGains(relQuad),
+								elemsMain
+							])));
+			}
+		}();
+		return A2(
+			elm$html$Html$div,
+			_List_fromArray(
+				[
+					elm$html$Html$Attributes$class('table-container')
+				]),
+			_List_fromArray(
+				[mainElem]));
 	});
-var elm$html$Html$b = _VirtualDom_node('b');
 var author$project$View$viewRoom = F5(
-	function (_n0, user, pstate, indices, chatTextInput) {
-		var level = _n0.a;
-		var message = _n0.b;
+	function (message, user, pstate, indices, chatTextInput) {
 		var room = pstate.room;
+		var headerText = '天九 Online | ' + (user.userName + ' さん');
 		var elemsChat = _List_fromArray(
 			[
 				A2(
-				elm$html$Html$ul,
-				_List_Nil,
-				A2(
-					elm$core$List$map,
-					function (log) {
-						switch (log.$) {
-							case 'LogComment':
-								var comment = log.a;
-								return A2(
-									elm$html$Html$li,
-									_List_Nil,
-									_List_fromArray(
-										[
-											A2(
-											elm$html$Html$b,
-											_List_Nil,
-											_List_fromArray(
-												[
-													elm$html$Html$text(comment.from.userName)
-												])),
-											elm$html$Html$text(': ' + comment.text)
-										]));
-							case 'LogEntered':
-								var u = log.a;
-								return A2(
-									elm$html$Html$li,
-									_List_Nil,
-									_List_fromArray(
-										[
-											A2(
-											elm$html$Html$b,
-											_List_Nil,
-											_List_fromArray(
-												[
-													elm$html$Html$text(u.userName)
-												])),
-											elm$html$Html$text(' さんが参加しました')
-										]));
-							case 'LogExited':
-								var u = log.a;
-								return A2(
-									elm$html$Html$li,
-									_List_Nil,
-									_List_fromArray(
-										[
-											A2(
-											elm$html$Html$b,
-											_List_Nil,
-											_List_fromArray(
-												[
-													elm$html$Html$text(u.userName)
-												])),
-											elm$html$Html$text(' さんが退出しました')
-										]));
-							default:
-								return A2(
-									elm$html$Html$li,
-									_List_Nil,
-									_List_fromArray(
-										[
-											A2(
-											elm$html$Html$b,
-											_List_Nil,
-											_List_fromArray(
-												[
-													elm$html$Html$text('対局開始！')
-												]))
-										]));
-						}
-					},
-					pstate.logs)),
+				elm$html$Html$div,
+				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('log-area')
+					]),
+				A2(elm$core$List$map, author$project$View$viewLogEntry, pstate.logs)),
 				A2(
 				elm$html$Html$div,
-				_List_Nil,
 				_List_fromArray(
+					[
+						elm$html$Html$Attributes$class('chat-input-container')
+					]),
+				_List_fromArray(
+					[
+						author$project$View$specialInput(
+						{placeholder: 'コメント', update: author$project$Common$ChatInput, value: chatTextInput}),
+						A3(
+						author$project$View$specialButton,
+						!elm$core$String$isEmpty(chatTextInput),
+						'送信',
+						author$project$Common$SendChat)
+					]))
+			]);
+		var _n0 = pstate.game;
+		if (_n0.$ === 'WaitingStart') {
+			var users = _n0.a;
+			var elemsDebug = function () {
+				var members = A2(
+					elm$core$String$join,
+					', ',
+					A2(
+						elm$core$List$map,
+						function (u) {
+							return u.userName;
+						},
+						users));
+				return _List_fromArray(
 					[
 						A2(
 						elm$html$Html$div,
 						_List_Nil,
 						_List_fromArray(
 							[
+								elm$html$Html$text('debug info')
+							])),
+						A2(
+						elm$html$Html$ul,
+						_List_Nil,
+						_List_fromArray(
+							[
 								A2(
-								elm$html$Html$input,
+								elm$html$Html$li,
+								_List_Nil,
 								_List_fromArray(
 									[
-										elm$html$Html$Attributes$type_('text'),
-										elm$html$Html$Attributes$placeholder('コメント'),
-										elm$html$Html$Attributes$value(chatTextInput),
-										elm$html$Html$Events$onInput(
-										A2(elm$core$Basics$composeL, author$project$Common$UpdateInput, author$project$Common$ChatInput))
-									]),
-								_List_Nil),
+										elm$html$Html$text('user ID: ' + user.userId)
+									])),
 								A2(
-								elm$html$Html$button,
+								elm$html$Html$li,
+								_List_Nil,
 								_List_fromArray(
 									[
-										elm$html$Html$Events$onClick(
-										author$project$Common$SendRequest(author$project$Common$SendChat))
-									]),
+										elm$html$Html$text('room ID: ' + room.roomId)
+									])),
+								A2(
+								elm$html$Html$li,
+								_List_Nil,
 								_List_fromArray(
 									[
-										elm$html$Html$text('送信')
+										elm$html$Html$text('members: ' + members)
 									]))
 							]))
-					]))
-			]);
-		var stys = function () {
-			if (level.$ === 'Information') {
-				return _List_fromArray(
-					[
-						elm$html$Html$Attributes$class('grid-element-footer'),
-						elm$html$Html$Attributes$class('footer-style-normal')
 					]);
-			} else {
-				return _List_fromArray(
-					[
-						elm$html$Html$Attributes$class('grid-element-footer'),
-						elm$html$Html$Attributes$class('footer-style-warning')
-					]);
-			}
-		}();
-		var _n1 = pstate.game;
-		if (_n1.$ === 'WaitingStart') {
-			var users = _n1.a;
-			var members = A2(
-				elm$core$String$join,
-				', ',
-				A2(
-					elm$core$List$map,
-					function (u) {
-						return u.userName;
-					},
-					users));
-			var elemsDebug = _List_fromArray(
+			}();
+			var elemsLeft = _List_fromArray(
 				[
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('room-name')
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(room.roomName)
+						])),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('status-text')
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text('待機中')
+						])),
 					A2(
 					elm$html$Html$div,
 					_List_Nil,
 					_List_fromArray(
 						[
-							elm$html$Html$text(room.roomName + (' (部屋ID: ' + (room.roomId + (', 参加者: ' + (members + ')')))))
-						]))
+							A3(
+							author$project$View$specialButton,
+							true,
+							'退室',
+							author$project$Common$ExitRoom(room.roomId))
+						])),
+					A2(
+					elm$html$Html$div,
+					_List_fromArray(
+						[
+							elm$html$Html$Attributes$class('debug-info')
+						]),
+					elemsDebug)
 				]);
-			return author$project$View$viewGridScheme(
+			return author$project$View$viewRoomGridScheme(
 				{
 					center: _List_Nil,
-					footer: _List_fromArray(
-						[
-							A2(
-							elm$html$Html$div,
-							stys,
-							_List_fromArray(
-								[
-									elm$html$Html$text(message)
-								]))
-						]),
+					footer: message,
 					header: _List_fromArray(
 						[
-							elm$html$Html$text('header')
+							elm$html$Html$text(headerText)
 						]),
-					left: elemsDebug,
+					left: elemsLeft,
 					right: elemsChat
 				});
 		} else {
-			var ostate = _n1.a;
+			var ostate = _n0.a;
 			var gameMeta = ostate.meta;
+			var scores = gameMeta.scores;
 			var players = gameMeta.players;
 			var synchronizing = ostate.synchronizing;
 			var turn = A2(author$project$Game$isMyTurn, user.userId, ostate);
 			var userId = user.userId;
-			var _n2 = A2(
+			var _n1 = A2(
 				author$project$PerSeat$find,
-				function (p) {
-					return _Utils_eq(p.user.userId, userId);
+				function (maybePlayer) {
+					if (maybePlayer.$ === 'Just') {
+						var player = maybePlayer.a;
+						return _Utils_eq(player.user.userId, userId);
+					} else {
+						return false;
+					}
 				},
 				players);
-			if (_n2.$ === 'Nothing') {
+			if (_n1.$ === 'Nothing') {
 				return _List_fromArray(
 					[
 						A2(
@@ -10425,7 +11738,7 @@ var author$project$View$viewRoom = F5(
 							]))
 					]);
 			} else {
-				var seat = _n2.a;
+				var seat = _n1.a;
 				var maybeTable = function () {
 					var _n3 = ostate.observableInning;
 					if (_n3.$ === 'ObservableDuringInning') {
@@ -10447,30 +11760,50 @@ var author$project$View$viewRoom = F5(
 						_List_Nil,
 						_List_fromArray(
 							[
-								elm$html$Html$text('room ID: ' + room.roomId)
+								elm$html$Html$text('debug info')
 							])),
 						A2(
-						elm$html$Html$div,
+						elm$html$Html$ul,
 						_List_Nil,
 						_List_fromArray(
 							[
-								elm$html$Html$text('snapshot ID: ' + ostate.snapshotId)
-							])),
-						A2(
-						elm$html$Html$div,
-						_List_Nil,
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								'synchronizing: ' + (synchronizing ? 'Y' : 'N'))
-							])),
-						A2(
-						elm$html$Html$div,
-						_List_Nil,
-						_List_fromArray(
-							[
-								elm$html$Html$text(
-								'your turn: ' + (turn ? 'Y' : 'N'))
+								A2(
+								elm$html$Html$li,
+								_List_Nil,
+								_List_fromArray(
+									[
+										elm$html$Html$text('user ID: ' + user.userId)
+									])),
+								A2(
+								elm$html$Html$li,
+								_List_Nil,
+								_List_fromArray(
+									[
+										elm$html$Html$text('room ID: ' + room.roomId)
+									])),
+								A2(
+								elm$html$Html$li,
+								_List_Nil,
+								_List_fromArray(
+									[
+										elm$html$Html$text('snapshot ID: ' + ostate.snapshotId)
+									])),
+								A2(
+								elm$html$Html$li,
+								_List_Nil,
+								_List_fromArray(
+									[
+										elm$html$Html$text(
+										'synchronizing: ' + (synchronizing ? 'Y' : 'N'))
+									])),
+								A2(
+								elm$html$Html$li,
+								_List_Nil,
+								_List_fromArray(
+									[
+										elm$html$Html$text(
+										'your turn: ' + (turn ? 'Y' : 'N'))
+									]))
 							]))
 					]);
 				var elemsLeft = _List_fromArray(
@@ -10487,37 +11820,48 @@ var author$project$View$viewRoom = F5(
 							])),
 						A2(
 						elm$html$Html$div,
-						_List_Nil,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('status-text')
+							]),
 						_List_fromArray(
 							[
 								elm$html$Html$text(
-								elm$core$String$fromInt(gameMeta.inningIndex + 1) + ('局目，' + (elm$core$String$fromInt(gameMeta.numConsecutives - 1) + '本場')))
+								A2(author$project$View$showGameIndex, gameMeta.inningIndex, gameMeta.numConsecutives))
 							])),
-						A2(author$project$View$viewPlayer, '東', players.east),
-						A2(author$project$View$viewPlayer, '南', players.south),
-						A2(author$project$View$viewPlayer, '西', players.west),
-						A2(author$project$View$viewPlayer, '北', players.north),
-						A2(elm$html$Html$div, _List_Nil, elemsDebug)
+						A2(
+						elm$html$Html$div,
+						_List_Nil,
+						_List_fromArray(
+							[
+								A3(
+								author$project$View$specialButton,
+								true,
+								'中断して退室',
+								author$project$Common$ExitRoom(room.roomId))
+							])),
+						A3(author$project$View$viewPlayer, '東', players.east, scores.east),
+						A3(author$project$View$viewPlayer, '南', players.south, scores.south),
+						A3(author$project$View$viewPlayer, '西', players.west, scores.west),
+						A3(author$project$View$viewPlayer, '北', players.north, scores.north),
+						A2(
+						elm$html$Html$div,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('debug-info')
+							]),
+						elemsDebug)
 					]);
-				return author$project$View$viewGridScheme(
+				return author$project$View$viewRoomGridScheme(
 					{
 						center: _List_fromArray(
 							[
-								A4(author$project$ViewTable$view, userId, seat, handInfo, ostate.observableInning)
+								A6(author$project$ViewTable$view, userId, seat, gameMeta.parentSeat, handInfo, gameMeta, ostate.observableInning)
 							]),
-						footer: _List_fromArray(
-							[
-								A2(
-								elm$html$Html$div,
-								stys,
-								_List_fromArray(
-									[
-										elm$html$Html$text(message)
-									]))
-							]),
+						footer: message,
 						header: _List_fromArray(
 							[
-								elm$html$Html$text('header')
+								elm$html$Html$text(headerText)
 							]),
 						left: elemsLeft,
 						right: elemsChat

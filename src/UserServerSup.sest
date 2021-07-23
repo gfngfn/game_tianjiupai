@@ -1,19 +1,20 @@
-import Types
+import Models
 import UserServer
 
 module UserServerSup :> sig
   open Stdlib
-  open Types
+  open Models
 
   type info :: o
   type proc :: o
   val start_link<$a> : fun() -> [$a]result<proc, Supervisor.Static.start_link_error>
   val start_child<$a> : fun(-user_id user_id, -user_name binary) -> [$a]result<UserServer.proc, GenServer.start_link_error>
+  val terminate_child<$a> : fun(UserServer.proc) -> [$a]result<unit, Supervisor.Dynamic.terminate_child_error>
   val as_pid : fun(proc) -> pid<info>
 
 end = struct
   open Stdlib
-  open Types
+  open Models
 
   module SD = Supervisor.Dynamic
 
@@ -74,6 +75,17 @@ end = struct
 
     | None ->
         return([])
+    end
+
+  val terminate_child(child_proc) = act
+    do opt <- Impl.where_is_global({}) in
+    case opt of
+    | Some(proc) ->
+        let child_pid = UserServer.as_pid(child_proc) in
+        Impl.terminate_child(proc, child_pid)
+
+    | None ->
+        return(Error(RawValue.forget("supervisor not found")))
     end
 
   val as_pid(proc) =

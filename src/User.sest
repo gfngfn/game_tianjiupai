@@ -1,21 +1,24 @@
-import Types
+import Logger
+import Models
 import UserServerSup
 import UserServer
 import Room
 
 module User :> sig
   open Stdlib
-  open Types
+  open Models
 
   val create<$a> : fun(binary) -> [$a]result<user_id, GenServer.start_link_error>
 
   val exists<$a> : fun(user_id) -> [$a]bool
 
+  val delete<$a> : fun(user_id) -> [$a]unit
+
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
-  val get_info<$a> : fun(user_id) -> [$a]option<user_state>
+  val get_info<$a> : fun(user_id) -> [$a]option<UserServer.user_state>
 
-  val set_room<$a> : fun(user_id, room_id) -> [$a]option<unit>
+  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]option<unit>
 
   val get_room<$a> : fun(user_id) -> [$a]option<room_id>
 
@@ -29,7 +32,7 @@ module User :> sig
 
 end = struct
   open Stdlib
-  open Types
+  open Models
 
   val generate_user_id<$a> : fun() -> [$a]user_id = external 0 ```
     generate_user_id() ->
@@ -45,14 +48,31 @@ end = struct
   val exists(user_id) = act
     UserServer.exists(user_id)
 
+  val delete(user_id) = act
+    do proc_opt <- UserServer.get_proc(user_id) in
+    case proc_opt of
+    | None ->
+        return({})
+
+    | Some(proc) ->
+        do res <- UserServerSup.terminate_child(proc) in
+        let _ =
+          assert Logger.info(
+            f'user deleted (user_id: ~p, result: ~p)',
+            {user_id, res}
+          )
+        in
+        return({})
+    end
+
   val get_name(user_id) = act
     UserServer.get_name(user_id)
 
   val get_info(user_id) = act
     UserServer.get_user_state(user_id)
 
-  val set_room(user_id, room_id) = act
-    UserServer.set_room(user_id, room_id)
+  val set_room(user_id, room_id_opt) = act
+    UserServer.set_room(user_id, room_id_opt)
 
   val get_room(user_id) = act
     UserServer.get_room(user_id)

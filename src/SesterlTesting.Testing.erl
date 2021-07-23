@@ -1,18 +1,14 @@
 -module('SesterlTesting.Testing').
 -export(['it'/2, 'perform'/2, 'list'/1, 'equal'/2]).
-
     it(Title, F) ->
         {Title, F}.
   
-
     perform(Title, F) ->
         {Title, F}.
   
-
     list(Ts) ->
         Ts.
   
-
     equal(Expect, Got) ->
         fun(FileName, LineNumber) ->
             case Got of

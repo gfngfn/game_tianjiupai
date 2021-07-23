@@ -1,3 +1,3 @@
 -module('Tianjiupai.UserServerSup.Callback').
 -export(['init'/1]).
-'init'(S1246InitArg) -> begin S1247SupFlags = 'SesterlStdlib.DynamicSupervisor':'make_sup_flags'(), begin S1248ChildSpec = 'SesterlStdlib.DynamicSupervisor':'make_child_spec'({'Tianjiupai.UserServerSup', 'start_child_impl', []}), 'SesterlStdlib.DynamicSupervisor':'init_ok'(S1247SupFlags, S1248ChildSpec) end end.
+'init'(S2167InitArg) -> begin S2168SupFlags = 'SesterlStdlib.SupervisorDynamic':'make_sup_flags'(), begin S2169ChildSpec = 'SesterlStdlib.SupervisorDynamic':'make_child_spec'({'Tianjiupai.UserServerSup', 'start_child_impl', []}), 'SesterlStdlib.SupervisorDynamic':'init_ok'(S2168SupFlags, S2169ChildSpec) end end.

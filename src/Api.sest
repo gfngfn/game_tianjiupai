@@ -1,0 +1,264 @@
+import Logger
+import Models
+import User
+import Room
+
+module Api = struct
+  open Models
+
+  val create_user(req_body : binary) = act
+    case Json.Decode.run(Models.decode_create_user_request(), req_body) of
+    | Ok(create_user_request) ->
+        let user_name = create_user_request.user_name in
+        do res <- User.create(user_name) in
+        case res of
+        | Ok(user_id) ->
+            let _ =
+              assert Logger.info(
+                f'user created (user_name: ~p, user_id: ~p)',
+                {user_name, user_id}
+              )
+            in
+            let enc = Models.encode_create_user_response() in
+            let resp_body = Json.Encode.run(enc({ user_id = user_id })) in
+            return(Some({user_id, resp_body}))
+        | Error(_) ->
+            return(None)
+        end
+    | Error(_) ->
+        return(None)
+    end
+
+  val is_existent_user(user_id : user_id) = act
+    User.exists(user_id)
+
+  val delete_user(user_id : user_id) = act
+    User.delete(user_id)
+
+  val get_all_rooms() = act
+    do room_summaries <- Room.get_all_rooms() in
+    let enc = Models.encode_get_all_rooms_response() in
+    return(Json.Encode.run(enc({rooms = room_summaries})))
+
+  val get_personal_state(room_id : room_id, user_id : user_id, validator : fun(user_id) -> bool) = act
+    if validator(user_id) then
+      do res <- Room.get_personal_state(room_id, user_id) in
+      case res of
+      | Some(personal_state) ->
+          let enc = Models.encode_personal_state() in
+          return(Some(Json.Encode.run(enc(personal_state))))
+      | None ->
+          return(None)
+      end
+    else
+      return(None)
+
+  val submit(room_id, user_id, cards) = act
+    do res <- Room.submit(room_id, user_id, cards) in
+    let is_success =
+      case res of
+      | Some(_) -> true
+      | None    -> false
+      end
+    in
+    let _ =
+      assert Logger.info(
+        f'submit (room_id: ~p, user_id: ~p, cards: ~p, success: ~p)',
+        {user_id, room_id, cards, is_success}
+      )
+    in
+    case res of
+    | Some({obs, trick_last_opt}) ->
+        let enc = Models.encode_submit_cards_response() in
+        return(Some(Json.Encode.run(enc({ new_state = obs, trick_last = trick_last_opt }))))
+    | None ->
+        return(None)
+    end
+
+  val create_room(req_body : binary, validator : fun(user_id) -> bool) = act
+    case Json.Decode.run(Models.decode_create_room_request(), req_body) of
+    | Ok(create_room_request) ->
+        let user_id = create_room_request.user_id in
+        let room_name = create_room_request.room_name in
+        if validator(user_id) then
+          do res <- Room.create(room_name) in
+          case res of
+          | Ok(room_id) ->
+              let _ =
+                assert Logger.info(
+                  f'room created (room_name: ~p, room_id: ~p, created_by: ~p)',
+                  {room_name, room_id, user_id}
+                )
+              in
+              let enc = Models.encode_create_room_response() in
+              let resp_body = Json.Encode.run(enc({ room_id = room_id })) in
+              return(Some({room_id, resp_body}))
+          | Error(_) ->
+              return(None)
+          end
+        else
+          return(None)
+    | Error(_) ->
+        return(None)
+    end
+
+  val enter_room(user_id : user_id, room_id : room_id) = act
+    do res <- User.set_room(user_id, Some(room_id)) in
+    case res of
+    | Some({}) ->
+        do res <- User.get_name(user_id) in
+        let Some(user_name) = res in
+        let user = { user_id = user_id, user_name = user_name } in
+        do res <- Room.attend(room_id, user) in
+        let is_success =
+          case res of
+          | Some(_) -> true
+          | None    -> false
+          end
+        in
+        let _ =
+          assert Logger.info(
+            f'attend (user_id: ~p, room_id: ~p, success: ~p)',
+            {user_id, room_id, is_success}
+          )
+        in
+        case res of
+        | Some(personal_state) ->
+            let enc = Models.encode_enter_room_response() in
+            return(Some(Json.Encode.run(enc(personal_state))))
+        | None ->
+            return(None)
+        end
+    | None ->
+        return(None)
+    end
+
+  val exit_room(user_id : user_id, room_id : room_id) = act
+    do res <- User.set_room(user_id, None) in
+    case res of
+    | Some({}) ->
+        do res <- Room.exit(room_id, user_id) in
+        let is_success =
+          case res of
+          | Some(_) -> true
+          | None    -> false
+          end
+        in
+        let _ =
+          assert Logger.info(
+            f'exit (user_id: ~p, room_id: ~p, success: ~p)',
+            {user_id, room_id, is_success}
+          )
+        in
+        case res of
+        | Some({}) ->
+            let enc = Models.encode_exit_room_response() in
+            return(Some(Json.Encode.run(enc({}))))
+        | None ->
+            return(None)
+        end
+    | None ->
+        return(None)
+    end
+
+  val update_room(room_id : room_id, req_body : binary, validator : fun(user_id) -> bool) = act
+    case Json.Decode.run(Models.decode_room_request(), req_body) of
+    | Ok(room_request) ->
+        case room_request of
+        | Models.RoomRequestToEnterRoom(enter_room_request) ->
+            let user_id = enter_room_request.user_id in
+            if validator(user_id) then
+              enter_room(user_id, room_id)
+            else
+              return(None)
+        | Models.RoomRequestToExitRoom(exit_room_request) ->
+            let user_id = exit_room_request.user_id in
+            if validator(user_id) then
+              exit_room(user_id, room_id)
+            else
+              return(None)
+        | Models.RoomRequestToSubmitCards(submit_cards_request) ->
+            let user_id = submit_cards_request.user_id in
+            let cards = submit_cards_request.cards in
+            if validator(user_id) then
+              submit(room_id, user_id, cards)
+            else
+              return(None)
+        end
+    | Error(_) ->
+        return(None)
+    end
+
+  val perform_command(user_id : user_id, data : binary) = act
+    case Json.Decode.run(Models.decode_command(), data) of
+    | Ok(command) ->
+        case command of
+        | Models.CommandComment(text) ->
+            do res <- User.send_chat(user_id, text) in
+            let _ =
+              case res of
+              | Some({}) ->
+                  {}
+              | None ->
+                  assert Logger.warning(
+                    f'failed to send a chat comment (user_id: ~p, text: ~p)',
+                    {user_id, text}
+                  )
+              end
+            in
+            return({})
+        | Models.CommandAck(snapshot_id) ->
+            do res <- User.ack(user_id, snapshot_id) in
+            let _ =
+              assert Logger.info(
+                f'ack (user_id: ~p, snapshot_id: ~p)',
+                {user_id, snapshot_id}
+              )
+            in
+            return({})
+        | Models.CommandHeartbeat ->
+            return({})
+        | Models.CommandNextInning(snapshot_id) ->
+            do res <- User.require_next_inning(user_id, snapshot_id) in
+            let _ =
+              assert Logger.info(
+                f'next inning (user_id: ~p, snapshot_id: ~p)',
+                {user_id, snapshot_id}
+              )
+            in
+            return({})
+        end
+    | Error(_) ->
+        return({})
+    end
+
+  val set_websocket_connection(user_id : user_id, ws_pid) = act
+    User.set_websocket_connection(user_id, ws_pid)
+
+  val encode_notification(notification) =
+    let enc = Models.encode_notification() in
+    Json.Encode.run(enc(notification))
+
+  val make_flag_user(user_id_opt) = act
+    let enc = Models.encode_flag_user_option() in
+    do opt <-
+      case user_id_opt of
+      | None ->
+          return(None)
+      | Some(user_id) ->
+          do res <- User.get_info(user_id) in
+          case res of
+          | Some(info) ->
+              return(Some({
+                id         = user_id,
+                name       = info.user_name,
+                belongs_to = info.belongs_to
+              }))
+          | None ->
+              return(None)
+          end
+      end
+    in
+    return(Json.Encode.run(enc(opt)))
+
+end

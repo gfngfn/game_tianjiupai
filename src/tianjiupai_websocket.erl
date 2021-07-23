@@ -34,20 +34,20 @@
 -type error_reason() ::
     {failed_to_notify, tianjiupai:user_id(), message()}.
 
--define(USER_FRONT, 'Tianjiupai.User').
+-define(FRONT, 'Tianjiupai.Api').
+-define(LOGGER, 'Tianjiupai.Logger').
 -define(IDLE_TIMEOUT_MILLISECONDS, 60000).
 
 %%====================================================================================================
 %% `cowboy_websocket' Callback Functions
 %%====================================================================================================
 init(Req0, _) ->
-    io:format("~p, init~n", [?MODULE]), % TODO
     {MaybeInfo, Req1} = tianjiupai_session:get(Req0),
     MaybeUserId = cowboy_req:binding(user_id, Req1, undefined),
     {cowboy_websocket, Req1, {MaybeUserId, MaybeInfo}, #{idle_timeout => ?IDLE_TIMEOUT_MILLISECONDS}}.
 
 websocket_init({MaybeUserId, MaybeInfo}) ->
-    io:format("~p, websocket_init (user_id: ~p, info: ~p)~n", [?MODULE, MaybeUserId, MaybeInfo]),
+    (?LOGGER:info({"websocket_init (user_id: ~p)", 1}, {MaybeUserId}))(?MODULE, ?LINE),
     case {MaybeUserId, MaybeInfo} of
         {undefined, _} ->
             {stop, user_id_unavailable};
@@ -57,10 +57,16 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
             State = #state{session_info = Info},
             case register_name(UserId) of
                 ok ->
-                    io:format("~p, succeeded in registration~n", [?MODULE]),
+                    (?LOGGER:info(
+                        {"succeeded in registration (user_id: ~p)", 1},
+                        {UserId}
+                    ))(?MODULE, ?LINE),
                     {ok, State};
                 {error, Reason} ->
-                    io:format("~p, failed in registration (reason: ~p)~n", [?MODULE, Reason]),
+                    (?LOGGER:info(
+                        {"succeeded in registration (user_id: ~p, reason: ~p)", 2},
+                        {UserId, Reason}
+                    ))(?MODULE, ?LINE),
                     {stop, Reason}
             end;
         _ ->
@@ -69,8 +75,12 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
 
 websocket_handle(MsgFromClient, State) ->
     case MsgFromClient of
-        {text, Data} -> handle_command(Data, State);
-        _            -> {ok, State}
+        {text, Data} ->
+            UserId = get_user_id(State),
+            ok = ?FRONT:perform_command(UserId, erlang:iolist_to_binary(Data)),
+            {ok, State};
+        _ ->
+            {ok, State}
     end.
 
 -spec websocket_info(message(), #state{}) -> {reply, [cow_ws:frame()], #state{}} | {ok, #state{}}.
@@ -80,13 +90,13 @@ websocket_info(Msg, State) ->
             Chunks =
                 lists:map(
                     fun(Notification) ->
-                        Bin = tianjiupai_format:encode_notification(Notification),
+                        Bin = ?FRONT:encode_notification(Notification),
                         {text, Bin}
                     end,
                     Notifications),
             {reply, Chunks, State};
         _ ->
-            io:format("~p, unknown message (messge: ~p)~n", [?MODULE, Msg]),
+            (?LOGGER:warning({"unknown message (messge: ~p)", 1}, {Msg}))(?MODULE, ?LINE),
             {ok, State}
     end.
 
@@ -95,13 +105,13 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 -spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok | {error, error_reason()}.
 notify(UserId, Notifications) ->
-    Message = {notifications, Notifications},
+    Msg = {notifications, Notifications},
     try
-        _ = global:send(name(UserId), Message),
+        _ = global:send(name(UserId), Msg),
         ok
     catch
         _:_ ->
-            {error, {failed_to_notify, UserId, Message}}
+            {error, {failed_to_notify, UserId, Msg}}
     end.
 
 %%====================================================================================================
@@ -115,7 +125,10 @@ register_name(UserId) ->
             name(UserId),
             Self,
             fun(Name, Pid1, Pid2) ->
-                    io:format("name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)~n", [Name, Pid1, Pid2, Self]),
+                    (?LOGGER:warning(
+                        {"name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)", 4},
+                        {Name, Pid1, Pid2, Self}
+                    ))(?MODULE, ?LINE),
                     case {Pid1, Pid2} of
                         {Self, _} ->
                             erlang:exit(Pid2),
@@ -129,7 +142,7 @@ register_name(UserId) ->
             end)
     of
         yes ->
-            case ?USER_FRONT:set_websocket_connection(UserId, Self) of
+            case ?FRONT:set_websocket_connection(UserId, Self) of
                 {ok, ok} -> ok;
                 error    -> {error, set_websocket_connection_failed}
             end;
@@ -144,38 +157,3 @@ name(UserId) ->
 get_user_id(State) ->
     #state{session_info = #{user_id := UserId}} = State,
     UserId.
-
--spec handle_command(iodata(), #state{}) -> {ok, #state{}}.
-handle_command(Data, State) ->
-    UserId = get_user_id(State),
-    case tianjiupai_format:decode_command(Data) of
-        {ok, Command} ->
-            case Command of
-                {comment, Text} ->
-                    case ?USER_FRONT:send_chat(UserId, Text) of
-                        {ok, ok} ->
-                            ok;
-                        error ->
-                            io:format("~p: failed to send a chat comment (user_id: ~p, text: ~p)~n",
-                                [?MODULE, UserId, Text]),
-                            ok
-                    end,
-                    {ok, State};
-                {ack, SnapshotId} ->
-                    io:format("~p: ack (user_id: ~p, snapshot_id: ~p)~n",
-                        [?MODULE, UserId, SnapshotId]),
-                    ok = ?USER_FRONT:ack(UserId, SnapshotId),
-                    {ok, State};
-                {next_inning, SnapshotId} ->
-                    io:format("~p: next inning (user_id: ~p, snapshot_id: ~p)~n",
-                        [?MODULE, UserId, SnapshotId]),
-                    ok = ?USER_FRONT:require_next_inning(UserId, SnapshotId),
-                    {ok, State};
-                heartbeat ->
-                    %% io:format("~p: heartbeat (user_id: ~p)~n", [?MODULE, UserId]),
-                    {ok, State}
-            end;
-        {error, Reason} ->
-            io:format("~p: unknown command (reason: ~p)~n", [?MODULE, Reason]),
-            {ok, State}
-    end.

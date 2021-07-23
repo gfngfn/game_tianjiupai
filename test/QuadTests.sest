@@ -1,3 +1,4 @@
+import Models
 import Quad
 
 module QuadTests = #[test] struct
@@ -16,17 +17,17 @@ module QuadTests = #[test] struct
           end)
         end,
         [
-          {Quad.Seat3, 4, Quad.Seat3},
-          {Quad.Seat2, 3, Quad.Seat1},
-          {Quad.Seat2, 0 - 3, Quad.Seat3},
+          {Models.SeatD, 4, Models.SeatD},
+          {Models.SeatC, 3, Models.SeatB},
+          {Models.SeatC, 0 - 3, Models.SeatD},
         ]))
 
   val map_test() =
     Testing.it("map", fun() ->
       let f(x) = x + 1 in
       assert Testing.equal(
-        -expect {5, 5, 3, 4},
-        -got Quad.map(f, {4, 4, 2, 3}))
+        -expect Quad.make({5, 5, 3, 4}),
+        -got Quad.map(f, Quad.make({4, 4, 2, 3})))
     end)
 
   type elem =
@@ -39,15 +40,15 @@ module QuadTests = #[test] struct
           let {seat, v, input, expected} = test_case in
           Testing.it("update", fun() ->
             assert Testing.equal(
-              -expect expected,
-              -got Quad.update(seat, v, input))
+              -expect Quad.make(expected),
+              -got Quad.update(seat, v, Quad.make(input)))
           end)
         end,
         [
-          {Quad.Seat0, A, {X, Y, Z, W}, {A, Y, Z, W}},
-          {Quad.Seat1, A, {X, Y, Z, W}, {X, A, Z, W}},
-          {Quad.Seat2, A, {X, Y, Z, W}, {X, Y, A, W}},
-          {Quad.Seat3, A, {X, Y, Z, W}, {X, Y, Z, A}},
+          {Models.SeatA, A, {X, Y, Z, W}, {A, Y, Z, W}},
+          {Models.SeatB, A, {X, Y, Z, W}, {X, A, Z, W}},
+          {Models.SeatC, A, {X, Y, Z, W}, {X, Y, A, W}},
+          {Models.SeatD, A, {X, Y, Z, W}, {X, Y, Z, A}},
         ]))
 
 end

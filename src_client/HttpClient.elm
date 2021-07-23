@@ -1,7 +1,9 @@
 module HttpClient exposing
   ( createUser
+  , deleteUser
   , createRoom
   , enterRoom
+  , exitRoom
   , getRoom
   , getAllRooms
   , submitCards
@@ -38,7 +40,20 @@ createUser origin userName =
     }
 
 
-createRoom : Origin ->UserId -> RoomName -> Cmd Msg
+deleteUser : Origin -> UserId -> Cmd Msg
+deleteUser origin userId =
+  Http.request
+    { method  = "DELETE"
+    , headers = []
+    , url     = origin ++ "/users/" ++ userId
+    , body    = Http.jsonBody (encodeInt 0)
+    , expect  = Http.expectWhatever (ReceiveResponse << (UserDeleted userId))
+    , timeout = Nothing
+    , tracker = Nothing
+    }
+
+
+createRoom : Origin -> UserId -> RoomName -> Cmd Msg
 createRoom origin userId roomName =
   Http.post
     { url    = origin ++ "/rooms"
@@ -55,6 +70,19 @@ enterRoom origin userId roomId =
     , url     = origin ++ "/rooms/" ++ roomId
     , body    = Http.jsonBody (encodeRoomRequest (RoomRequestToEnterRoom { userId = userId }))
     , expect  = Http.expectJson (ReceiveResponse << (RoomEntered roomId)) decodeEnterRoomResponse
+    , timeout = Nothing
+    , tracker = Nothing
+    }
+
+
+exitRoom : Origin -> UserId -> RoomId -> Cmd Msg
+exitRoom origin userId roomId =
+  Http.request
+    { method  = "PATCH"
+    , headers = []
+    , url     = origin ++ "/rooms/" ++ roomId
+    , body    = Http.jsonBody (encodeRoomRequest (RoomRequestToExitRoom { userId = userId }))
+    , expect  = Http.expectJson (ReceiveResponse << (RoomExited roomId)) decodeExitRoomResponse
     , timeout = Nothing
     , tracker = Nothing
     }

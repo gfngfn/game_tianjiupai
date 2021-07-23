@@ -1,6 +1,11 @@
-@language_version "0.0.2"
+@language_version "0.0.3"
 @output "elm": {
   dir     = "./src_client/_generated",
+  module  = "Models",
+  imports = [],
+}
+@output "sesterl": {
+  dir     = "./src/_generated",
   module  = "Models",
   imports = [],
 }
@@ -29,6 +34,8 @@ flag_user := {
   belongs_to : option(room_id),
 }
 
+flag_user_option := option(flag_user)
+
 create_user_request := {
   user_name : user_name,
 }
@@ -55,6 +62,7 @@ get_room_response :=
 
 room_request :=
   | RoomRequestToEnterRoom   : enter_room_request
+  | RoomRequestToExitRoom    : enter_room_request
   | RoomRequestToSubmitCards : submit_cards_request
 
 enter_room_request := {
@@ -64,6 +72,13 @@ enter_room_request := {
 enter_room_response :=
   personal_state
 
+exit_room_request := {
+  user_id : user_id,
+}
+
+exit_room_response := {
+}
+
 submit_cards_request := {
   user_id : user_id,
   cards   : list(card),
@@ -71,7 +86,7 @@ submit_cards_request := {
 
 submit_cards_response := {
   new_state  : observable_game_state,
-  trick_last : option(table),
+  trick_last : option(last),
 }
 
 room_summary := {
@@ -85,25 +100,77 @@ comment := {
   text : string,
 }
 
+game_index := {
+  inning_index     : int,
+  num_consecutives : int,
+}
+
+connection := {
+  user         : user,
+  is_connected : bool,
+}
+
+midway_enter := {
+  user : user,
+  seat : seat,
+}
+
 log :=
-  | LogComment : comment
-  | LogEntered : user
-  | LogExited  : user
-  | LogGameStart
+  | LogComment    : comment
+  | LogEntered    : user
+  | LogExited     : user
+  | LogGameStart  : game_index
+  | LogChanges    : change_per_trick_end
+  | LogConnection : connection
 
 notification :=
-  | NotifyComment    : comment
-  | NotifyEntered    : user
-  | NotifyExited     : user
-  | NotifyGameStart  : observable_game_state
+  | NotifyComment       : comment
+  | NotifyEntered       : user
+  | NotifyExited        : user
+  | NotifyGameStart     : observable_game_state
   | NotifyNextStep
-  | NotifySubmission : submission
+  | NotifySubmission    : submission
+  | NotifyConnection    : connection
+  | NotifyEnteredMidway : midway_enter
+  | NotifyRoomClose
+
+last := {
+  table   : table,
+  hand    : list(card),
+  changes : option(change_per_trick_end),
+}
+
+special_trick_end :=
+  | TrickEndWithZhizun /* 至尊 */
+  | TrickEndWithSidahe /* 四大賀 */
+
+special_inning_end :=
+  | InningEndWithZhizun   /* 至尊 */
+  | InningEndWithSidahe   /* 四大賀 */
+  | InningEndWithYaojie   /* 么結 */
+  | InningEndWithQizhijie /* 七支結 */
+  | InningEndWithBazhijie /* 八支結 */
+
+change_reason :=
+  | SpecialTrickEnd  : special_trick_end
+  | SpecialInningEnd : special_inning_end
+  | NormalInningEnd
+
+change_per_trick_end := {
+  diffs         : per_seat(int),
+  change_reason : change_reason,
+}
+
+observable_last := {
+  table   : table,
+  changes : option(change_per_trick_end),
+}
 
 submission := {
     seat       : seat,
     submitted  : list(option(card)),
     new_state  : observable_game_state,
-    trick_last : option(table),
+    trick_last : option(observable_last),
 }
 
 command :=
@@ -115,10 +182,10 @@ command :=
 personal_state := {
   room : room,
   logs : list(log),
-  game : personal_room_state,
+  game : observable_room_state,
 }
 
-personal_room_state :=
+observable_room_state :=
   | WaitingStart : list(user)
   | PlayingGame  : observable_game_state
 
@@ -140,7 +207,11 @@ design := bool
 
 card_wu_number := int
 
-card_big := int
+card_big :=
+  | BigA
+  | BigB
+  | BigC
+  | BigD
 
 card :=
   | Wen : card_wen
@@ -155,41 +226,50 @@ exposed($a) := {
   subsequent : list(closed_or($a)),
 }
 
-unit :=
-  | Unit
+wuzun_element :=
+  | WuzunUnit
+
+wenzun_element :=
+  | WenzunMajor
+  | WenzunMinor
 
 table :=
   | Starting
-  | TrickWuzun      : exposed(unit)
-  | TrickWenzun     : exposed(bool)
-  | TrickSingleWen  : exposed(card_wen)
-  | TrickSingleWu   : exposed(card_wu)
-  | TrickDoubleWen  : exposed(card_wen)
-  | TrickDoubleWu   : exposed(card_wu_number)
-  | TrickDoubleBoth : exposed(big_with_design)
-  | TrickTripleWen  : exposed(big_with_design)
-  | TrickTripleWu   : exposed(card_big)
-  | TrickQuadruple  : exposed(card_big)
+  | Wuzun      : exposed(wuzun_element)
+  | Wenzun     : exposed(wenzun_element)
+  | SingleWen  : exposed(card_wen)
+  | SingleWu   : exposed(card_wu)
+  | DoubleWen  : exposed(card_wen)
+  | DoubleWu   : exposed(card_wu_number)
+  | DoubleBoth : exposed(big_with_design)
+  | TripleWen  : exposed(big_with_design)
+  | TripleWu   : exposed(card_big)
+  | Quadruple  : exposed(card_big)
 
 big_with_design := {
   main   : card_big,
   design : design,
 }
 
-seat := int
+seat :=
+  | SeatA
+  | SeatB
+  | SeatC
+  | SeatD
 
 snapshot_id := string
 
 game_player := {
-  user  : user,
-  score : int,
+  user         : user,
+  is_connected : bool,
 }
 
 game_meta := {
   inning_index     : int,
   num_consecutives : int,
   parent_seat      : seat,
-  players          : per_seat(game_player),
+  scores           : per_seat(int),
+  players          : per_seat(option(game_player)),
 }
 
 observable_inning_state := {

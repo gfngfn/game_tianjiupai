@@ -1,9 +1,9 @@
-import Types
+import Models
 import RoomServer
 
 module RoomServerSup :> sig
   open Stdlib
-  open Types
+  open Models
 
   type info :: o
   type proc :: o
@@ -14,7 +14,7 @@ module RoomServerSup :> sig
 
 end = struct
   open Stdlib
-  open Types
+  open Models
 
   module SD = Supervisor.Dynamic
 
@@ -40,7 +40,10 @@ end = struct
     val init(init_arg) : [info]SD.initialized<info, start_arg, child_info> = act
       let sup_flags = SD.make_sup_flags() in
       let child_spec =
-        SD.make_child_spec(-start (freeze start_child_impl(_)))
+        SD.make_child_spec(
+          -start (freeze start_child_impl(_)),
+          ?restart Supervisor.Temporary,
+        )
       in
       SD.init_ok(sup_flags, child_spec)
 

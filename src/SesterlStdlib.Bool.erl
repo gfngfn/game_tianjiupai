@@ -1,3 +1,3 @@
 -module('SesterlStdlib.Bool').
 -export(['not'/1]).
-'not'(S22X) -> case S22X of true -> false; false -> true end.
+'not'(S26X) -> case S26X of true -> false; false -> true end.

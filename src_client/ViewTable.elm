@@ -3,7 +3,7 @@ module ViewTable exposing (view, HandInfo)
 import Set exposing (Set)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick)
 
 import Svg exposing (Svg)
 import Svg.Attributes as SvgA
@@ -11,6 +11,7 @@ import Svg.Events as SvgE
 
 import Models exposing (..)
 import Common exposing (..)
+import PerSeat exposing (RelativeSeat(..))
 import Game
 import Constants as C
 
@@ -34,44 +35,104 @@ type alias RelativeQuad =
   }
 
 
-view : UserId -> Seat -> HandInfo -> ObservableInning -> Html Msg
-view userId selfSeat handInfo observableInning =
-  case observableInning of
-    ObservableDuringInning oinning ->
-      let
-        submittedQuad = makeSubmittedQuad oinning.startsAt oinning.table
-        relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
-        yourHand = oinning.yourHand
-      in
-      Svg.svg
-        [ SvgA.width (String.fromInt C.svgWidth)
-        , SvgA.height (String.fromInt C.svgHeight)
-        , SvgA.viewBox ("0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight)
-        ]
-        (List.concat
-          [ displayGains relQuad
-          , displayTable relQuad
-          , displayHand handInfo yourHand
-          ])
+view : UserId -> Seat -> Seat -> HandInfo -> GameMeta -> ObservableInning -> Html Msg
+view userId selfSeat parentSeat handInfo gameMeta observableInning =
+  let
+    widthText = "min(100%, " ++ (String.fromInt C.svgWidth) ++ "px)"
+    viewBoxText = "0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight
 
-    ObservableInningEnd gainsQuad ->
-      let
-        submittedQuad = { east = [], south = [], west = [], north = [] }
-        relQuad = makeRelativeQuad selfSeat gainsQuad submittedQuad
-      in
-      Svg.svg
-        [ SvgA.width (String.fromInt C.svgWidth)
-        , SvgA.height (String.fromInt C.svgHeight)
-        , SvgA.viewBox ("0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight)
-        ]
-        (displayGains relQuad ++
-          [ displayButton
-              (not handInfo.synchronizing)
-              (SendRequest RequireNextInning)
-              "次へ"
-              C.goToNextButtonX
-              C.goToNextButtonY
-          ])
+    mainElem =
+      case observableInning of
+        ObservableDuringInning oinning ->
+          let
+            submittedQuad = makeSubmittedQuad oinning.startsAt oinning.table
+            relQuad = makeRelativeQuad selfSeat oinning.gains submittedQuad
+            yourHand = oinning.yourHand
+            numCardsAtTrickBeginning = List.length yourHand + List.length relQuad.self.submitted
+          in
+          Svg.svg
+            [ SvgA.width widthText
+            , SvgA.viewBox viewBoxText
+            ]
+            (List.concat
+              [ displayDirection selfSeat
+              , displayLeftHand (numCardsAtTrickBeginning - List.length relQuad.left.submitted)
+              , displayParentTile (PerSeat.relative { from = selfSeat, target = parentSeat })
+              , displayGains relQuad
+              , displayTable relQuad
+              , displayRightHand (numCardsAtTrickBeginning - List.length relQuad.right.submitted)
+              , displayFrontHand (numCardsAtTrickBeginning - List.length relQuad.front.submitted)
+              , displayHand handInfo yourHand
+              ])
+
+        ObservableInningEnd gainsQuad ->
+          let
+            submittedQuad = { east = [], south = [], west = [], north = [] }
+            relQuad = makeRelativeQuad selfSeat gainsQuad submittedQuad
+          in
+          let
+            elemsMain =
+              if gameMeta.inningIndex >= C.maximumNumInnings then
+                let
+                  winners =
+                    getWinners gameMeta
+
+                  winnerTexts =
+                    winners |> List.map (\( maybePlayer, score ) ->
+                      let
+                        userName =
+                          case maybePlayer of
+                            Nothing     -> "-"
+                            Just player -> player.user.userName
+                      in
+                      userName ++ " さん（" ++ String.fromInt score ++ " 点）"
+                    )
+
+                  elemsText =
+                    ("優勝" :: winnerTexts) |> List.indexedMap (\i s ->
+                      Svg.text_
+                        [ SvgA.x (String.fromInt C.roomCloseTextX)
+                        , SvgA.y (String.fromInt (C.roomCloseTextY + C.roomCloseTextLeading * i))
+                        , SvgA.textAnchor "middle"
+                        , SvgA.class "svg-room-close-text"
+                        ]
+                        [ Svg.text s ]
+                    )
+                in
+                (elemsText ++
+                  [ displayButton
+                      (not handInfo.synchronizing)
+                      (SendRequest RequireNextInning)
+                      "終了"
+                      C.roomCloseButtonX
+                      C.roomCloseButtonY
+                  ])
+              else
+                [ displayButton
+                    (not handInfo.synchronizing)
+                    (SendRequest RequireNextInning)
+                    "次へ"
+                    C.goToNextButtonX
+                    C.goToNextButtonY
+                ]
+          in
+          Svg.svg
+            [ SvgA.width widthText
+            , SvgA.viewBox viewBoxText
+            ]
+            (List.concat
+              [ displayDirection selfSeat
+              , displayParentTile (PerSeat.relative { from = selfSeat, target = parentSeat })
+              , displayGains relQuad
+              , elemsMain
+              ])
+  in
+  div [ class "table-container" ] [ mainElem ]
+
+
+displayDirection : Seat -> List (Svg Msg)
+displayDirection seat =
+  [ svgImage ( 0, 0 ) (C.directionImagePath seat) ]
 
 
 displayTable : RelativeQuad -> List (Svg Msg)
@@ -164,6 +225,35 @@ displayHorizontalPile x0 y0 gains =
     , displayHorizontalOpenCard card x0 y
     ]
   ) |> List.concat
+
+
+displayFrontHand : Int -> List (Svg Msg)
+displayFrontHand numCards =
+  let indices = List.range 0 (numCards - 1) in
+  let x0 = C.frontHandX - C.verticalTileImageWidth * numCards in
+  indices |> List.map (\index ->
+    let x = x0 + C.verticalTileImageWidth * index in
+    displayClosedStandingCard x C.frontHandY
+  )
+
+
+displayLeftHand : Int -> List (Svg Msg)
+displayLeftHand numCards =
+  let indices = List.range 0 (numCards - 1) in
+  indices |> List.map (\index ->
+    let y = C.leftHandY + C.horizontalTileTopHeight * index in
+    displayHorizontalStandingCard C.leftHandX y
+  )
+
+
+displayRightHand : Int -> List (Svg Msg)
+displayRightHand numCards =
+  let indices = List.range 0 (numCards - 1) in
+  let y0 = C.rightHandY - C.horizontalTileTopHeight * numCards in
+  indices |> List.map (\index ->
+    let y = y0 + C.horizontalTileTopHeight * index in
+    displayHorizontalStandingCard C.rightHandX y
+  )
 
 
 displayHand : HandInfo -> List Card -> List (Svg Msg)
@@ -290,44 +380,74 @@ displayCardInHand index cardState card x y =
     []
 
 
+displayClosedStandingCard : Int -> Int -> Svg Msg
+displayClosedStandingCard x y =
+  svgImage ( x, y ) C.verticalClosedStandingCardPath
+
+
+displayHorizontalStandingCard : Int -> Int -> Svg Msg
+displayHorizontalStandingCard x y =
+  svgImage ( x, y ) C.horizontalClosedStandingCardPath
+
+
 displayHorizontalOpenCard : Card -> Int -> Int -> Svg Msg
 displayHorizontalOpenCard card x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref (C.horizontalOpenCardPath card)
-    ]
-    []
+  svgImage ( x, y ) (C.horizontalOpenCardPath card)
 
 
 displayHorizontalClosedCard : Int -> Int -> Svg Msg
 displayHorizontalClosedCard x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref C.horizontalClosedCardPath
-    ]
-    []
+  svgImage ( x, y ) C.horizontalClosedCardPath
 
 
 displayVerticalOpenCard : Card -> Int -> Int -> Svg Msg
 displayVerticalOpenCard card x y =
-  Svg.image
-    [ SvgA.x (String.fromInt x)
-    , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref (C.verticalOpenCardPath card)
-    ]
-    []
+  svgImage ( x, y ) (C.verticalOpenCardPath card)
 
 
 displayVerticalClosedCard : Int -> Int -> Svg Msg
 displayVerticalClosedCard x y =
+  svgImage ( x, y ) C.verticalClosedCardPath
+
+
+displayParentTile : RelativeSeat -> List (Svg Msg)
+displayParentTile relParentSeat =
+  case relParentSeat of
+    Self  -> [ svgImage ( C.selfParentTileX,  C.selfParentTileY  ) C.selfParentTilePath  ]
+    Right -> [ svgImage ( C.rightParentTileX, C.rightParentTileY ) C.rightParentTilePath ]
+    Front -> [ svgImage ( C.frontParentTileX, C.frontParentTileY ) C.frontParentTilePath ]
+    Left  -> [ svgImage ( C.leftParentTileX,  C.leftParentTileY  ) C.leftParentTilePath  ]
+
+
+svgImage : ( Int, Int ) -> String -> Svg Msg
+svgImage ( x, y ) path =
   Svg.image
     [ SvgA.x (String.fromInt x)
     , SvgA.y (String.fromInt y)
-    , SvgA.xlinkHref C.verticalClosedCardPath
+    , SvgA.xlinkHref path
     ]
     []
+
+
+getWinners : GameMeta -> List ( Maybe GamePlayer, Int )
+getWinners gameMeta =
+  let
+    players = gameMeta.players
+    scores = gameMeta.scores
+
+    pairs =
+      [ ( players.east,  scores.east )
+      , ( players.south, scores.south )
+      , ( players.west,  scores.west )
+      , ( players.north, scores.north )
+      ]
+  in
+  case pairs |> List.map (\( _, score ) -> score) |> List.sort |> List.reverse of
+    [] ->
+      [] -- This can't happen
+
+    maxScore :: _ ->
+      pairs |> List.filter (\( _, score ) -> score == maxScore)
 
 
 makeRelativeQuad : Seat -> PerSeat (List Card) -> PerSeat (List (ClosedOr Card)) -> RelativeQuad
@@ -336,13 +456,11 @@ makeRelativeQuad selfSeat gainsQuad submittedQuad =
   let elem1 = { gains = gainsQuad.south, submitted = submittedQuad.south } in
   let elem2 = { gains = gainsQuad.west,  submitted = submittedQuad.west } in
   let elem3 = { gains = gainsQuad.north, submitted = submittedQuad.north } in
-  let elemX = { gains = [], submitted = [] } in -- used only for dummy values
   case selfSeat of
-    0 -> { self = elem0, right = elem1, front = elem2, left = elem3 }
-    1 -> { self = elem1, right = elem2, front = elem3, left = elem0 }
-    2 -> { self = elem2, right = elem3, front = elem0, left = elem1 }
-    3 -> { self = elem3, right = elem0, front = elem1, left = elem2 }
-    _ -> { self = elemX, right = elemX, front = elemX, left = elemX } -- should never happen
+    SeatA -> { self = elem0, right = elem1, front = elem2, left = elem3 }
+    SeatB -> { self = elem1, right = elem2, front = elem3, left = elem0 }
+    SeatC -> { self = elem2, right = elem3, front = elem0, left = elem1 }
+    SeatD -> { self = elem3, right = elem0, front = elem1, left = elem2 }
 
 
 makeSubmittedQuad : Seat -> Table -> PerSeat (List (ClosedOr Card))
@@ -358,8 +476,7 @@ makeSubmittedQuad startSeat table =
         x0 :: x1 :: x2 :: x3 :: _ -> { x0 = x0, x1 = x1, x2 = x2, x3 = x3 }
   in
   case startSeat of
-    0 -> { east = t.x0, south = t.x1, west = t.x2, north = t.x3 }
-    1 -> { east = t.x3, south = t.x0, west = t.x1, north = t.x2 }
-    2 -> { east = t.x2, south = t.x3, west = t.x0, north = t.x1 }
-    3 -> { east = t.x1, south = t.x2, west = t.x3, north = t.x0 }
-    _ -> { east = [], south = [], west = [], north = [] } -- should never happen
+    SeatA -> { east = t.x0, south = t.x1, west = t.x2, north = t.x3 }
+    SeatB -> { east = t.x3, south = t.x0, west = t.x1, north = t.x2 }
+    SeatC -> { east = t.x2, south = t.x3, west = t.x0, north = t.x1 }
+    SeatD -> { east = t.x1, south = t.x2, west = t.x3, north = t.x0 }

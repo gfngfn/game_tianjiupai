@@ -1,6 +1,7 @@
 _build
 elm-stuff/
 priv/public/assets/*.png
-priv/public/assets/*.css
+src/_generated/
 src_client/_generated/
 _generated_test/
+.sass-cache/

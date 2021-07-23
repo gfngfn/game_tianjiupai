@@ -14,6 +14,7 @@ import Models exposing (..)
 import Constants
 import HttpClient
 import WebSocketClient
+import PerSeat
 import View
 
 
@@ -157,6 +158,19 @@ update msg model =
             Err err ->
               ( { model | message = makeErrorMessage "rooms" err }, Cmd.none )
 
+        SendRequest DeleteUser ->
+          let cmd = HttpClient.deleteUser model.origin user.userId in
+          ( model, cmd )
+
+        ReceiveResponse (UserDeleted userId result) ->
+          case result of
+            Ok () ->
+              let message = ( Information, "delted user " ++ userId ) in
+              ( { model | message = message, state = AtEntrance "" Nothing }, Cmd.none )
+
+            Err err ->
+              ( { model | message = makeErrorMessage "user deletion" err }, Cmd.none )
+
         SendRequest CreateRoom ->
           let cmd = HttpClient.createRoom model.origin user.userId roomNameInput0 in
           ( { model | state = AtPlaza ws user "" maybeRooms }, cmd )
@@ -179,8 +193,7 @@ update msg model =
                       }
 
                     roomSummaries1 : List RoomSummary
-                    roomSummaries1 =
-                      roomSummaries0 ++ [roomSummary]
+                    roomSummaries1 = roomSummary :: roomSummaries0
                   in
                   ( { model | state = AtPlaza ws user roomNameInput0 (Just roomSummaries1) }, Cmd.none )
 
@@ -203,9 +216,9 @@ update msg model =
 
                 PlayingGame ostate0 ->
                   let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
-                  let ostate1 = { ostate0 | synchronizing = True } in
+                  let ostate1 = ostate0 in
                   let pstate1 = { pstate0 | game = PlayingGame ostate1 } in
-                  Debug.log "RoomEntered (+)" ( { model | state = InRoom ws user pstate1 Set.empty "" }, cmd )
+                  Debug.log "RoomEntered (+)/(0)" ( { model | state = InRoom ws user pstate1 Set.empty "" }, cmd )
 
             Err err ->
               ( { model | message = makeErrorMessage "enter room" err }, Cmd.none )
@@ -242,6 +255,19 @@ update msg model =
           let cmd = WebSocketClient.sendChat ws chatTextInput0 in
           ( { model | state = InRoom ws user pstate0 indices0 ""  }, cmd )
 
+        ( _, SendRequest (ExitRoom roomId) ) ->
+          let cmd = HttpClient.exitRoom model.origin user.userId roomId in
+          ( model, cmd )
+
+        ( _, ReceiveResponse (RoomExited roomId res) ) ->
+          case res of
+            Ok _ ->
+              let cmd = HttpClient.getAllRooms model.origin in
+              ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+
+            Err err ->
+              ( { model | message = makeErrorMessage "room exit" err }, Cmd.none )
+
         ( _, ReceiveNotification (Err err) ) ->
           ( { model | message = ( Warning, "invalid notification: " ++ JD.errorToString err ) }, Cmd.none )
 
@@ -249,55 +275,113 @@ update msg model =
           let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogComment comment ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
-        ( _, ReceiveNotification (Ok (NotifyEntered userIdEntered)) ) ->
-          let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogEntered userIdEntered ] } in
+        ( WaitingStart users0, ReceiveNotification (Ok (NotifyEntered userEntered)) ) ->
+          let
+            users1 =
+              case users0 |> List.filter (\u -> u.userId == userEntered.userId) of
+                []     -> users0 ++ [ userEntered ]
+                _ :: _ -> Debug.log ("Warning: received NotifyEntered, but already contains " ++ userEntered.userId) users0
+          in
+          let pstate1 = { pstate0 | game = WaitingStart users1, logs = pstate0.logs ++ [ LogEntered userEntered ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
-        ( _, ReceiveNotification (Ok (NotifyExited userIdExited)) ) ->
-          let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogExited userIdExited ] } in
+        ( game0, ReceiveNotification (Ok (NotifyExited userExited)) ) ->
+          let
+            game1 =
+              case game0 of
+                PlayingGame ostate0 ->
+                  let meta0 = ostate0.meta in
+                  let players0 = meta0.players in
+                  case
+                    PerSeat.find (\maybePlayer ->
+                      case maybePlayer of
+                        Nothing     -> False
+                        Just player -> player.user.userId == userExited.userId
+                    ) players0
+                  of
+                    Nothing ->
+                      Debug.log ("Warning: received NotifyExited, but already no " ++ userExited.userId) game0
+
+                    Just seat ->
+                      let players1 = PerSeat.update seat Nothing players0 in
+                      PlayingGame { ostate0 | meta = { meta0 | players = players1 } }
+
+                WaitingStart users0 ->
+                  WaitingStart (users0 |> List.filter (\u -> u.userId /= userExited.userId))
+          in
+          let pstate1 = { pstate0 | game = game1, logs = pstate0.logs ++ [ LogExited userExited ] } in
+          ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
+
+        ( _, ReceiveNotification (Ok (NotifyConnection connection)) ) ->
+          let pstate1 = { pstate0 | logs = pstate0.logs ++ [ LogConnection connection ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
         ( _, ReceiveNotification (Ok (NotifyGameStart ostate0)) ) ->
           let cmd = WebSocketClient.sendAck ws ostate0.snapshotId in
           let ostate1 = { ostate0 | synchronizing = True } in
-          let pstate1 = { pstate0 | game = PlayingGame ostate1, logs = pstate0.logs ++ [ LogGameStart ] } in
+          let meta = ostate1.meta in
+          let gameIndex = { inningIndex = meta.inningIndex, numConsecutives = meta.numConsecutives } in
+          let pstate1 = { pstate0 | game = PlayingGame ostate1, logs = pstate0.logs ++ [ LogGameStart gameIndex ] } in
           let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
           Debug.log "NotifyGameStart (+)" ( { model | state = state1 }, cmd )
+
+        ( _, ReceiveNotification (Ok NotifyRoomClose) ) ->
+          let cmd = HttpClient.getAllRooms model.origin in
+          ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+
+        ( PlayingGame ostate0, ReceiveNotification (Ok (NotifyEnteredMidway midwayEnter)) ) ->
+          let userEntered = midwayEnter.user in
+          let seat = midwayEnter.seat in
+          let meta0 = ostate0.meta in
+          let players1 = PerSeat.update seat (Just { user = user, isConnected = True }) meta0.players in
+          let ostate1 = { ostate0 | meta = { meta0 | players = players1 } } in
+          let pstate1 = { pstate0 | game = PlayingGame ostate1, logs = pstate0.logs ++ [ LogEntered userEntered ] } in
+          ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
 
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifySubmission submission)) ) ->
         -- When receiving a submission of another player:
           let newState = submission.newState in
           let
             maybeNext =
-              if ostate0.synchronizing then
-                Nothing
-              else
-                -- TODO: extract (possibly hidden) submitted cards and a submitter from `submission` for animation
-                case ( submission.trickLast, ostate0.observableInning ) of
-                  ( Just lastTable, ObservableDuringInning oinning0 ) ->
-                  -- If this is the last submission within a trick:
-                  -- begins to synchronize, and waits `Constants.trickLastTimeMs' milliseconds.
-                    let
-                      ostate1 =
-                        { ostate0
-                        | synchronizing    = True
-                        , observableInning = ObservableDuringInning { oinning0 | table = lastTable }
-                        }
-                    in
-                    let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
-                    let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
-                    Just ( { model | state = state1 }, cmd )
+              case ( submission.trickLast, ostate0.observableInning ) of
+                ( Just observableLast, ObservableDuringInning oinning0 ) ->
+                -- If this is the last submission within a trick:
+                -- begins to synchronize, and waits `Constants.trickLastTimeMs' milliseconds.
+                  let
+                    oinning1 =
+                      { oinning0 | table = observableLast.table }
 
-                  ( Just _, _ ) ->
-                    Nothing
+                    ostate1 =
+                      { ostate0
+                      | synchronizing    = True
+                      , observableInning = ObservableDuringInning oinning1
+                      }
 
-                  ( Nothing, _ ) ->
-                  -- If this is NOT the last submission within a trick:
-                  -- sends ACK, updates the state, and begins to synchronize.
-                    let ostate1 = { newState | synchronizing = True } in
-                    let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
-                    let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
-                    Just ( { model | state = state1 }, cmd )
+                    logs1 =
+                      case observableLast.changes of
+                        Nothing      -> pstate0.logs
+                        Just changes -> pstate0.logs ++ [ LogChanges changes ]
+
+                    pstate1 =
+                      { pstate0
+                      | game = PlayingGame ostate1
+                      , logs = logs1
+                      }
+                  in
+                  let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
+                  let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
+                  Just ( { model | state = state1 }, cmd )
+
+                ( Just _, _ ) ->
+                  Nothing
+
+                ( Nothing, _ ) ->
+                -- If this is NOT the last submission within a trick:
+                -- sends ACK, updates the state, and begins to synchronize.
+                  let ostate1 = { newState | synchronizing = True } in
+                  let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                  let cmd = WebSocketClient.sendAck ws ostate1.snapshotId in
+                  Just ( { model | state = state1 }, cmd )
           in
           case maybeNext of
             Just next ->
@@ -315,16 +399,33 @@ update msg model =
                 Ok submissionResponse ->
                   let newState = submissionResponse.newState in
                   case ( submissionResponse.trickLast, ostate0.observableInning ) of
-                    ( Just lastTable, ObservableDuringInning oinning0 ) ->
+                    ( Just last, ObservableDuringInning oinning0 ) ->
                     -- If this is the last submission within a trick:
                     -- keeps synchronizing and waits `Constants.trickLastTimeMs' milliseconds.
                       let
+                        oinning1 =
+                          { oinning0
+                          | table    = last.table
+                          , yourHand = last.hand
+                          }
+
                         ostate1 =
                           { ostate0
-                          | observableInning = ObservableDuringInning { oinning0 | table = lastTable }
+                          | observableInning = ObservableDuringInning oinning1
+                          }
+
+                        logs1 =
+                          case last.changes of
+                            Nothing      -> pstate0.logs
+                            Just changes -> pstate0.logs ++ [ LogChanges changes ]
+
+                        pstate1 =
+                          { pstate0
+                          | game = PlayingGame ostate1
+                          , logs = logs1
                           }
                       in
-                      let state1 = InRoom ws user { pstate0 | game = PlayingGame ostate1 } indices0 chatTextInput0 in
+                      let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
                       let cmd = sendAfter Constants.trickLastTimeMs (TransitionToNextTrick newState) in
                       let
                         message =
@@ -442,12 +543,15 @@ view model =
 showNotification : Notification -> String
 showNotification notification =
   case notification of
-    NotifyComment _    -> "NotifyComment"
-    NotifyEntered _    -> "NotifyEntered"
-    NotifyExited _     -> "NotifyExited"
-    NotifyGameStart _  -> "NotifyGameStart"
-    NotifyNextStep     -> "NotifyNextStep"
-    NotifySubmission _ -> "NotifySubmission"
+    NotifyComment _       -> "NotifyComment"
+    NotifyEntered _       -> "NotifyEntered"
+    NotifyExited _        -> "NotifyExited"
+    NotifyGameStart _     -> "NotifyGameStart"
+    NotifyNextStep        -> "NotifyNextStep"
+    NotifySubmission _    -> "NotifySubmission"
+    NotifyConnection _    -> "NotifyConnection"
+    NotifyEnteredMidway _ -> "NotifyEnteredMidway"
+    NotifyRoomClose       -> "NotifyRoomClose"
 
 
 showMessage : Msg -> String

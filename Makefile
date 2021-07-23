@@ -14,10 +14,15 @@ client: model public-assets
 .PHONY: model
 model:
 	mkdir -p src_client/_generated
+	mkdir -p src/_generated
 	apbuf model.apbuf
 
 .PHONY: public-assets
-public-assets:
+public-assets: image-assets
+	sass style.scss:$(ASSETS_TARGET_DIR)/style.css
+
+.PHONY: image-assets
+image-assets:
 	mkdir -p $(ASSETS_TARGET_DIR)
 	cp assets_client/* $(ASSETS_TARGET_DIR)
 

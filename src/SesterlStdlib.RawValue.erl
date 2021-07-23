@@ -1,10 +1,8 @@
 -module('SesterlStdlib.RawValue').
 -export(['show'/1, 'lift'/1, 'forget'/1]).
-
     show(Term) ->
         erlang:list_to_binary(lists:flatten(io_lib:format("~w", [Term]))).
   
-
     lift(N) when erlang:is_integer(N) ->
         {int, N};
     lift(X) when erlang:is_float(X) ->
@@ -34,7 +32,6 @@
     lift(Other) ->
         {other, ?MODULE:show(Other)}.
   
-
     forget(X) ->
         X.
   

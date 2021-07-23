@@ -3,6 +3,10 @@ module Constants exposing (..)
 import Models exposing (..)
 
 
+maximumNumInnings : Int
+maximumNumInnings = 8
+
+
 trickLastTimeMs : Float
 trickLastTimeMs = 1500.0
 
@@ -29,6 +33,10 @@ horizontalTileTopHeight = 34
 tileThickness : Int
 tileThickness = 16
 
+
+horizontalStandingTileThickness : Int
+horizontalStandingTileThickness = 28
+
 selectionShift : Int
 selectionShift = 10
 
@@ -44,6 +52,21 @@ goToNextButtonX = 350 - svgButtonWidth // 2
 goToNextButtonY : Int
 goToNextButtonY = 340 - svgButtonHeight // 2
 
+roomCloseButtonX : Int
+roomCloseButtonX = 350
+
+roomCloseButtonY : Int
+roomCloseButtonY = 470 - svgButtonHeight // 2
+
+roomCloseTextX : Int
+roomCloseTextX = roomCloseButtonX
+
+roomCloseTextY : Int
+roomCloseTextY = 230
+
+roomCloseTextLeading : Int
+roomCloseTextLeading = 32
+
 svgButtonWidth : Int
 svgButtonWidth = 70
 
@@ -58,6 +81,24 @@ selfHandX = 190
 
 selfHandY : Int
 selfHandY = 515
+
+rightHandX : Int
+rightHandX = svgWidth - leftHandX - horizontalStandingTileThickness
+
+rightHandY : Int
+rightHandY = leftHandY + horizontalTileTopHeight * 8
+
+frontHandX : Int
+frontHandX = selfHandX + verticalTileImageWidth * 8
+
+frontHandY : Int
+frontHandY = 50
+
+leftHandX : Int
+leftHandX = 50
+
+leftHandY : Int
+leftHandY = 170
 
 selfPileX : Int
 selfPileX = 610
@@ -81,7 +122,7 @@ leftPileX : Int
 leftPileX = 21
 
 leftPileY : Int
-leftPileY = 570
+leftPileY = 530
 
 selfSubmittedX : Int
 selfSubmittedX = 350
@@ -107,6 +148,29 @@ leftSubmittedX = 146
 leftSubmittedY : Int
 leftSubmittedY = 340
 
+selfParentTileX : Int
+selfParentTileX = 440
+
+selfParentTileY : Int
+selfParentTileY = 435
+
+rightParentTileX : Int
+rightParentTileX = 480
+
+rightParentTileY : Int
+rightParentTileY = 180
+
+frontParentTileX : Int
+frontParentTileX = 138
+
+frontParentTileY : Int
+frontParentTileY = 190
+
+leftParentTileX : Int
+leftParentTileX = 135
+
+leftParentTileY : Int
+leftParentTileY = 430
 
 standingCardPath : Card -> String
 standingCardPath card =
@@ -133,6 +197,41 @@ verticalClosedCardPath =
   "assets/closev.png"
 
 
+verticalClosedStandingCardPath : String
+verticalClosedStandingCardPath =
+  "assets/standv.png"
+
+
+horizontalClosedStandingCardPath : String
+horizontalClosedStandingCardPath =
+  "assets/standh.png"
+
+
+selfParentTilePath : String
+selfParentTilePath =
+  "assets/parent-self.png"
+
+
+rightParentTilePath : String
+rightParentTilePath =
+  "assets/parent-right.png"
+
+
+frontParentTilePath : String
+frontParentTilePath =
+  "assets/parent-front.png"
+
+
+leftParentTilePath : String
+leftParentTilePath =
+  "assets/parent-left.png"
+
+
+directionImagePath : Seat -> String
+directionImagePath seat =
+  "assets/direction" ++ stringifySeat seat ++ ".png"
+
+
 stringifyCard : Card -> String
 stringifyCard card =
   case card of
@@ -142,7 +241,11 @@ stringifyCard card =
 
 stringifyBig : CardBig -> String
 stringifyBig big =
-  "big" ++ String.fromInt big
+  case big of
+    BigA -> "big1"
+    BigB -> "big2"
+    BigC -> "big3"
+    BigD -> "big4"
 
 
 stringifyWen : CardWen -> String
@@ -153,3 +256,12 @@ stringifyWen wen =
 stringifyWu : CardWu -> String
 stringifyWu wu =
   "wu" ++ String.fromInt wu.number ++ (if wu.design then "t" else "f")
+
+
+stringifySeat : Seat -> String
+stringifySeat seat =
+  case seat of
+    SeatA -> "1"
+    SeatB -> "2"
+    SeatC -> "3"
+    SeatD -> "4"
