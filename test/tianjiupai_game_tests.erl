@@ -736,6 +736,53 @@ submit_success_test_() ->
                           north => []
                       },
                       {ok, inning_end_with_zhizun}}
+          },
+          #submit_test_case{
+              subtitle = "last trick after Qizhijie, third submission",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wuT(9), wuT(3), wuT(6), wen(8), wuF(5), wuT(5)]},
+                      player1 => {[], []},
+                      player2 => {[wen(11)], []},
+                      player3 => {[wuF(9)], []},
+                      table => {single_wen, Exposed(7, [closed])}
+                  }),
+              submitter_seat = ?SEAT2,
+              submitter_cards = [wen(11)],
+              expected =
+                  {continues, inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wuT(9), wuT(3), wuT(6), wen(8), wuF(5), wuT(5)]},
+                      player1 => {[], []},
+                      player2 => {[], []},
+                      player3 => {[wuF(9)], []},
+                      table => {single_wen, Exposed(7, [closed, {open, 11}])}
+                  })}
+          },
+          #submit_test_case{
+              subtitle = "last trick after Qizhijie, last submission",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wuT(9), wuT(3), wuT(6), wen(8), wuF(5), wuT(5)]},
+                      player1 => {[], []},
+                      player2 => {[], []},
+                      player3 => {[wuF(9)], []},
+                      table => {single_wen, Exposed(7, [closed, {open, 11}])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [wuF(9)],
+              expected =
+                  {wins_inning, ?SEAT0,
+                      {single_wen, Exposed(7, [closed, {open, 11}, closed])},
+                      #{
+                          east  => [wen(11), wuT(9), wuT(3), wuT(6), wen(8), wuF(5), wuT(5)],
+                          south => [],
+                          west  => [wen(11)],
+                          north => []
+                      },
+                      {ok, inning_end_with_qizhijie}}
           }
       ]
     ].
