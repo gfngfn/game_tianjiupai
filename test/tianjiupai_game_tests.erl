@@ -686,7 +686,8 @@ submit_success_test_() ->
                          south => [],
                          west  => [wen(10), wuF(8), wuT(9)],
                          north => [wen(11), wen(7), wen(7)]
-                      }}
+                      },
+                      error}
           }
       ]
     ].
@@ -727,9 +728,9 @@ sort_hands_of_result(Result) ->
     case Result of
         {continues, Next} ->
             {continues, sort_hands(Next)};
-        {wins_trick, WinnerSeat, LastTable, Hand, MaybeDiffs, Next} ->
-            {wins_trick, WinnerSeat, LastTable, ?CARD_MODULE:sort(Hand), MaybeDiffs, sort_hands(Next)};
-        {wins_inning, _, _, _} ->
+        {wins_trick, WinnerSeat, LastTable, Hand, MaybeSpecial, Next} ->
+            {wins_trick, WinnerSeat, LastTable, ?CARD_MODULE:sort(Hand), MaybeSpecial, sort_hands(Next)};
+        {wins_inning, _WinnerSeat, _LastTable, _GainQuad, _MaybeSpecial} ->
             Result
     end.
 
