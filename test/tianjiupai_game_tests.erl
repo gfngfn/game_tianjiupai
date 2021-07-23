@@ -688,6 +688,54 @@ submit_success_test_() ->
                          north => [wen(11), wen(7), wen(7)]
                       },
                       error}
+          },
+          #submit_test_case{
+              subtitle = "last trick, fourth double submission by Seat 2 (and Seat 2 wins the inning)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT3,
+                      player0 => {[], [wuT(3), wuT(6)]},
+                      player1 => {[], [wen(10), wuF(8)]},
+                      player2 => {[wuT(7), wuF(7)], []},
+                      player3 => {[], [wen(11), wuF(9)]},
+                      table => {double_wu, Exposed(5, [closed, closed])}
+                  }),
+              submitter_seat = ?SEAT2,
+              submitter_cards = [wuT(7), wuF(7)],
+              expected =
+                  {wins_inning, ?SEAT2,
+                      {double_wu, Exposed(5, [closed, closed, {open, 7}])},
+                      #{
+                         east  => [wuT(3), wuT(6)],
+                         south => [wen(10), wuF(8)],
+                         west  => [wuF(7), wuT(7)],
+                         north => [wen(11), wuF(9)]
+                      },
+                      error}
+          },
+          #submit_test_case{
+              subtitle = "inning ends with Wuzun",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wen(9), wuT(7)]},
+                      player1 => {[], [wen(10), wuF(8)]},
+                      player2 => {[], [wuT(5), wuF(5)]},
+                      player3 => {[wen(11), wuT(9)], []},
+                      table => {wuzun, Exposed(wuzun_unit, [closed, closed])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [wen(11), wuT(9)],
+              expected =
+                  {wins_inning, ?SEAT0,
+                      {wuzun, Exposed(wuzun_unit, [closed, closed, closed])},
+                      #{
+                          east  => [wen(11), wen(9), wuT(7), wuT(3), wuT(6)],
+                          south => [wen(10), wuF(8)],
+                          west  => [wuT(5), wuF(5)],
+                          north => []
+                      },
+                      {ok, inning_end_with_zhizun}}
           }
       ]
     ].
@@ -730,8 +778,8 @@ sort_hands_of_result(Result) ->
             {continues, sort_hands(Next)};
         {wins_trick, WinnerSeat, LastTable, Hand, MaybeSpecial, Next} ->
             {wins_trick, WinnerSeat, LastTable, ?CARD_MODULE:sort(Hand), MaybeSpecial, sort_hands(Next)};
-        {wins_inning, _WinnerSeat, _LastTable, _GainQuad, _MaybeSpecial} ->
-            Result
+        {wins_inning, WinnerSeat, LastTable, GainQuad, MaybeSpecial} ->
+            {wins_inning, WinnerSeat, LastTable, GainQuad, MaybeSpecial}
     end.
 
 %% `fun(Inning.t) -> Inning.t'
