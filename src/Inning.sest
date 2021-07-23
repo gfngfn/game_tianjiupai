@@ -8,13 +8,20 @@ module Inning :> sig
   type t :: o
 
   type special_trick_end =
-    | Zhizun
-    | Sidahe /* 四大賀 */
+    | TrickEndWithZhizun /* 至尊 */
+    | TrickEndWithSidahe /* 四大賀 */
+
+  type special_inning_end =
+    | InningEndWithZhizun   /* 至尊 */
+    | InningEndWithSidahe   /* 四大賀 */
+    | InningEndWithYaojie   /* 么結 */
+    | InningEndWithQizhijie /* 七支結 */
+    | InningEndWithBazhijie /* 八支結 */
 
   type submit_result =
     | Continues(t)
     | WinsTrick(Quad.seat, table, list<Card.t>, option<special_trick_end>, t)
-    | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
+    | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>, option<special_inning_end>)
 
   /* exported for tests */
   val all_cards : fun() -> list<Card.t>
@@ -46,14 +53,26 @@ end = struct
     table     : table,
   }
 
-  type special_trick_end =
-    | Zhizun
+  type special_end =
+    | Zhizun /* 至尊 */
     | Sidahe /* 四大賀 */
+    | Yaojie /* 么結 */
+
+  type special_trick_end =
+    | TrickEndWithZhizun /* 至尊 */
+    | TrickEndWithSidahe /* 四大賀 */
+
+  type special_inning_end =
+    | InningEndWithZhizun   /* 至尊 */
+    | InningEndWithSidahe   /* 四大賀 */
+    | InningEndWithYaojie   /* 么結 */
+    | InningEndWithQizhijie /* 七支結 */
+    | InningEndWithBazhijie /* 八支結 */
 
   type submit_result =
     | Continues(t)
     | WinsTrick(Quad.seat, table, list<Card.t>, option<special_trick_end>, t)
-    | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>)
+    | WinsInning(Quad.seat, table, Quad.t<list<Card.t>>, option<special_inning_end>)
 
   val all_cards : fun() -> list<Card.t> = external 0 ```
     all_cards() ->
@@ -137,8 +156,21 @@ end = struct
     end
 
   val count_gained(players) =
-    let {n0, n1, n2, n3} = Quad.decompose(Quad.map(fun(p) -> List.length(p.gained) end, players)) in
-    n0 + n1 + n2 + n3
+    let ns = Quad.decompose(Quad.map(fun(p) -> List.length(p.gained) end, players)) in
+    let qizhijie_achiever_seat_opt =
+      case ns of
+      | {7, _, _, _} -> Some(SeatA)
+      | {_, 7, _, _} -> Some(SeatB)
+      | {_, _, 7, _} -> Some(SeatC)
+      | {_, _, _, 7} -> Some(SeatD)
+      | _            -> None
+      end
+    in
+    let num_gained =
+      let {n0, n1, n2, n3} = ns in
+      n0 + n1 + n2 + n3
+    in
+    {num_gained, qizhijie_achiever_seat_opt}
 
   val separate_submitted_cards : fun(list<Card.t>, list<Card.t>) -> option<list<Card.t>> = external 2 ```
     separate_submitted_cards(SubmitterHand0, SubmittedCards) ->
@@ -477,7 +509,7 @@ end = struct
         end
     end
 
-  val get_winner(table : table) : {int, list<Card.t>, option<special_trick_end>} =
+  val get_winner(table : table) : {int, list<Card.t>, option<special_end>} =
     case table of
     | Wuzun(exposed) ->
         let Models.WuzunUnit = exposed.first in
@@ -507,10 +539,24 @@ end = struct
         end
     | SingleWen(wen_exposed) ->
         let {trick_index, wen} = wen_max(wen_exposed) in
-        {trick_index, [Models.Wen(wen)], None}
+        let special_opt =
+          case {wen_exposed.first, wen} of
+          | {1, 1} -> Some(Yaojie)
+          | {1, 2} -> Some(Yaojie)
+          | _      -> None
+          end
+        in
+        {trick_index, [Models.Wen(wen)], special_opt}
     | SingleWu(wu_exposed) ->
         let {trick_index, wu} = wu_max(wu_exposed) in
-        {trick_index, [Models.Wu(wu)], None}
+        let special_opt =
+          case {wu_exposed.first.number, wu.number} of
+          | {3, 3} -> Some(Yaojie)
+          | {3, 6} -> Some(Yaojie)
+          | _      -> None
+          end
+        in
+        {trick_index, [Models.Wu(wu)], special_opt}
     | DoubleWen(wen_exposed) ->
         let {trick_index, wen} = wen_max(wen_exposed) in
         {trick_index, [Models.Wen(wen), Models.Wen(wen)], None}
@@ -581,7 +627,7 @@ end = struct
     let players0 = inning.players in
 
     let n0 = table_length(table0) in
-    let num_gained0 = count_gained(players0) in
+    let {num_gained0, qizhijie_achiever_seat_opt} = count_gained(players0) in
     let num_submitted_cards = List.length(submitted_cards) in
     if n0 < 4 && num_gained0 < 8 && 0 < num_submitted_cards && num_submitted_cards <= 4 then
       if Quad.seat_equal(submitter_seat, Quad.advance_seat(start_seat, n0)) then
@@ -595,13 +641,19 @@ end = struct
             in
             let res =
               if num_gained0 == 7 && num_submitted_cards == 1 then
-                case submitter_gained0 of
-                | [] ->
-                  /* If the submitter gains no card so far:
-                     the submitter does not have a right to attend this trick. */
-                    append_closed_to_table(table0)
-                | _ :: _ ->
+                case qizhijie_achiever_seat_opt of
+                | Some(_) ->
+                  /* If someone has achieved a Qizhijie and this is the last trick: */
                     update_table(submitted_cards, table0)
+                | None ->
+                    case submitter_gained0 of
+                    | [] ->
+                      /* If the submitter gains no card so far:
+                         the submitter does not have a right to attend this trick. */
+                        append_closed_to_table(table0)
+                    | _ :: _ ->
+                        update_table(submitted_cards, table0)
+                    end
                 end
               else
                 update_table(submitted_cards, table0)
@@ -615,17 +667,52 @@ end = struct
                   let {winner_trick_index, cards, special_opt} = get_winner(table1) in
                   let winner_seat = Quad.advance_seat(start_seat, winner_trick_index) in
                   let winner = Quad.access(winner_seat, players1) in
+                  let winner_gained = List.append(winner.gained, cards) in
                   let players2 =
                     Quad.update(
                       winner_seat,
-                      { winner | gained = List.append(winner.gained, cards) },
+                      { winner | gained = winner_gained },
                       players1,
                     )
                   in
                   if num_gained1 == 8 then
                   /* If this is the last trick within an inning: */
                     let gained_quad = Quad.map(fun(p) -> p.gained end, players2) in
-                    Some({WinsInning(winner_seat, table1, gained_quad), is_front})
+                    case qizhijie_achiever_seat_opt of
+                    | Some(qizhijie_achiever_seat) ->
+                      /* If someone has achieved a Qizhijie and this is the end of the last trick: */
+                        let special_end =
+                          if Quad.seat_equal(qizhijie_achiever_seat, winner_seat) then
+                          /* If the Qizhijie achiever also took the last trick: */
+                            InningEndWithBazhijie
+                          else
+                            InningEndWithQizhijie
+                        in
+                        Some({
+                          WinsInning(qizhijie_achiever_seat, table1, gained_quad, Some(special_end)),
+                          is_front
+                        })
+                    | None ->
+                        let special_end_opt =
+                          if List.length(winner_gained) == 8 then
+                          /* If the submitter achieves Bazhijie: */
+                            Some(InningEndWithBazhijie)
+                          else
+                            Option.map(
+                              fun(special) ->
+                                case special of
+                                | Zhizun -> InningEndWithZhizun
+                                | Sidahe -> InningEndWithSidahe
+                                | Yaojie -> InningEndWithYaojie
+                                end
+                              end,
+                              special_opt)
+                        in
+                        Some({
+                          WinsInning(winner_seat, table1, gained_quad, special_end_opt),
+                          is_front
+                        })
+                    end
                   else
                     let inning1 =
                       {
@@ -634,7 +721,19 @@ end = struct
                         players   = players2,
                       }
                     in
-                    Some({WinsTrick(winner_seat, table1, Card.sort(submitter_hand1), special_opt, inning1), is_front})
+                    let special_trick_opt =
+                      Option.bind(special_opt, fun(special) ->
+                        case special of
+                        | Zhizun -> Some(TrickEndWithZhizun)
+                        | Sidahe -> Some(TrickEndWithSidahe)
+                        | Yaojie -> None
+                        end
+                      end)
+                    in
+                    Some({
+                      WinsTrick(winner_seat, table1, Card.sort(submitter_hand1), special_trick_opt, inning1),
+                      is_front
+                    })
                 else
                   let inning =
                     {
