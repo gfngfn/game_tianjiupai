@@ -7,17 +7,6 @@ module Inning :> sig
 
   type t :: o
 
-  type special_trick_end =
-    | TrickEndWithZhizun /* 至尊 */
-    | TrickEndWithSidahe /* 四大賀 */
-
-  type special_inning_end =
-    | InningEndWithZhizun   /* 至尊 */
-    | InningEndWithSidahe   /* 四大賀 */
-    | InningEndWithYaojie   /* 么結 */
-    | InningEndWithQizhijie /* 七支結 */
-    | InningEndWithBazhijie /* 八支結 */
-
   type submit_result =
     | Continues(t)
     | WinsTrick(Quad.seat, table, list<Card.t>, option<special_trick_end>, t)
@@ -57,17 +46,6 @@ end = struct
     | Zhizun /* 至尊 */
     | Sidahe /* 四大賀 */
     | Yaojie /* 么結 */
-
-  type special_trick_end =
-    | TrickEndWithZhizun /* 至尊 */
-    | TrickEndWithSidahe /* 四大賀 */
-
-  type special_inning_end =
-    | InningEndWithZhizun   /* 至尊 */
-    | InningEndWithSidahe   /* 四大賀 */
-    | InningEndWithYaojie   /* 么結 */
-    | InningEndWithQizhijie /* 七支結 */
-    | InningEndWithBazhijie /* 八支結 */
 
   type submit_result =
     | Continues(t)

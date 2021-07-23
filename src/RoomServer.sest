@@ -558,7 +558,7 @@ end = struct
     val deal_with_trick_end(
       game_meta   : game_meta,
       winner_seat : Quad.seat,
-      special_opt
+      special_opt : option<special_trick_end>,
     ) : {game_meta, option<Quad.t<int>>} =
       case special_opt of
       | None ->
@@ -645,7 +645,7 @@ end = struct
     val deal_with_inning_end(
       game_meta   : game_meta,
       winner_seat : Quad.seat,
-      special_opt : option<Inning.special_inning_end>,
+      special_opt : option<special_inning_end>,
       gains_quad  : Quad.t<list<Card.t>>,
     ) : {game_meta, Quad.t<int>} =
       let loser_seats = the_other_seats(winner_seat) in
@@ -655,7 +655,7 @@ end = struct
       /* If the parent wins the inning: */
         let losers =
           case special_opt of
-          | Some(Inning.InningEndWithBazhijie) ->
+          | Some(InningEndWithBazhijie) ->
               List.map(
                 fun(loser_seat) ->
                   let loser_diff = (0 - 20) * (num_consecutives + 1) in
@@ -663,7 +663,7 @@ end = struct
                 end,
                 loser_seats)
 
-          | Some(Inning.InningEndWithQizhijie) ->
+          | Some(InningEndWithQizhijie) ->
               List.map(
                 fun(loser_seat) ->
                   let loser_diff = (0 - 10) * (num_consecutives + 1) in
@@ -694,7 +694,7 @@ end = struct
       else
         let losers =
           case special_opt of
-          | Some(Inning.InningEndWithBazhijie) ->
+          | Some(InningEndWithBazhijie) ->
               List.map(
                 fun(loser_seat) ->
                   let coeff =
@@ -708,7 +708,7 @@ end = struct
                 end,
                 loser_seats)
 
-          | Some(Inning.InningEndWithQizhijie) ->
+          | Some(InningEndWithQizhijie) ->
               List.map(
                 fun(loser_seat) ->
                   let coeff =
@@ -778,6 +778,14 @@ end = struct
 
                       | Inning.WinsTrick(winner_seat, last_table, submitter_hand, special_opt, inning) ->
                           let {game_meta, diffs_opt} = deal_with_trick_end(game_meta, winner_seat, special_opt) in
+                          let changes_opt =
+                            case {special_opt, diffs_opt} of
+                            | {Some(special), Some(diffs)} ->
+                                 Some({ change_reason = SpecialTrickEnd(special), diffs = diffs })
+                            | _ ->
+                                 None
+                            end
+                          in
                           {
                             {
                               meta        = game_meta,
@@ -786,13 +794,20 @@ end = struct
                               sync        = WaitingSync(make_initial_sync()),
                               timers      = timers,
                             },
-                            Some({table = last_table, hand = submitter_hand, diffs = diffs_opt})
+                            Some({table = last_table, hand = submitter_hand, changes = changes_opt})
                           }
 
                       | Inning.WinsInning(winner_seat, last_table, gains_quad, special_opt) ->
                           let {game_meta, diffs} =
                             deal_with_inning_end(game_meta, winner_seat, special_opt, gains_quad)
                           in
+                          let reason =
+                            case special_opt of
+                            | None          -> NormalInningEnd
+                            | Some(special) -> SpecialInningEnd(special)
+                            end
+                          in
+                          let changes = { change_reason = reason, diffs = diffs } in
                           {
                             {
                               meta        = game_meta,
@@ -801,7 +816,7 @@ end = struct
                               sync        = WaitingSync(make_initial_sync()),
                               timers      = timers,
                             },
-                            Some({table = last_table, hand = [], diffs = Some(diffs)})
+                            Some({ table = last_table, hand = [], changes = Some(changes) })
                           }
                       end
                     in
@@ -819,12 +834,22 @@ end = struct
                               return({})
                           | Some(u) ->
                               let Some(obs) = make_observable_game_state(game_state, u) in
+                              let trick_last =
+                                Option.map(
+                                  fun(last) ->
+                                    {
+                                      table = last.table,
+                                      changes = last.changes,
+                                    }
+                                  end,
+                                  last_opt)
+                              in
                               let submission =
                                 {
                                   seat       = seat,
                                   submitted  = card_opts,
                                   new_state  = obs,
-                                  trick_last = Option.map(fun(last) -> { table = last.table, diffs = last.diffs } end, last_opt),
+                                  trick_last = trick_last,
                                 }
                               in
                               notify(u, [Models.NotifySubmission(submission)])
@@ -862,11 +887,11 @@ end = struct
             | None ->
                 state.reversed_logs
             | Some(last) ->
-                case last.diffs of
+                case last.changes of
                 | None ->
                     state.reversed_logs
-                | Some(diffs) ->
-                    Models.LogDiffs(diffs) :: state.reversed_logs
+                | Some(changes) ->
+                    Models.LogChanges(changes) :: state.reversed_logs
                 end
             end
           in

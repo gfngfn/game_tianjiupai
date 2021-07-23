@@ -120,7 +120,7 @@ log :=
   | LogEntered    : user
   | LogExited     : user
   | LogGameStart  : game_index
-  | LogDiffs      : per_seat(int)
+  | LogChanges    : change_per_trick_end
   | LogConnection : connection
 
 notification :=
@@ -135,14 +135,35 @@ notification :=
   | NotifyRoomClose
 
 last := {
-  table : table,
-  hand  : list(card),
-  diffs : option(per_seat(int)),
+  table   : table,
+  hand    : list(card),
+  changes : option(change_per_trick_end),
+}
+
+special_trick_end :=
+  | TrickEndWithZhizun /* 至尊 */
+  | TrickEndWithSidahe /* 四大賀 */
+
+special_inning_end :=
+  | InningEndWithZhizun   /* 至尊 */
+  | InningEndWithSidahe   /* 四大賀 */
+  | InningEndWithYaojie   /* 么結 */
+  | InningEndWithQizhijie /* 七支結 */
+  | InningEndWithBazhijie /* 八支結 */
+
+change_reason :=
+  | SpecialTrickEnd  : special_trick_end
+  | SpecialInningEnd : special_inning_end
+  | NormalInningEnd
+
+change_per_trick_end := {
+  diffs         : per_seat(int),
+  change_reason : change_reason,
 }
 
 observable_last := {
-  table : table,
-  diffs : option(per_seat(int)),
+  table   : table,
+  changes : option(change_per_trick_end),
 }
 
 submission := {
