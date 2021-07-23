@@ -718,7 +718,7 @@ submit_success_test_() ->
               before =
                   inning_state(#{
                       starts_at => ?SEAT0,
-                      player0 => {[], [wen(11), wen(9), wuT(7)]},
+                      player0 => {[], [wen(11), wen(9)]},
                       player1 => {[], [wen(10), wuF(8)]},
                       player2 => {[], [wuT(5), wuF(5)]},
                       player3 => {[wen(11), wuT(9)], []},
@@ -730,7 +730,7 @@ submit_success_test_() ->
                   {wins_inning, ?SEAT0,
                       {wuzun, Exposed(wuzun_unit, [closed, closed, closed])},
                       #{
-                          east  => [wen(11), wen(9), wuT(7), wuT(3), wuT(6)],
+                          east  => [wen(11), wen(9), wuT(3), wuT(6)],
                           south => [wen(10), wuF(8)],
                           west  => [wuT(5), wuF(5)],
                           north => []
