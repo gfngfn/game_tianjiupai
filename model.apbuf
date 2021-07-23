@@ -132,6 +132,7 @@ notification :=
   | NotifySubmission    : submission
   | NotifyConnection    : connection
   | NotifyEnteredMidway : midway_enter
+  | NotifyRoomClose
 
 last := {
   table : table,

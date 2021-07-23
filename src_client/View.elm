@@ -296,7 +296,7 @@ viewRoom message user pstate indices chatTextInput =
           viewRoomGridScheme
             { header = [ text headerText ]
             , left   = elemsLeft
-            , center = [ ViewTable.view userId seat gameMeta.parentSeat handInfo ostate.observableInning ]
+            , center = [ ViewTable.view userId seat gameMeta.parentSeat handInfo gameMeta ostate.observableInning ]
             , right  = elemsChat
             , footer = message
             }
@@ -312,7 +312,7 @@ viewLogEntry log =
       div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが参加しました" ]
 
     LogExited u ->
-      div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが退出しました" ]
+      div [ class "log-entry" ] [ b [] [ text u.userName ], text " さんが退室しました" ]
 
     LogGameStart gameIndex ->
       let s = showGameIndex gameIndex.inningIndex gameIndex.numConsecutives in

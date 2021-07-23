@@ -325,6 +325,10 @@ update msg model =
           let state1 = InRoom ws user pstate1 indices0 chatTextInput0 in
           Debug.log "NotifyGameStart (+)" ( { model | state = state1 }, cmd )
 
+        ( _, ReceiveNotification (Ok NotifyRoomClose) ) ->
+          let cmd = HttpClient.getAllRooms model.origin in
+          ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+
         ( PlayingGame ostate0, ReceiveNotification (Ok (NotifyEnteredMidway midwayEnter)) ) ->
           let userEntered = midwayEnter.user in
           let seat = midwayEnter.seat in
@@ -547,6 +551,7 @@ showNotification notification =
     NotifySubmission _    -> "NotifySubmission"
     NotifyConnection _    -> "NotifyConnection"
     NotifyEnteredMidway _ -> "NotifyEnteredMidway"
+    NotifyRoomClose       -> "NotifyRoomClose"
 
 
 showMessage : Msg -> String
