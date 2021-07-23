@@ -37,7 +37,7 @@ end = struct
     30000
 
   val maximum_num_innings() =
-    1
+    8
 
   val normal_atom : fun() -> RawValue.t = external 0 ```
     normal_atom() ->

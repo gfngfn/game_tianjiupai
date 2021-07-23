@@ -4,7 +4,7 @@ import Models exposing (..)
 
 
 maximumNumInnings : Int
-maximumNumInnings = 1
+maximumNumInnings = 8
 
 
 trickLastTimeMs : Float
