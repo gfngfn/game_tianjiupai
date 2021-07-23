@@ -3,6 +3,10 @@ module Constants exposing (..)
 import Models exposing (..)
 
 
+maximumNumInnings : Int
+maximumNumInnings = 1
+
+
 trickLastTimeMs : Float
 trickLastTimeMs = 1500.0
 
@@ -47,6 +51,21 @@ goToNextButtonX = 350 - svgButtonWidth // 2
 
 goToNextButtonY : Int
 goToNextButtonY = 340 - svgButtonHeight // 2
+
+roomCloseButtonX : Int
+roomCloseButtonX = 350
+
+roomCloseButtonY : Int
+roomCloseButtonY = 470 - svgButtonHeight // 2
+
+roomCloseTextX : Int
+roomCloseTextX = roomCloseButtonX
+
+roomCloseTextY : Int
+roomCloseTextY = 230
+
+roomCloseTextLeading : Int
+roomCloseTextLeading = 32
 
 svgButtonWidth : Int
 svgButtonWidth = 70

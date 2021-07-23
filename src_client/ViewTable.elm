@@ -35,8 +35,8 @@ type alias RelativeQuad =
   }
 
 
-view : UserId -> Seat -> Seat -> HandInfo -> ObservableInning -> Html Msg
-view userId selfSeat parentSeat handInfo observableInning =
+view : UserId -> Seat -> Seat -> HandInfo -> GameMeta -> ObservableInning -> Html Msg
+view userId selfSeat parentSeat handInfo gameMeta observableInning =
   let
     widthText = "min(100%, " ++ (String.fromInt C.svgWidth) ++ "px)"
     viewBoxText = "0 0 " ++ String.fromInt C.svgWidth ++ " " ++ String.fromInt C.svgHeight
@@ -70,6 +70,52 @@ view userId selfSeat parentSeat handInfo observableInning =
             submittedQuad = { east = [], south = [], west = [], north = [] }
             relQuad = makeRelativeQuad selfSeat gainsQuad submittedQuad
           in
+          let
+            elemsMain =
+              if gameMeta.inningIndex >= C.maximumNumInnings then
+                let
+                  winners =
+                    getWinners gameMeta
+
+                  winnerTexts =
+                    winners |> List.map (\( maybePlayer, score ) ->
+                      let
+                        userName =
+                          case maybePlayer of
+                            Nothing     -> "-"
+                            Just player -> player.user.userName
+                      in
+                      userName ++ " さん（" ++ String.fromInt score ++ " 点）"
+                    )
+
+                  elemsText =
+                    ("優勝" :: winnerTexts) |> List.indexedMap (\i s ->
+                      Svg.text_
+                        [ SvgA.x (String.fromInt C.roomCloseTextX)
+                        , SvgA.y (String.fromInt (C.roomCloseTextY + C.roomCloseTextLeading * i))
+                        , SvgA.textAnchor "middle"
+                        , SvgA.class "svg-room-close-text"
+                        ]
+                        [ Svg.text s ]
+                    )
+                in
+                (elemsText ++
+                  [ displayButton
+                      (not handInfo.synchronizing)
+                      (SendRequest RequireNextInning)
+                      "終了"
+                      C.roomCloseButtonX
+                      C.roomCloseButtonY
+                  ])
+              else
+                [ displayButton
+                    (not handInfo.synchronizing)
+                    (SendRequest RequireNextInning)
+                    "次へ"
+                    C.goToNextButtonX
+                    C.goToNextButtonY
+                ]
+          in
           Svg.svg
             [ SvgA.width widthText
             , SvgA.viewBox viewBoxText
@@ -78,13 +124,7 @@ view userId selfSeat parentSeat handInfo observableInning =
               [ displayDirection selfSeat
               , displayParentTile (PerSeat.relative { from = selfSeat, target = parentSeat })
               , displayGains relQuad
-              , [ displayButton
-                    (not handInfo.synchronizing)
-                    (SendRequest RequireNextInning)
-                    "次へ"
-                    C.goToNextButtonX
-                    C.goToNextButtonY
-                ]
+              , elemsMain
               ])
   in
   div [ class "table-container" ] [ mainElem ]
@@ -387,6 +427,27 @@ svgImage ( x, y ) path =
     , SvgA.xlinkHref path
     ]
     []
+
+
+getWinners : GameMeta -> List ( Maybe GamePlayer, Int )
+getWinners gameMeta =
+  let
+    players = gameMeta.players
+    scores = gameMeta.scores
+
+    pairs =
+      [ ( players.east,  scores.east )
+      , ( players.south, scores.south )
+      , ( players.west,  scores.west )
+      , ( players.north, scores.north )
+      ]
+  in
+  case pairs |> List.map (\( _, score ) -> score) |> List.sort |> List.reverse of
+    [] ->
+      [] -- This can't happen
+
+    maxScore :: _ ->
+      pairs |> List.filter (\( _, score ) -> score == maxScore)
 
 
 makeRelativeQuad : Seat -> PerSeat (List Card) -> PerSeat (List (ClosedOr Card)) -> RelativeQuad

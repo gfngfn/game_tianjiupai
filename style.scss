@@ -247,6 +247,14 @@ a {
   fill: $button-disabled-text-color;
 }
 
+.svg-room-close-text {
+  fill: $button-enabled-text-color;
+  font: {
+    style: sans-serif;
+    size: 24px;
+  }
+}
+
 .room-name {
   color: $standard-text-color;
   font: {
