@@ -738,6 +738,78 @@ submit_success_test_() ->
                       {ok, inning_end_with_zhizun}}
           },
           #submit_test_case{
+              subtitle = "inning ends with Yaojie 1",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wen(9)]},
+                      player1 => {[], [wen(10), wuF(8), wuT(8)]},
+                      player2 => {[], [wuT(5), wuF(5)]},
+                      player3 => {[wen(11)], []},
+                      table => {single_wu, Exposed(wunumT(3), [closed, closed])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [wen(11)],
+              expected =
+                  {wins_inning, ?SEAT0,
+                      {single_wu, Exposed(wunumT(3), [closed, closed, closed])},
+                      #{
+                          east  => [wen(11), wen(9), wuT(3)],
+                          south => [wen(10), wuF(8), wuT(8)],
+                          west  => [wuT(5), wuF(5)],
+                          north => []
+                      },
+                      {ok, inning_end_with_yaojie}}
+          },
+          #submit_test_case{
+              subtitle = "inning ends with Yaojie 2",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wen(9)]},
+                      player1 => {[], [wen(10), wuF(8), wuT(8)]},
+                      player2 => {[], [wuT(5), wuF(5)]},
+                      player3 => {[wen(11)], []},
+                      table => {single_wu, Exposed(wunumT(3), [closed, {open, wunumT(6)}])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [wen(11)],
+              expected =
+                  {wins_inning, ?SEAT2,
+                      {single_wu, Exposed(wunumT(3), [closed, {open, wunumT(6)}, closed])},
+                      #{
+                          east  => [wen(11), wen(9)],
+                          south => [wen(10), wuF(8), wuT(8)],
+                          west  => [wuT(5), wuF(5), wuT(6)],
+                          north => []
+                      },
+                      {ok, inning_end_with_yaojie}}
+          },
+          #submit_test_case{
+              subtitle = "inning ends without Yaojie",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wen(9)]},
+                      player1 => {[], [wen(10), wuF(8), wuT(8)]},
+                      player2 => {[], [wuT(5), wuF(5)]},
+                      player3 => {[wen(11)], []},
+                      table => {single_wu, Exposed(wunumT(3), [closed, {open, wunumT(7)}])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [wen(11)],
+              expected =
+                  {wins_inning, ?SEAT2,
+                      {single_wu, Exposed(wunumT(3), [closed, {open, wunumT(7)}, closed])},
+                      #{
+                          east  => [wen(11), wen(9)],
+                          south => [wen(10), wuF(8), wuT(8)],
+                          west  => [wuT(5), wuF(5), wuT(7)],
+                          north => []
+                      },
+                      error}
+          },
+          #submit_test_case{
               subtitle = "last trick after Qizhijie, third submission",
               before =
                   inning_state(#{
