@@ -358,9 +358,9 @@ update msg model =
                       }
 
                     logs1 =
-                      case observableLast.diffs of
-                        Nothing    -> pstate0.logs
-                        Just diffs -> pstate0.logs ++ [ LogDiffs diffs ]
+                      case observableLast.changes of
+                        Nothing      -> pstate0.logs
+                        Just changes -> pstate0.logs ++ [ LogChanges changes ]
 
                     pstate1 =
                       { pstate0
@@ -415,9 +415,9 @@ update msg model =
                           }
 
                         logs1 =
-                          case last.diffs of
-                            Nothing    -> pstate0.logs
-                            Just diffs -> pstate0.logs ++ [ LogDiffs diffs ]
+                          case last.changes of
+                            Nothing      -> pstate0.logs
+                            Just changes -> pstate0.logs ++ [ LogChanges changes ]
 
                         pstate1 =
                           { pstate0

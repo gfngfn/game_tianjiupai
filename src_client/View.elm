@@ -318,13 +318,27 @@ viewLogEntry log =
       let s = showGameIndex gameIndex.inningIndex gameIndex.numConsecutives in
       div [ class "log-entry" ] [ b [] [ text (s ++ " 開始！") ] ]
 
-    LogDiffs diffs ->
+    LogChanges changes ->
       let
+        diffs =
+          changes.diffs
+
+        reasonText =
+          case changes.changeReason of
+            SpecialTrickEnd TrickEndWithZhizun     -> "（至尊）"
+            SpecialTrickEnd TrickEndWithSidahe     -> "（四大賀）"
+            SpecialInningEnd InningEndWithZhizun   -> "（包尊）"
+            SpecialInningEnd InningEndWithSidahe   -> "（四大包）"
+            SpecialInningEnd InningEndWithYaojie   -> "（么結）"
+            SpecialInningEnd InningEndWithQizhijie -> "（七支結）"
+            SpecialInningEnd InningEndWithBazhijie -> "（八支結）"
+            NormalInningEnd                        -> ""
+
         diffText =
           String.join ", "
             (List.map String.fromInt [ diffs.east, diffs.south, diffs.west, diffs.north ])
       in
-      div [ class "log-entry" ] [ text diffText ]
+      div [ class "log-entry" ] [ text (diffText ++ reasonText) ]
 
     LogConnection connection ->
       let u = connection.user in
