@@ -783,6 +783,54 @@ submit_success_test_() ->
                           north => []
                       },
                       {ok, inning_end_with_qizhijie}}
+          },
+          #submit_test_case{
+              subtitle = "last trick after Qizhijie, last submission (and achieves Bazhijie)",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wuT(9), wuT(3), wuT(6), wen(8), wuF(5), wuT(5)]},
+                      player1 => {[], []},
+                      player2 => {[], []},
+                      player3 => {[wen(11)], []},
+                      table => {single_wu, Exposed(wunumF(7), [closed, closed])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [wen(11)],
+              expected =
+                  {wins_inning, ?SEAT0,
+                      {single_wu, Exposed(wunumF(7), [closed, closed, closed])},
+                      #{
+                          east  => [wen(11), wuT(9), wuT(3), wuT(6), wen(8), wuF(5), wuT(5), wuF(7)],
+                          south => [],
+                          west  => [],
+                          north => []
+                      },
+                      {ok, inning_end_with_bazhijie}}
+          },
+          #submit_test_case{
+              subtitle = "last triple submission and achieves Bazhijie",
+              before =
+                  inning_state(#{
+                      starts_at => ?SEAT0,
+                      player0 => {[], [wen(11), wuT(9), wuT(3), wuT(6), wen(11)]},
+                      player1 => {[], []},
+                      player2 => {[], []},
+                      player3 => {[wen(9), wen(11), wuF(9)], []},
+                      table => {triple_wu, Exposed(big_a, [closed, closed])}
+                  }),
+              submitter_seat = ?SEAT3,
+              submitter_cards = [wen(9), wen(11), wuF(9)],
+              expected =
+                  {wins_inning, ?SEAT0,
+                      {triple_wu, Exposed(big_a, [closed, closed, closed])},
+                      #{
+                          east  => [wen(11), wuT(9), wuT(3), wuT(6), wen(11), wen(8), wuF(5), wuT(5)],
+                          south => [],
+                          west  => [],
+                          north => []
+                      },
+                      {ok, inning_end_with_bazhijie}}
           }
       ]
     ].
