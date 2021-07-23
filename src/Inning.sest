@@ -667,10 +667,11 @@ end = struct
                   let {winner_trick_index, cards, special_opt} = get_winner(table1) in
                   let winner_seat = Quad.advance_seat(start_seat, winner_trick_index) in
                   let winner = Quad.access(winner_seat, players1) in
+                  let winner_gained = List.append(winner.gained, cards) in
                   let players2 =
                     Quad.update(
                       winner_seat,
-                      { winner | gained = List.append(winner.gained, cards) },
+                      { winner | gained = winner_gained },
                       players1,
                     )
                   in
@@ -693,15 +694,19 @@ end = struct
                         })
                     | None ->
                         let special_end_opt =
-                          Option.map(
-                            fun(special) ->
-                              case special of
-                              | Zhizun -> InningEndWithZhizun
-                              | Sidahe -> InningEndWithSidahe
-                              | Yaojie -> InningEndWithYaojie
-                              end
-                            end,
-                            special_opt)
+                          if List.length(winner_gained) == 8 then
+                          /* If the submitter achieves Bazhijie: */
+                            Some(InningEndWithBazhijie)
+                          else
+                            Option.map(
+                              fun(special) ->
+                                case special of
+                                | Zhizun -> InningEndWithZhizun
+                                | Sidahe -> InningEndWithSidahe
+                                | Yaojie -> InningEndWithYaojie
+                                end
+                              end,
+                              special_opt)
                         in
                         Some({
                           WinsInning(winner_seat, table1, gained_quad, special_end_opt),
