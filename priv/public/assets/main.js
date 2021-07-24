@@ -9603,6 +9603,7 @@ var author$project$View$viewSimpleGridScheme = function (gridScheme) {
 };
 var elm$core$Basics$not = _Basics_not;
 var elm$html$Html$a = _VirtualDom_node('a');
+var elm$html$Html$img = _VirtualDom_node('img');
 var elm$html$Html$li = _VirtualDom_node('li');
 var elm$html$Html$ul = _VirtualDom_node('ul');
 var elm$html$Html$Attributes$href = function (url) {
@@ -9610,6 +9611,12 @@ var elm$html$Html$Attributes$href = function (url) {
 		elm$html$Html$Attributes$stringProperty,
 		'href',
 		_VirtualDom_noJavaScriptUri(url));
+};
+var elm$html$Html$Attributes$src = function (url) {
+	return A2(
+		elm$html$Html$Attributes$stringProperty,
+		'src',
+		_VirtualDom_noJavaScriptOrHtmlUri(url));
 };
 var author$project$View$viewEntrance = F2(
 	function (message, userNameInput) {
@@ -9623,6 +9630,22 @@ var author$project$View$viewEntrance = F2(
 					]),
 				_List_fromArray(
 					[
+						A2(
+						elm$html$Html$div,
+						_List_fromArray(
+							[
+								elm$html$Html$Attributes$class('entrance-top-image')
+							]),
+						_List_fromArray(
+							[
+								A2(
+								elm$html$Html$img,
+								_List_fromArray(
+									[
+										elm$html$Html$Attributes$src('assets/top.png')
+									]),
+								_List_Nil)
+							])),
 						A2(
 						elm$html$Html$div,
 						_List_fromArray(
