@@ -62,7 +62,10 @@ viewEntrance message userNameInput =
   let
     middle =
       [ div [ class "entrance-container" ]
-          [ div [ class "entrance-input-group" ]
+          [ div [ class "entrance-top-image" ]
+              [ img [ src "assets/top.png" ] []
+              ]
+          , div [ class "entrance-input-group" ]
               [ specialInput
                   { placeholder = "ユーザ名"
                   , value       = userNameInput
