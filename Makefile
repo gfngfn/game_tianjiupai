@@ -18,9 +18,12 @@ model:
 	apbuf model.apbuf
 
 .PHONY: public-assets
-public-assets:
-	mkdir -p $(ASSETS_TARGET_DIR)
+public-assets: image-assets
 	sass style.scss:$(ASSETS_TARGET_DIR)/style.css
+
+.PHONY: image-assets
+image-assets:
+	mkdir -p $(ASSETS_TARGET_DIR)
 	cp assets_client/* $(ASSETS_TARGET_DIR)
 
 .PHONY: test

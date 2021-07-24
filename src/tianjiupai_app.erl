@@ -11,10 +11,16 @@
 
 -define(SUP, 'Tianjiupai.Sup').
 
+-define(COOKIE_NAME, <<"tianjiupai_session">>).
+-define(EXPIRE_SECOND, 86400).
+-define(TCP_PORT, 8080).
+
 %%====================================================================================================
 %% `application' Callback Functions
 %%====================================================================================================
 start(_StartType, _StartArgs) ->
+    ok = application:set_env(cowboy_session, session, ?COOKIE_NAME),
+    ok = application:set_env(cowboy_session, expire, ?EXPIRE_SECOND),
     cowboy_session:start(),
     PrivDirStr = code:priv_dir(tianjiupai),
     PrivDirBin = erlang:list_to_binary(PrivDirStr),
@@ -43,7 +49,7 @@ start(_StartType, _StartArgs) ->
     {ok, _} =
         cowboy:start_clear(
             tianjiupai_listener,
-            [{port, 8080}],
+            [{port, ?TCP_PORT}],
             #{
                 env => #{
                     dispatch => Dispatch
