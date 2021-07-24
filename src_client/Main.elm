@@ -333,7 +333,7 @@ update msg model =
           let userEntered = midwayEnter.user in
           let seat = midwayEnter.seat in
           let meta0 = ostate0.meta in
-          let players1 = PerSeat.update seat (Just { user = user, isConnected = True }) meta0.players in
+          let players1 = PerSeat.update seat (Just { user = userEntered, isConnected = True }) meta0.players in
           let ostate1 = { ostate0 | meta = { meta0 | players = players1 } } in
           let pstate1 = { pstate0 | game = PlayingGame ostate1, logs = pstate0.logs ++ [ LogEntered userEntered ] } in
           ( { model | state = InRoom ws user pstate1 indices0 chatTextInput0 }, Cmd.none )
