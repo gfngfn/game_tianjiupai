@@ -1,0 +1,5 @@
+import Api
+
+module Tianjiupai = struct
+  module Api = Api
+end

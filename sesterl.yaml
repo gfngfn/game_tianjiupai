@@ -7,7 +7,7 @@ source_directories:
 test_directories:
   - "./test"
 
-main_module: "Api"
+main_module: "Tianjiupai"
 
 dependencies:
   - name: "sesterl_stdlib"
