@@ -4,16 +4,16 @@
         Uuid = uuid:get_v4(),
         list_to_binary(uuid:uuid_to_string(Uuid)).
   
-'create'(S1966RoomName) -> begin S1967RoomId = 'Tianjiupai.Room':'generate_room_id'(), begin S1968Res = 'Tianjiupai.RoomServerSup':'start_child'(S1967RoomId, S1966RoomName), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'(fun(S1969Proc) -> S1967RoomId end, S1968Res)) end end.
-'get_all_rooms'() -> begin S1971Procs = 'Tianjiupai.RoomServerSup':'which_children'(), begin S1976Acc = 'SesterlStdlib.List':'foldl_effect'(fun(S1972Acc, S1973Proc) -> begin S1974Opt = 'Tianjiupai.RoomServer':'get_whole_state_by_proc'(S1973Proc), case S1974Opt of {'ok', S1975WholeState} -> sesterl_internal_prim:'return'([S1975WholeState | S1972Acc]); 'error' -> sesterl_internal_prim:'return'(S1972Acc) end end end, [], S1971Procs), sesterl_internal_prim:'return'(S1976Acc) end end.
-'get_whole_state'(S1978RoomId) -> 'Tianjiupai.RoomServer':'get_whole_state'(S1978RoomId).
-'get_personal_state'(S1980RoomId, S1981UserId) -> 'Tianjiupai.RoomServer':'get_personal_state'(S1980RoomId, S1981UserId).
-'attend'(S1983RoomId, S1984User) -> 'Tianjiupai.RoomServer':'attend'(S1983RoomId, S1984User).
-'exit'(S1986RoomId, S1987UserId) -> 'Tianjiupai.RoomServer':'exit'(S1986RoomId, S1987UserId).
-'send_chat'(S1989RoomId, S1990From, S1991Text) -> 'Tianjiupai.RoomServer':'send_chat'(S1989RoomId, S1990From, S1991Text).
-'submit'(S1993RoomId, S1994UserId, S1995Cards) -> 'Tianjiupai.RoomServer':'submit'(S1993RoomId, S1994UserId, S1995Cards).
-'ack'(S1997RoomId, S1998UserId, S1999SnapshotId) -> 'Tianjiupai.RoomServer':'ack'(S1997RoomId, S1998UserId, S1999SnapshotId).
-'require_next_inning'(S2001RoomId, S2002UserId, S2003SnapshotId) -> 'Tianjiupai.RoomServer':'require_next_inning'(S2001RoomId, S2002UserId, S2003SnapshotId).
-'notify_connected'(S2005RoomId, S2006UserId) -> 'Tianjiupai.RoomServer':'notify_connected'(S2005RoomId, S2006UserId).
-'notify_disconnected'(S2008RoomId, S2009UserId) -> 'Tianjiupai.RoomServer':'notify_disconnected'(S2008RoomId, S2009UserId).
-'monitor'(S2011RoomId) -> 'Tianjiupai.RoomServer':'monitor'(S2011RoomId).
+'create'(S1967RoomName) -> begin S1968RoomId = 'Tianjiupai.Room':'generate_room_id'(), begin S1969Res = 'Tianjiupai.RoomServerSup':'start_child'(S1968RoomId, S1967RoomName), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'(fun(S1970Proc) -> S1968RoomId end, S1969Res)) end end.
+'get_all_rooms'() -> begin S1972Procs = 'Tianjiupai.RoomServerSup':'which_children'(), begin S1977Acc = 'SesterlStdlib.List':'foldl_effect'(fun(S1973Acc, S1974Proc) -> begin S1975Opt = 'Tianjiupai.RoomServer':'get_whole_state_by_proc'(S1974Proc), case S1975Opt of {'ok', S1976WholeState} -> sesterl_internal_prim:'return'([S1976WholeState | S1973Acc]); 'error' -> sesterl_internal_prim:'return'(S1973Acc) end end end, [], S1972Procs), sesterl_internal_prim:'return'(S1977Acc) end end.
+'get_whole_state'(S1979RoomId) -> 'Tianjiupai.RoomServer':'get_whole_state'(S1979RoomId).
+'get_personal_state'(S1981RoomId, S1982UserId) -> 'Tianjiupai.RoomServer':'get_personal_state'(S1981RoomId, S1982UserId).
+'attend'(S1984RoomId, S1985User) -> 'Tianjiupai.RoomServer':'attend'(S1984RoomId, S1985User).
+'exit'(S1987RoomId, S1988UserId) -> 'Tianjiupai.RoomServer':'exit'(S1987RoomId, S1988UserId).
+'send_chat'(S1990RoomId, S1991From, S1992Text) -> 'Tianjiupai.RoomServer':'send_chat'(S1990RoomId, S1991From, S1992Text).
+'submit'(S1994RoomId, S1995UserId, S1996Cards) -> 'Tianjiupai.RoomServer':'submit'(S1994RoomId, S1995UserId, S1996Cards).
+'ack'(S1998RoomId, S1999UserId, S2000SnapshotId) -> 'Tianjiupai.RoomServer':'ack'(S1998RoomId, S1999UserId, S2000SnapshotId).
+'require_next_inning'(S2002RoomId, S2003UserId, S2004SnapshotId) -> 'Tianjiupai.RoomServer':'require_next_inning'(S2002RoomId, S2003UserId, S2004SnapshotId).
+'notify_connected'(S2006RoomId, S2007UserId) -> 'Tianjiupai.RoomServer':'notify_connected'(S2006RoomId, S2007UserId).
+'notify_disconnected'(S2009RoomId, S2010UserId) -> 'Tianjiupai.RoomServer':'notify_disconnected'(S2009RoomId, S2010UserId).
+'monitor'(S2012RoomId) -> 'Tianjiupai.RoomServer':'monitor'(S2012RoomId).

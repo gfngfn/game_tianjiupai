@@ -47,7 +47,10 @@ init(Req0, _) ->
     {cowboy_websocket, Req1, {MaybeUserId, MaybeInfo}, #{idle_timeout => ?IDLE_TIMEOUT_MILLISECONDS}}.
 
 websocket_init({MaybeUserId, MaybeInfo}) ->
-    (?LOGGER:info({"websocket_init (user_id: ~p)", 1}, {MaybeUserId}))(?MODULE, ?LINE),
+    (?LOGGER:info(
+        {"websocket_init (user_id: ~p)", 1},
+        {MaybeUserId}
+    ))(erlang:atom_to_binary(?MODULE), ?LINE),
     case {MaybeUserId, MaybeInfo} of
         {undefined, _} ->
             {stop, user_id_unavailable};
@@ -60,13 +63,13 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
                     (?LOGGER:info(
                         {"succeeded in registration (user_id: ~p)", 1},
                         {UserId}
-                    ))(?MODULE, ?LINE),
+                    ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     {ok, State};
                 {error, Reason} ->
                     (?LOGGER:info(
                         {"succeeded in registration (user_id: ~p, reason: ~p)", 2},
                         {UserId, Reason}
-                    ))(?MODULE, ?LINE),
+                    ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     {stop, Reason}
             end;
         _ ->
@@ -96,7 +99,10 @@ websocket_info(Msg, State) ->
                     Notifications),
             {reply, Chunks, State};
         _ ->
-            (?LOGGER:warning({"unknown message (messge: ~p)", 1}, {Msg}))(?MODULE, ?LINE),
+            (?LOGGER:warning(
+                {"unknown message (messge: ~p)", 1},
+                {Msg}
+            ))(erlang:atom_to_binary(?MODULE), ?LINE),
             {ok, State}
     end.
 
@@ -128,7 +134,7 @@ register_name(UserId) ->
                     (?LOGGER:warning(
                         {"name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)", 4},
                         {Name, Pid1, Pid2, Self}
-                    ))(?MODULE, ?LINE),
+                    ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     case {Pid1, Pid2} of
                         {Self, _} ->
                             erlang:exit(Pid2),

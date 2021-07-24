@@ -1,7 +1,7 @@
 -module('Tianjiupai.Sup.Impl').
 -behaviour(supervisor).
 -export(['init_impl'/1, 'init'/1, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1]).
-'init_impl'(S2268Args) -> 'Tianjiupai.Sup.Callback':'init'(S2268Args).
+'init_impl'(S2269Args) -> 'Tianjiupai.Sup.Callback':'init'(S2269Args).
       init(Args) ->
           {SupFlags, ChildSpecsImpl} = init_impl(Args),
           ChildSpecs =

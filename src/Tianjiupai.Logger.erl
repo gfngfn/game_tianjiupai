@@ -1,13 +1,14 @@
 -module('Tianjiupai.Logger').
--export(['log_impl'/5, 'info'/2, 'warning'/2]).
-    log_impl(Filename, Line, LogLevel, FormatAndArity, Args) ->
+-export(['info_impl'/4, 'info'/2, 'warning_impl'/4, 'warning'/2]).
+    info_impl(Filename, Line, FormatAndArity, Args) ->
         {Format, _} = FormatAndArity,
-        TimestampMs = erlang:system_time(millisecond),
-        TimestampString = calendar:system_time_to_rfc3339(TimestampMs, [{unit, millisecond}]),
-        Self = self(),
-        io:format(
-            "~s:~p ~s ~p [~s] " ++ Format ++ "~n",
-            [Filename, Line, TimestampString, Self, LogLevel] ++ erlang:tuple_to_list(Args)).
+        FilenameStr = erlang:binary_to_list(Filename),
+        logger:info(Format, erlang:tuple_to_list(Args), #{ file => FilenameStr, line => Line }).
   
-'info'(S434Fmt, S435Args) -> fun(S436Filename, S437Line) -> 'Tianjiupai.Logger':'log_impl'(S436Filename, S437Line, "info", S434Fmt, S435Args) end.
-'warning'(S439Fmt, S440Args) -> fun(S441Filename, S442Line) -> 'Tianjiupai.Logger':'log_impl'(S441Filename, S442Line, "warning", S439Fmt, S440Args) end.
+'info'(S434Fmt, S435Args) -> fun(S436Filename, S437Line) -> 'Tianjiupai.Logger':'info_impl'(S436Filename, S437Line, S434Fmt, S435Args) end.
+    warning_impl(Filename, Line, FormatAndArity, Args) ->
+        {Format, _} = FormatAndArity,
+        FilenameStr = erlang:binary_to_list(Filename),
+        logger:warning(Format, erlang:tuple_to_list(Args), #{ file => FilenameStr, line => Line }).
+  
+'warning'(S440Fmt, S441Args) -> fun(S442Filename, S443Line) -> 'Tianjiupai.Logger':'warning_impl'(S442Filename, S443Line, S440Fmt, S441Args) end.
