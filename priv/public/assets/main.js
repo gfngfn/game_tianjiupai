@@ -9125,7 +9125,7 @@ var author$project$Main$update = F2(
 												author$project$PerSeat$update,
 												seat,
 												elm$core$Maybe$Just(
-													{isConnected: true, user: user}),
+													{isConnected: true, user: userEntered}),
 												meta0.players);
 											var ostate1 = _Utils_update(
 												ostate0,
