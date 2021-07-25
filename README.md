@@ -1,5 +1,7 @@
 
-# [WIP] A Tian Jiu Pai Game Server
+# A Tian Jiu Pai Game Server
+
+![title image](https://github.com/gfngfn/game_tianjiupai/blob/master/assets_client/top.png)
 
 A *Tian Jiu Pai* (*Tien Gow Pai*, 天九牌) game server written in [Sesterl](https://github.com/gfngfn/Sesterl), Erlang, and Elm.
 
@@ -38,6 +40,79 @@ Invoke `make test`.
 ### How to launch locally
 
 Invoke `make run`.
+
+
+### Sequence Diagrams
+
+See `model.apbuf` for the definition of the formats of request/response bodies.
+
+
+#### Login
+
+```
+Client                             Server
+  | POST /users                      |
+  | <create_user_request>            |
+  |--------------------------------->|
+  |                                  |
+  |       201 <create_user_response> |
+  |<---------------------------------|
+  |                                  |
+  | /websocket/users/<user_id>       |
+  |--------------------------------->|
+  |                                  |
+  |                              100 |
+  |<---------------------------------|
+  |                                  |
+  | GET /rooms                       |
+  |--------------------------------->|
+  |                                  |
+  |     200 <get_all_rooms_response> |
+  |<---------------------------------|
+```
+
+
+#### Entering a room
+
+```
+Client                                            Server
+  |                                                  |
+  | PATCH /rooms                                     |
+  | RoomRequestToEnterRoom(<enter_room_request>)     |
+  |------------------------------------------------->|
+  |                                                  |
+  |                        200 <enter_room_response> |
+  |<-------------------------------------------------|
+```
+
+
+#### Card submission
+
+```
+Client 1                                              Server                            Client 2, 3, and 4
+  |                                                      |                                   |    |    |
+  | PATCH /rooms                                         |                                   |    |    |
+  | RoomRequestToSubmitCards(<submit_cards_request>)     |                                   |    |    |
+  |----------------------------------------------------->|                                   |    |    |
+  |                                                      | NotifySubmission(<submission>)    |    |    |
+  |                                                      |---------------------------------->|    |    |
+  |                                                      |--------------------------------------->|    |
+  |                          200 <submit_cards_response> |-------------------------------------------->|
+  |<-----------------------------------------------------|                                   |    |    |
+  |                                                      |                                   |    |    |
+  |                                                      |         CommandAck(<snapshot_id>) |    |    |
+  |                                                      |<----------------------------------|    |    |
+  |                                                      |         CommandAck(<snapshot_id>) |    |    |
+  | CommandAck(<snapshot_id>)                            |<--------------------------------------------|
+  |----------------------------------------------------->|                                   |    |    |
+  |                                                      |         CommandAck(<snapshot_id>) |    |    |
+  |                                       NotifyNextStep |<---------------------------------------|    |
+  |<-----------------------------------------------------| NotifyNextStep                    |    |    |
+  |                                                      |---------------------------------->|    |    |
+  |                                                      |--------------------------------------->|    |
+  |                                                      |-------------------------------------------->|
+  |                                                      |                                   |    |    |
+```
 
 
 ### How to deploy on an EC2 instance
