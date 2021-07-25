@@ -1,7 +1,7 @@
 
 # A Tian Jiu Pai Game Server
 
-<div align="center">![title image](./assets_client/top.png)</div>
+<div align="center">![title image](https://github.com/gfngfn/game_tianjiupai/blob/master/assets_client/top.png)</div>
 
 A *Tian Jiu Pai* (*Tien Gow Pai*, 天九牌) game server written in [Sesterl](https://github.com/gfngfn/Sesterl), Erlang, and Elm.
 
