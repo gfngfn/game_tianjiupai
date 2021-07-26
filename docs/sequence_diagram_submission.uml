@@ -19,15 +19,16 @@ activate ws_handlerD
 clientA -> http_handler : PATCH /rooms/<room_id>\nRoomRequestToSubmitCards(submit_cards_request)
 activate http_handler
 http_handler -> room_server : submit
-room_server -> ws_handlerB : notify
-room_server -> ws_handlerC : notify
-room_server -> ws_handlerD : notify
+room_server -> ws_handlerB : notify submission
 ws_handlerB -> clientB : NotifySubmission(notify_submission)
+room_server -> ws_handlerC : notify submission
 ws_handlerC -> clientC : NotifySubmission(notify_submission)
+room_server -> ws_handlerD : notify submission
 ws_handlerD -> clientD : NotifySubmission(notify_submission)
 http_handler <- room_server : return
 clientA <- http_handler : 200 OK\nsubmit_cards_response
 deactivate http_handler
+
 ws_handlerC <- clientC : CommandAck(snapshot_id)
 room_server <- ws_handlerC : ack
 ws_handlerD <- clientD : CommandAck(snapshot_id)
@@ -36,4 +37,13 @@ clientA -> ws_handlerA : CommandAck(snapshot_id)
 ws_handlerA -> room_server : ack
 ws_handlerB <- clientB : CommandAck(snapshot_id)
 room_server <- ws_handlerB : ack
+
+ws_handlerA <- room_server : notify next step
+clientA <- ws_handlerA : NotifyNextStep
+room_server -> ws_handlerB : notify next step
+ws_handlerB -> clientB : NotifyNextStep
+room_server -> ws_handlerC : notify next step
+ws_handlerC -> clientC : NotifyNextStep
+room_server -> ws_handlerD : notify next step
+ws_handlerD -> clientD : NotifyNextStep
 @enduml
