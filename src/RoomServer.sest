@@ -20,19 +20,53 @@ module RoomServer :> sig
   val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<room_summary>
 
   #[doc(```
-  `get_personal_state(room_id, user_id)` returns
-  how the current state of the room `room_id` can be seen from the user `user_id`
-  if `user_id` is a member of `room_id`, or returns `None` otherwise.
+    `get_personal_state(room_id, user_id)` returns
+    how the current state of the room `room_id` can be seen from the user `user_id`
+    if `user_id` is a member of `room_id`, or returns `None` otherwise.
   ```)]
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
 
+  #[doc(```
+    `send_chat(room_id, from, text)` posts the chat message `text` written by the user `from`
+    to the room `room_id` and thereby notifies the other members in the room about the post.
+  ```)]
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
+
+  #[doc(```
+    `attend(room_id, user)` allows `user` to attend the room `room_id` if possible,
+    or rejects the attendance otherwise (due to no seat available or the non-existence of `room_id`).
+  ```)]
   val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
+
+  #[doc(```
+    `exit(room_id, user_id)` lets `user` exit the room `room_id`.
+  ```)]
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
+
+  #[doc(```
+    `submit(room_id, user_id, cards)` attempts to submit cards from the user `user_id`
+    to the table of the room `room_id`.
+    If the attempt succeeds, it returns the new state updated by the submission seen from the submitter.
+    It fails when:
+
+    * `room_id` does not exist,
+    * `user_id` is not a member of `room_id`, or
+    * the list `cards` is not a valid submission
+      (e.g. because there exists a card in `cards` that is not owned by `user_id`, or
+      `cards` is not a valid composition according to the rule).
+  ```)]
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<last>}>
+
+  #[doc(```
+    `ack(room_id, user_id, snapshot_id)` tells the room `room_id` that `user_id` returned ACK
+    and that thereby the synchronization between `user_id` and the server has been established.
+  ```)]
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+
   val notify_connected<$a> : fun(room_id, user_id) -> [$a]unit
+
   val notify_disconnected<$a> : fun(room_id, user_id) -> [$a]unit
 
 end = struct
