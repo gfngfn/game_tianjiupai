@@ -1,5 +1,7 @@
 package: "tianjiupai"
 
+language: "v0.1.5"
+
 source_directories:
   - "./src"
   - "./src/_generated"

@@ -18,6 +18,12 @@ module RoomServer :> sig
 
   val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
   val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<room_summary>
+
+  #[doc(```
+  `get_personal_state(room_id, user_id)` returns
+  how the current state of the room `room_id` can be seen from the user `user_id`
+  if `user_id` is a member of `room_id`, or returns `None` otherwise.
+  ```)]
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
 
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
@@ -272,7 +278,7 @@ end = struct
 
     val warn_notification_failure(reason : RawValue.t, user_id : user_id, notifications : list<notification>) =
       assert Logger.warning(
-        f'notify_log failed (reason: ~p, to: ~p, notifications: ~p)',
+        f'notify_log failed (reason: ~p, to: ~s, notifications: ~p)',
         {reason, user_id, notifications}
       )
 
@@ -338,7 +344,7 @@ end = struct
                 | WaitingInput ->
                     let _ =
                       assert Logger.info(
-                        f'attend -> waiting input (seat: ~p, user_id: ~p)',
+                        f'attend -> waiting input (seat: ~p, user_id: ~s)',
                         {seat, user_id}
                       )
                     in
@@ -353,7 +359,7 @@ end = struct
                     if Quad.access(seat, sync_quad0) then
                       let _ =
                         assert Logger.info(
-                          f'attend -> no need to sync (seat: ~p, user_id: ~p, sync_quad: ~p)',
+                          f'attend -> no need to sync (seat: ~p, user_id: ~s, sync_quad: ~p)',
                           {seat, user_id, sync_quad0}
                         )
                       in
@@ -367,7 +373,7 @@ end = struct
                       let sync_quad1 = Quad.update(seat, true, sync_quad0) in
                       let _ =
                         assert Logger.info(
-                          f'attend -> sync update (seat: ~p, user_id: ~p, sync_quad: ~p)',
+                          f'attend -> sync update (seat: ~p, user_id: ~s, sync_quad: ~p)',
                           {seat, user_id, sync_quad1}
                         )
                       in
@@ -922,7 +928,7 @@ end = struct
                       let sync_quad = Quad.update(seat, true, sync_quad) in
                       let _ =
                         assert Logger.info(
-                          f'update sync (snapshot_id: ~p, user_id: ~p, quad: ~p)',
+                          f'update sync (snapshot_id: ~s, user_id: ~s, quad: ~p)',
                           {snapshot_id, user_id, sync_quad}
                         )
                       in
@@ -944,7 +950,7 @@ end = struct
                   | WaitingInput ->
                       let _ =
                         assert Logger.warning(
-                          f'waiting input (snapshot_id: ~p, user_id: ~p)',
+                          f'waiting input (snapshot_id: ~s, user_id: ~s)',
                           {snapshot_id, user_id}
                         )
                       in
@@ -953,7 +959,7 @@ end = struct
                 else
                   let _ =
                     assert Logger.warning(
-                      f'snapshot mismatch (got: ~p, expected: ~p, user_id: ~p)',
+                      f'snapshot mismatch (got: ~s, expected: ~s, user_id: ~s)',
                       {snapshot_id, game_state.snapshot_id, user_id}
                     )
                   in
@@ -991,7 +997,7 @@ end = struct
                       let inning_sync_quad = Quad.update(seat, true, inning_sync_quad) in
                       let _ =
                         assert Logger.info(
-                          f'update inning sync (snapshot_id: ~p, inning_sync_quad: ~p)',
+                          f'update inning sync (snapshot_id: ~s, inning_sync_quad: ~p)',
                           {snapshot_id, inning_sync_quad}
                         )
                       in
@@ -1082,7 +1088,7 @@ end = struct
                                   do res <- Timer.cancel(timer) in
                                   let _ =
                                     assert Logger.info(
-                                      f'cancels timer (waiting, user_id: ~p, timer: ~p, result: ~p)',
+                                      f'cancels timer (waiting, user_id: ~s, timer: ~p, result: ~p)',
                                       {user_id, timer, res}
                                     )
                                   in
@@ -1097,7 +1103,7 @@ end = struct
                             in
                             let _ =
                               assert Logger.info(
-                                f'sets timer (waiting, user_id: ~p, result: ~p)',
+                                f'sets timer (waiting, user_id: ~s, result: ~p)',
                                 {user_id, res}
                               )
                             in
@@ -1165,7 +1171,7 @@ end = struct
                     | None ->
                         let _ =
                           assert Logger.info(
-                            f'no timer (playing, seat: ~p, user_id: ~p)',
+                            f'no timer (playing, seat: ~p, user_id: ~s)',
                             {seat, user_id}
                           )
                         in
@@ -1174,7 +1180,7 @@ end = struct
                         do res <- Timer.cancel(timer) in
                         let _ =
                           assert Logger.info(
-                            f'cancels timer (playing, user_id: ~p, timer: ~p, result: ~p)',
+                            f'cancels timer (playing, user_id: ~s, timer: ~p, result: ~p)',
                             {user_id, timer, res}
                           )
                         in
@@ -1187,7 +1193,7 @@ end = struct
                     in
                     let _ =
                       assert Logger.info(
-                        f'sets timer (playing, seat: ~p, user_id: ~p, result: ~p)',
+                        f'sets timer (playing, seat: ~p, user_id: ~s, result: ~p)',
                         {seat, user_id, res}
                       )
                     in
@@ -1233,7 +1239,7 @@ end = struct
     val handle_disconnection_timeout(user_id : user_id, state : state) = act
       let _ =
         assert Logger.info(
-          f'disconnection timeout (user_id: ~p)',
+          f'disconnection timeout (user_id: ~s)',
           {user_id}
         )
       in
@@ -1393,7 +1399,7 @@ end = struct
       end
 
     val terminate(state) = act
-      let _ = assert Logger.info(f'terminate (room_id: ~p)', {state.settings.room_id}) in
+      let _ = assert Logger.info(f'terminate (room_id: ~s)', {state.settings.room_id}) in
       return({})
   end
 

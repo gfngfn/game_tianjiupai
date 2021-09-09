@@ -202,7 +202,7 @@ end = struct
         | Some(reason) ->
             let _ =
               assert Logger.info(
-                f'room closed (user_id: ~p, reason: ~p)',
+                f'room closed (user_id: ~s, reason: ~p)',
                 {user_id, reason}
               )
             in
@@ -212,7 +212,7 @@ end = struct
             | Some(reason) ->
                 let _ =
                   assert Logger.info(
-                    f'WebSocket connection closed (user_id: ~p, reason: ~p)',
+                    f'WebSocket connection closed (user_id: ~s, reason: ~p)',
                     {user_id, reason}
                   )
                 in
@@ -226,7 +226,7 @@ end = struct
             | None ->
                 let _ =
                   assert Logger.info(
-                    f'unexpected info (user_id: ~p, message: ~p)',
+                    f'unexpected info (user_id: ~s, message: ~p)',
                     {user_id, info}
                   )
                 in
@@ -237,7 +237,7 @@ end = struct
       GenServer.no_reply(state)
 
     val terminate(state) = act
-      let _ = assert Logger.info(f'terminate (user_id: ~p)', {state.settings.user_id}) in
+      let _ = assert Logger.info(f'terminate (user_id: ~s)', {state.settings.user_id}) in
       return({})
   end
 

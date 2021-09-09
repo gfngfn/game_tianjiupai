@@ -58,7 +58,7 @@ end = struct
         do res <- UserServerSup.terminate_child(proc) in
         let _ =
           assert Logger.info(
-            f'user deleted (user_id: ~p, result: ~p)',
+            f'user deleted (user_id: ~s, result: ~p)',
             {user_id, res}
           )
         in

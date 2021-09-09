@@ -15,7 +15,7 @@ module Api = struct
         | Ok(user_id) ->
             let _ =
               assert Logger.info(
-                f'user created (user_name: ~p, user_id: ~p)',
+                f'user created (user_name: ~s, user_id: ~s)',
                 {user_name, user_id}
               )
             in
@@ -63,7 +63,7 @@ module Api = struct
     in
     let _ =
       assert Logger.info(
-        f'submit (room_id: ~p, user_id: ~p, cards: ~p, success: ~p)',
+        f'submit (room_id: ~s, user_id: ~s, cards: ~p, success: ~p)',
         {user_id, room_id, cards, is_success}
       )
     in
@@ -86,7 +86,7 @@ module Api = struct
           | Ok(room_id) ->
               let _ =
                 assert Logger.info(
-                  f'room created (room_name: ~p, room_id: ~p, created_by: ~p)',
+                  f'room created (room_name: ~s, room_id: ~s, created_by: ~s)',
                   {room_name, room_id, user_id}
                 )
               in
@@ -118,7 +118,7 @@ module Api = struct
         in
         let _ =
           assert Logger.info(
-            f'attend (user_id: ~p, room_id: ~p, success: ~p)',
+            f'attend (user_id: ~s, room_id: ~s, success: ~p)',
             {user_id, room_id, is_success}
           )
         in
@@ -146,7 +146,7 @@ module Api = struct
         in
         let _ =
           assert Logger.info(
-            f'exit (user_id: ~p, room_id: ~p, success: ~p)',
+            f'exit (user_id: ~s, room_id: ~s, success: ~p)',
             {user_id, room_id, is_success}
           )
         in
@@ -201,7 +201,7 @@ module Api = struct
                   {}
               | None ->
                   assert Logger.warning(
-                    f'failed to send a chat comment (user_id: ~p, text: ~p)',
+                    f'failed to send a chat comment (user_id: ~s, text: ~s)',
                     {user_id, text}
                   )
               end
@@ -211,7 +211,7 @@ module Api = struct
             do res <- User.ack(user_id, snapshot_id) in
             let _ =
               assert Logger.info(
-                f'ack (user_id: ~p, snapshot_id: ~p)',
+                f'ack (user_id: ~s, snapshot_id: ~s)',
                 {user_id, snapshot_id}
               )
             in
@@ -222,7 +222,7 @@ module Api = struct
             do res <- User.require_next_inning(user_id, snapshot_id) in
             let _ =
               assert Logger.info(
-                f'next inning (user_id: ~p, snapshot_id: ~p)',
+                f'next inning (user_id: ~s, snapshot_id: ~s)',
                 {user_id, snapshot_id}
               )
             in
