@@ -345,7 +345,7 @@ end = struct
     val handle_send_chat(user : user, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
       let comment = { from = user, text = text } in
-      do dummy <-
+      do _ <-
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
         notify_for_each(user_ids, [Models.NotifyComment(comment)])
       in
@@ -382,7 +382,7 @@ end = struct
                         {seat, user_id}
                       )
                     in
-                    do dummy <-
+                    do _ <-
                       notify_for_each(user_ids, [
                         Models.NotifyEnteredMidway({ user = user, seat = seat }),
                       ])
@@ -397,7 +397,7 @@ end = struct
                           {seat, user_id, sync_quad0}
                         )
                       in
-                      do dummy <-
+                      do _ <-
                         notify_for_each(user_ids, [
                           Models.NotifyEnteredMidway({ user = user, seat = seat }),
                         ])
@@ -413,7 +413,7 @@ end = struct
                       in
                       case Quad.decompose(sync_quad1) of
                       | {true, true, true, true} ->
-                          do dummy <-
+                          do _ <-
                             notify_for_each(user_ids, [
                               Models.NotifyEnteredMidway({ user = user, seat = seat }),
                               Models.NotifyNextStep,
@@ -422,7 +422,7 @@ end = struct
                           return({ game_state1 | sync = WaitingInput })
 
                       | _ ->
-                          do dummy <-
+                          do _ <-
                             notify_for_each(user_ids, [
                               Models.NotifyEnteredMidway({ user = user, seat = seat }),
                             ])
@@ -476,7 +476,7 @@ end = struct
                 let timer_quad = Quad.make({None, None, None, None}) in
                   /* TODO: make `timer_quad` from `disconnected` of the elements of `members` */
                 do game_state <- start_new_inning(game_meta, timer_quad) in
-                do dummy <-
+                do _ <-
                   List.for_each(
                     fun(u) -> act
                       let Some(obs) = make_observable_game_state(game_state, u) in
@@ -498,7 +498,7 @@ end = struct
                 let w = { user = user, disconnected = None } in
                   /* TODO: specify an appropriate value for `disconnected` */
                 let waiting_state = { waiting_state | members = List.append(members, [w]) } in
-                do dummy <- notify_for_each(List.map(fun(w) -> w.user.user_id end, members), [notif_enter]) in
+                do _ <- notify_for_each(List.map(fun(w) -> w.user.user_id end, members), [notif_enter]) in
                 let state =
                   { state |
                     room_state    = InternalWaiting(waiting_state),
@@ -560,7 +560,7 @@ end = struct
             GenServer.reply(Exited(false), state)
 
         | Some({user, user_ids_for_notification, room_state}) ->
-            do dummy <-
+            do _ <-
               notify_for_each(user_ids_for_notification, [Models.NotifyExited(user)])
             in
             let state =
@@ -603,7 +603,7 @@ end = struct
       case special_opt of
       | None ->
           {game_meta, None}
-      | Some(special) ->
+      | Some(_) ->
           let loser_seats = the_other_seats(winner_seat) in
           let num_consecutives = game_meta.num_consecutives in
           let parent_seat = game_meta.parent_seat in
@@ -864,9 +864,9 @@ end = struct
                       if is_front then
                         List.map(fun(card) -> Some(card) end, cards)
                       else
-                        List.map(fun(card) -> None end, cards)
+                        List.map(fun(_) -> None end, cards)
                     in
-                    do dummy <-
+                    do _ <-
                       List.for_each(
                         fun(u_opt) -> act
                           case u_opt of
@@ -973,7 +973,7 @@ end = struct
                             let user_id_opts = the_other_players(game_state, seat) in
                             List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
                           in
-                          do dummy <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
+                          do _ <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
                           return(Some(game_state))
 
@@ -1046,13 +1046,13 @@ end = struct
                           let user_ids_for_notification = user_id :: user_ids in
                           if inning_index >= maximum_num_innings() then
                           /* If the last inning has ended: */
-                            do dummy <-
+                            do _ <-
                               notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose])
                             in
                             return(Some(RoomClose))
                           else
                             do game_state <- start_new_inning(game_state.meta, game_state.timers) in
-                            do dummy <-
+                            do _ <-
                               List.for_each(
                                 fun(u) -> act
                                   let Some(obs) = make_observable_game_state(game_state, u) in
@@ -1114,7 +1114,7 @@ end = struct
                         if Binary.equal(w0.user.user_id, user_id) then
                           if is_connected then
                           /* When the user of `user_id` re-connects to the server: */
-                            do res <-
+                            do Ok({}) <-
                               case w0.disconnected of
                               | None ->
                                   return(Ok({}))
@@ -1250,7 +1250,7 @@ end = struct
 
       | Some({user, user_ids_for_notification, room_state}) ->
           let connection = { user = user, is_connected = is_connected } in
-          do dummy <- notify_for_each(user_ids_for_notification, [Models.NotifyConnection(connection)]) in
+          do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyConnection(connection)]) in
           let state =
             { state |
               room_state    = room_state,
@@ -1293,10 +1293,10 @@ end = struct
                     fun(w) -> Bool.not(Binary.equal(w.user.user_id, user_id)) end,
                     waiting_members0)
                 in
-                do dummy <-
+                do _ <-
                   send_room_deletion_to_user_server(user_id)
                 in
-                do dummy <-
+                do _ <-
                   let user_ids =
                     List.filter_map(
                       fun(w) ->
@@ -1322,7 +1322,7 @@ end = struct
                 let players0 = meta0.players in
                 let Some(player) = Quad.access(seat, players0) in
                 let user = player.user in
-                do dummy <-
+                do _ <-
                   let user_ids =
                     let user_id_opts = the_other_players(game_state, seat) in
                     List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
@@ -1379,7 +1379,7 @@ end = struct
                         let user_id_opts = the_other_players(game_state, seat) in
                         List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
                       in
-                      do dummy <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
+                      do _ <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
                       let game_state = { game_state | sync = WaitingInput } in
                       return({ state | room_state = InternalPlaying(game_state) })
 
@@ -1391,7 +1391,7 @@ end = struct
           end
       end
 
-    val handle_call(req, from, state) = act
+    val handle_call(req, _, state) = act
       case req of
       | GetWholeState ->
           let whole_state = make_whole_room_state(state) in

@@ -106,8 +106,7 @@ module Api = struct
     do res <- User.set_room(user_id, Some(room_id)) in
     case res of
     | Some({}) ->
-        do res <- User.get_name(user_id) in
-        let Some(user_name) = res in
+        do Some(user_name) <- User.get_name(user_id) in
         let user = { user_id = user_id, user_name = user_name } in
         do res <- Room.attend(room_id, user) in
         let is_success =
@@ -211,8 +210,8 @@ module Api = struct
             do res <- User.ack(user_id, snapshot_id) in
             let _ =
               assert Logger.info(
-                f'ack (user_id: ~s, snapshot_id: ~s)',
-                {user_id, snapshot_id}
+                f'ack (user_id: ~s, snapshot_id: ~s, res: ~p)',
+                {user_id, snapshot_id, res}
               )
             in
             return({})
@@ -222,8 +221,8 @@ module Api = struct
             do res <- User.require_next_inning(user_id, snapshot_id) in
             let _ =
               assert Logger.info(
-                f'next inning (user_id: ~s, snapshot_id: ~s)',
-                {user_id, snapshot_id}
+                f'next inning (user_id: ~s, snapshot_id: ~s, res: ~p)',
+                {user_id, snapshot_id, res}
               )
             in
             return({})

@@ -113,7 +113,7 @@ end = struct
           erlang:demonitor(MonitorRef).
     ```
 
-    val handle_call(req, from, state) = act
+    val handle_call(req, _, state) = act
       case req of
       | GetUserState ->
           let belongs_to =
@@ -129,7 +129,7 @@ end = struct
       | SetRoom(room_id_opt) ->
           case room_id_opt of
           | None ->
-              do dummy <-
+              do _ <-
                 case state.belongs_to of
                 | None                   -> return({})
                 | Some({_, monitor_ref}) -> demonitor(monitor_ref)
@@ -143,7 +143,7 @@ end = struct
               | None ->
                   GenServer.reply(RoomSet(false), state)
               | Some(monitor_ref_new) ->
-                  do dummy <-
+                  do _ <-
                     case state.belongs_to of
                     | None                   -> return({})
                     | Some({_, monitor_ref}) -> demonitor(monitor_ref)
@@ -154,7 +154,7 @@ end = struct
               end
           end
       | SetWebsocketConnection(ws_proc) ->
-          do dummy <-
+          do _ <-
             case state.websocket_connection of
             | None              -> return({})
             | Some(monitor_ref) -> demonitor(monitor_ref)
@@ -162,7 +162,7 @@ end = struct
           in
           do monitor_ref_new <- monitor(ws_proc) in
           let state = { state | websocket_connection = Some(monitor_ref_new) } in
-          do dummy <-
+          do _ <-
             case state.belongs_to of
             | None               -> return({})
             | Some({room_id, _}) -> Room.notify_connected(room_id, state.settings.user_id)
@@ -216,7 +216,7 @@ end = struct
                     {user_id, reason}
                   )
                 in
-                do dummy <-
+                do _ <-
                   case state.belongs_to of
                   | None               -> return({})
                   | Some({room_id, _}) -> Room.notify_disconnected(room_id, user_id)

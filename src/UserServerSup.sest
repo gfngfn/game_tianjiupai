@@ -37,7 +37,7 @@ end = struct
 
     type child_info = UserServer.info
 
-    val init(init_arg) : [info]SD.initialized<info, start_arg, child_info> = act
+    val init(_) : [info]SD.initialized<info, start_arg, child_info> = act
       let sup_flags = SD.make_sup_flags() in
       let child_spec =
         SD.make_child_spec(-start (freeze start_child_impl(_)))
