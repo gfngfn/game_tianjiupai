@@ -300,11 +300,8 @@ end = struct
     end
 
   val get_user_state(user_id) = act
-    call(user_id, Callback.GetUserState, fun(resp) -> act
-      case resp of
-      | Callback.UserStateGot(user_state) -> return(Some(user_state))
-      end
-    end)
+    call(user_id, Callback.GetUserState,
+      fun(Callback.UserStateGot(user_state)) -> act return(Some(user_state)) end)
 
   val get_name(user_id) = act
     do opt <- get_user_state(user_id) in
@@ -323,10 +320,7 @@ end = struct
     end)
 
   val set_websocket_connection(user_id, ws_proc) = act
-    call(user_id, Callback.SetWebsocketConnection(ws_proc), fun(resp) -> act
-      case resp of
-      | Callback.WebsocketConnectionSet -> return(Some({}))
-      end
-    end)
+    call(user_id, Callback.SetWebsocketConnection(ws_proc),
+      fun(Callback.WebsocketConnectionSet) -> act return(Some({})) end)
 
 end

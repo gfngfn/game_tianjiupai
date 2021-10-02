@@ -1491,11 +1491,8 @@ end = struct
     end
 
   val get_whole_state<$a>(room_id : room_id) : [$a]option<room_summary> = act
-    call(room_id, Callback.GetWholeState, fun(resp) -> act
-      case resp of
-      | Callback.WholeState(whole_state) -> return(Some(whole_state))
-      end
-    end)
+    call(room_id, Callback.GetWholeState,
+      fun(Callback.WholeState(whole_state)) -> act return(Some(whole_state)) end)
 
   val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<room_summary> = act
     do resp_result <- Impl.call(proc, Callback.GetWholeState) in
@@ -1514,59 +1511,38 @@ end = struct
     end
 
   val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_state> = act
-    call(room_id, Callback.GetPersonalState(user_id), fun(resp) -> act
-      case resp of
-      | Callback.PersonalState(personal_state_opt) -> return(personal_state_opt)
-      end
-    end)
+    call(room_id, Callback.GetPersonalState(user_id),
+      fun(Callback.PersonalState(personal_state_opt)) -> act return(personal_state_opt) end)
 
   val send_chat<$a>(room_id : room_id, user : user, text : binary) : [$a]option<unit> = act
-    call(room_id, Callback.SendChat(user, text), fun(resp) -> act
-      case resp of
-      | Callback.ChatSent -> return(Some({}))
-      end
-    end)
+    call(room_id, Callback.SendChat(user, text),
+      fun(Callback.ChatSent) -> act return(Some({})) end)
 
   val attend<$a>(room_id : room_id, user : user) : [$a]option<personal_state> = act
-    call(room_id, Callback.Attend(user), fun(resp) -> act
-      case resp of
-      | Callback.Attended(game_state_opt) -> return(game_state_opt)
-      end
-    end)
+    call(room_id, Callback.Attend(user),
+      fun(Callback.Attended(game_state_opt)) -> act return(game_state_opt) end)
 
   val exit<$a>(room_id, user_id) : [$a]option<unit> = act
-    call(room_id, Callback.Exit(user_id), fun(resp) -> act
-      case resp of
-      | Callback.Exited(false) -> return(None)
-      | Callback.Exited(true)  -> return(Some({}))
-      end
+    call(room_id, Callback.Exit(user_id), fun(Callback.Exited(success)) -> act
+      if success then return(Some({})) else return(None)
     end)
 
   val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<last>}> = act
-    call(room_id, Callback.Submit(user_id, cards), fun(resp) -> act
-      case resp of
-      | Callback.SubmissionDone(v) -> return(v)
-      end
-    end)
+    call(room_id, Callback.Submit(user_id, cards),
+      fun(Callback.SubmissionDone(v)) -> act return(v) end)
 
   val ack<$a>(room_id, user_id, snapshot_id) : [$a]unit = act
     do proc_opt <- Impl.where_is_global(room_id) in
     case proc_opt of
-    | None ->
-        return({})
-
-    | Some(proc) ->
-        Impl.cast(proc, Callback.Ack(user_id, snapshot_id))
+    | None       -> return({})
+    | Some(proc) -> Impl.cast(proc, Callback.Ack(user_id, snapshot_id))
     end
 
   val require_next_inning<$a>(room_id, user_id, snapshot_id) : [$a]unit = act
     do proc_opt <- Impl.where_is_global(room_id) in
     case proc_opt of
-    | None ->
-        return({})
-
-    | Some(proc) ->
-        Impl.cast(proc, Callback.RequireNextInning(user_id, snapshot_id))
+    | None       -> return({})
+    | Some(proc) -> Impl.cast(proc, Callback.RequireNextInning(user_id, snapshot_id))
     end
 
   val set_connection(room_id, user_id, is_connected) = act
