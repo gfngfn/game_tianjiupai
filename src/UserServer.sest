@@ -42,11 +42,6 @@ end = struct
   open Stdlib
   open Models
 
-  val normal_atom : fun() -> RawValue.t = external 0 ```
-    normal_atom() ->
-        normal.
-  ```
-
   type websocket_proc = RawValue.t
 
   type user_state = {
@@ -201,7 +196,7 @@ end = struct
       end
 
     val handle_timeout(state : state) = act
-      GenServer.no_reply_and_stop(normal_atom(), state)
+      GenServer.no_reply_and_stop(StopReason.normal(), state)
 
     val handle_info(info : RawValue.t, state : state) = act
       let user_id = state.settings.user_id in
@@ -312,11 +307,8 @@ end = struct
     return(Option.bind(opt, fun(u) -> u.belongs_to end))
 
   val set_room(user_id, room_id_opt) = act
-    call(user_id, Callback.SetRoom(room_id_opt), fun(resp) -> act
-      case resp of
-      | Callback.RoomSet(true)  -> return(Some({}))
-      | Callback.RoomSet(false) -> return(None)
-      end
+    call(user_id, Callback.SetRoom(room_id_opt), fun(Callback.RoomSet(success)) -> act
+      if success then return(Some({})) else return(None)
     end)
 
   val set_websocket_connection(user_id, ws_proc) = act

@@ -79,16 +79,6 @@ end = struct
   val maximum_num_innings() =
     8
 
-  val normal_atom : fun() -> RawValue.t = external 0 ```
-    normal_atom() ->
-        normal.
-  ```
-
-  val todo<$a, $b> : fun($a) -> $b = external 1 ```
-    todo(X) ->
-      erlang:error({todo, X}).
-  ```
-
   type settings = {
     room_id   : room_id,
     room_name : binary,
@@ -1080,7 +1070,7 @@ end = struct
           GenServer.no_reply(state)
 
       | Some(RoomClose) ->
-          GenServer.no_reply_and_stop(normal_atom(), state)
+          GenServer.no_reply_and_stop(StopReason.normal(), state)
 
       | Some(RoomTransitionToNextInning(game_state, game_index_opt)) ->
           let state =
@@ -1420,7 +1410,7 @@ end = struct
 
     val handle_timeout(state) = act
       let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
-      GenServer.no_reply_and_stop(normal_atom(), state)
+      GenServer.no_reply_and_stop(StopReason.normal(), state)
 
     val handle_info(info, state) = act
       case info of
