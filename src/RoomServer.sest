@@ -126,28 +126,24 @@ end = struct
     | InternalWaiting(waiting_state)
     | InternalPlaying(whole_game_state)
 
-  type request_impl =
-    | GetWholeState
-    | GetPersonalState(user_id)
-    | SendChat(user, binary)
-    | Attend(user)
-    | Exit(user_id)
-    | Submit(user_id, list<Card.t>)
-
-  type response_impl =
-    | WholeState(room_summary)
-    | PersonalState(option<personal_state>)
-    | ChatSent
-    | Attended(option<personal_state>)
-    | Exited(bool)
-    | SubmissionDone(option<{observable_game_state, option<last>}>)
-
   module Callback = struct
     type init_arg = {room_id, binary}
 
-    type request = request_impl
+    type request =
+      | GetWholeState
+      | GetPersonalState(user_id)
+      | SendChat(user, binary)
+      | Attend(user)
+      | Exit(user_id)
+      | Submit(user_id, list<Card.t>)
 
-    type response = response_impl
+    type response =
+      | WholeState(room_summary)
+      | PersonalState(option<personal_state>)
+      | ChatSent
+      | Attended(option<personal_state>)
+      | Exited(bool)
+      | SubmissionDone(option<{observable_game_state, option<last>}>)
 
     type cast_message =
       | Ack(user_id, snapshot_id)
@@ -1465,8 +1461,8 @@ end = struct
 
   val call<$a, $ret>(
     room_id : room_id,
-    req     : request_impl,
-    f       : fun(response_impl) -> [$a]option<$ret>
+    req     : Callback.request,
+    f       : fun(Callback.response) -> [$a]option<$ret>
   ) : [$a]option<$ret> = act
     do proc_opt <- Impl.where_is_global(room_id) in
     case proc_opt of
@@ -1479,51 +1475,51 @@ end = struct
     end
 
   val get_whole_state<$a>(room_id : room_id) : [$a]option<room_summary> = act
-    call(room_id, GetWholeState, fun(resp) -> act
+    call(room_id, Callback.GetWholeState, fun(resp) -> act
       case resp of
-      | WholeState(whole_state) -> return(Some(whole_state))
+      | Callback.WholeState(whole_state) -> return(Some(whole_state))
       end
     end)
 
   val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<room_summary> = act
-    do resp <- Impl.call(proc, GetWholeState) in
+    do resp <- Impl.call(proc, Callback.GetWholeState) in
     case resp of
-    | WholeState(whole_state) -> return(Some(whole_state))
+    | Callback.WholeState(whole_state) -> return(Some(whole_state))
     end
 
   val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_state> = act
-    call(room_id, GetPersonalState(user_id), fun(resp) -> act
+    call(room_id, Callback.GetPersonalState(user_id), fun(resp) -> act
       case resp of
-      | PersonalState(personal_state_opt) -> return(personal_state_opt)
+      | Callback.PersonalState(personal_state_opt) -> return(personal_state_opt)
       end
     end)
 
   val send_chat<$a>(room_id : room_id, user : user, text : binary) : [$a]option<unit> = act
-    call(room_id, SendChat(user, text), fun(resp) -> act
+    call(room_id, Callback.SendChat(user, text), fun(resp) -> act
       case resp of
-      | ChatSent -> return(Some({}))
+      | Callback.ChatSent -> return(Some({}))
       end
     end)
 
   val attend<$a>(room_id : room_id, user : user) : [$a]option<personal_state> = act
-    call(room_id, Attend(user), fun(resp) -> act
+    call(room_id, Callback.Attend(user), fun(resp) -> act
       case resp of
-      | Attended(game_state_opt) -> return(game_state_opt)
+      | Callback.Attended(game_state_opt) -> return(game_state_opt)
       end
     end)
 
   val exit<$a>(room_id, user_id) : [$a]option<unit> = act
-    call(room_id, Exit(user_id), fun(resp) -> act
+    call(room_id, Callback.Exit(user_id), fun(resp) -> act
       case resp of
-      | Exited(false) -> return(None)
-      | Exited(true)  -> return(Some({}))
+      | Callback.Exited(false) -> return(None)
+      | Callback.Exited(true)  -> return(Some({}))
       end
     end)
 
   val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<last>}> = act
-    call(room_id, Submit(user_id, cards), fun(resp) -> act
+    call(room_id, Callback.Submit(user_id, cards), fun(resp) -> act
       case resp of
-      | SubmissionDone(v) -> return(v)
+      | Callback.SubmissionDone(v) -> return(v)
       end
     end)
 
