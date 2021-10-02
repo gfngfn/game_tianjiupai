@@ -1080,7 +1080,7 @@ end = struct
           GenServer.no_reply(state)
 
       | Some(RoomClose) ->
-          GenServer.stop(normal_atom(), state)
+          GenServer.no_reply_and_stop(normal_atom(), state)
 
       | Some(RoomTransitionToNextInning(game_state, game_index_opt)) ->
           let state =
@@ -1418,6 +1418,10 @@ end = struct
           handle_set_connection_status(user_id, is_connected, state)
       end
 
+    val handle_timeout(state) = act
+      let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
+      GenServer.no_reply_and_stop(normal_atom(), state)
+
     val handle_info(info, state) = act
       case info of
       | DisconnectionTimeout(user_id) ->
@@ -1470,8 +1474,20 @@ end = struct
         return(None)
 
     | Some(proc) ->
-        do resp <- Impl.call(proc, req) in
-        f(resp)
+        do resp_result <- Impl.call(proc, req) in
+        case resp_result of
+        | Ok(resp) ->
+            f(resp)
+
+        | Error(err) ->
+            let _ =
+              assert Logger.warning(
+                f'call failed (room_id: ~s, req: ~p, proc: ~p, error: ~p)',
+                {room_id, req, proc, err},
+              )
+            in
+            return(None)
+        end
     end
 
   val get_whole_state<$a>(room_id : room_id) : [$a]option<room_summary> = act
@@ -1482,9 +1498,19 @@ end = struct
     end)
 
   val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<room_summary> = act
-    do resp <- Impl.call(proc, Callback.GetWholeState) in
-    case resp of
-    | Callback.WholeState(whole_state) -> return(Some(whole_state))
+    do resp_result <- Impl.call(proc, Callback.GetWholeState) in
+    case resp_result of
+    | Ok(Callback.WholeState(whole_state)) ->
+        return(Some(whole_state))
+
+    | Error(err) ->
+        let _ =
+          assert Logger.warning(
+            f'call failed (proc: ~p, error: ~p)',
+            {proc, err},
+          )
+        in
+        return(None)
     end
 
   val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_state> = act

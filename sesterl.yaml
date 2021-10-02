@@ -17,8 +17,8 @@ dependencies:
       type: "git"
       repository: "https://github.com/gfngfn/sesterl_stdlib"
       spec:
-        type: "tag"
-        value: "v0.3.0"
+        type: "branch"
+        value: "dev-doc-for-sesterl-0-2-0"
 
   - name: "sesterl_json"
     source:

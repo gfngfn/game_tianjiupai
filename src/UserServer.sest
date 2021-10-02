@@ -42,6 +42,11 @@ end = struct
   open Stdlib
   open Models
 
+  val normal_atom : fun() -> RawValue.t = external 0 ```
+    normal_atom() ->
+        normal.
+  ```
+
   type websocket_proc = RawValue.t
 
   type user_state = {
@@ -195,6 +200,9 @@ end = struct
       | Some(monitor_ref) -> check_down_message(info, monitor_ref)
       end
 
+    val handle_timeout(state : state) = act
+      GenServer.no_reply_and_stop(normal_atom(), state)
+
     val handle_info(info : RawValue.t, state : state) = act
       let user_id = state.settings.user_id in
       do state <-
@@ -276,8 +284,19 @@ end = struct
     | None ->
         return(None)
     | Some(proc) ->
-        do resp <- Impl.call(proc, req) in
-        f(resp)
+        do resp_result <- Impl.call(proc, req) in
+        case resp_result of
+        | Ok(resp) ->
+            f(resp)
+        | Error(err) ->
+            let _ =
+              assert Logger.warning(
+                f'call failed (user_id: ~s, req: ~p, proc: ~p, error: ~p)',
+                {user_id, req, proc, err},
+              )
+            in
+            return(None)
+        end
     end
 
   val get_user_state(user_id) = act
