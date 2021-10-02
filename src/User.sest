@@ -28,7 +28,7 @@ module User :> sig
 
   val require_next_inning<$a> : fun(user_id, snapshot_id) -> [$a]unit
 
-  val set_websocket_connection<$a> : fun(user_id, RawValue.t) -> [$a]option<unit>
+  val set_websocket_connection<$a> : fun(user_id, pid<RawValue.t>) -> [$a]option<unit>
 
 end = struct
   open Stdlib

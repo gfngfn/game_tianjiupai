@@ -20,7 +20,7 @@ module Room :> sig
   val notify_connected<$a> : fun(room_id, user_id) -> [$a]unit
   val notify_disconnected<$a> : fun(room_id, user_id) -> [$a]unit
 
-  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
+  val monitor<$a> : fun(room_id) -> [$a]option<MonitorRef.t>
 end = struct
   open Stdlib
   open Models

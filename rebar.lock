@@ -22,7 +22,7 @@
   0},
  {<<"sesterl_stdlib">>,
   {git,"https://github.com/gfngfn/sesterl_stdlib",
-       {ref,"7cf8685ad4579e804f3fdb3c79fb317b97b97081"}},
+       {ref,"9f782225044701f6762256b50593ec26b2047187"}},
   0},
  {<<"uuid">>,
   {git,"https://github.com/okeuday/uuid.git",

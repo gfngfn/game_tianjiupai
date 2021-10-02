@@ -14,7 +14,7 @@ module RoomServer :> sig
   val start_link<$a> : fun(room_id, binary) -> [$a]result<proc, GenServer.start_link_error>
   val as_pid : fun(proc) -> pid<info>
   val from_pid : fun(pid<info>) -> proc
-  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
+  val monitor<$a> : fun(room_id) -> [$a]option<MonitorRef.t>
 
   val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
   val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<room_summary>
@@ -1412,6 +1412,10 @@ end = struct
       let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
       GenServer.no_reply_and_stop(StopReason.normal(), state)
 
+    val handle_down(mref, pid, reason, state) = act
+      let _ = assert Logger.warning(f'unexpected down (mref: ~p, pid: ~p, reason: ~p)', {mref, pid, reason}) in
+      GenServer.no_reply(state)
+
     val handle_info(info, state) = act
       case info of
       | DisconnectionTimeout(user_id) ->
@@ -1433,16 +1437,12 @@ end = struct
 
   type proc = Impl.proc
 
-  val monitor_impl<$a> : fun(pack sig end, room_id) -> [$a]option<RawValue.t> = external 2 ```
-    monitor_impl(Impl, RoomId) ->
-        case Impl:where_is_global(RoomId) of
-            error     -> error;
-            {ok, Pid} -> {ok, erlang:monitor(process, Pid)}
-        end.
-  ```
-
-  val monitor(room_id) = act
-    monitor_impl(pack Impl : sig end, room_id)
+  val monitor(room_id : room_id) = act
+    do proc_opt <- Impl.where_is_global(room_id) in
+    case proc_opt of
+    | Some(proc) -> do mref <- MonitorRef.monitor(Impl.as_pid(proc)) in return(Some(mref))
+    | None       -> return(None)
+    end
 
   val start_link<$a>(room_id : room_id, room_name : binary) : [$a]result<proc, GenServer.start_link_error> = act
     Impl.start_link_name({room_id, room_name}, -name Global(room_id))
