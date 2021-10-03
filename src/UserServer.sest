@@ -77,14 +77,9 @@ end = struct
     type cast_message =
       | DummyCastMessage
 
-    type info =
-      RawValue.t
+    type info = RawValue.t
 
-    type stop_reason =
-      RawValue.t
-
-    type global =
-      user_id
+    type global = user_id
 
     val init(init_arg) = act
       let {user_id, user_name} = init_arg in
@@ -228,8 +223,8 @@ end = struct
           let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
           GenServer.no_reply(state)
 
-    val terminate(state) = act
-      let _ = assert Logger.info(f'terminate (user_id: ~s)', {state.settings.user_id}) in
+    val terminate(reason, state) = act
+      let _ = assert Logger.info(f'terminate (reason: ~p, user_id: ~s)', {reason, state.settings.user_id}) in
       return({})
   end
 

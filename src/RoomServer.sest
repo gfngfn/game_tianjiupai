@@ -151,8 +151,6 @@ end = struct
 
     type global = room_id
 
-    type stop_reason = RawValue.t
-
     val init(init_arg) = act
       let {room_id, room_name} = init_arg in
       let settings = {room_id = room_id, room_name = room_name} in
@@ -1426,8 +1424,8 @@ end = struct
           GenServer.no_reply(state)
       end
 
-    val terminate(state) = act
-      let _ = assert Logger.info(f'terminate (room_id: ~s)', {state.settings.room_id}) in
+    val terminate(reason, state) = act
+      let _ = assert Logger.info(f'terminate (reason: ~p, room_id: ~s)', {reason, state.settings.room_id}) in
       return({})
   end
 

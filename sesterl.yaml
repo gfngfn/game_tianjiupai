@@ -1,6 +1,6 @@
 package: "tianjiupai"
 
-language: "v0.1.5"
+language: "v0.2.0"
 
 source_directories:
   - "./src"
@@ -17,8 +17,8 @@ dependencies:
       type: "git"
       repository: "https://github.com/gfngfn/sesterl_stdlib"
       spec:
-        type: "branch"
-        value: "dev-doc-for-sesterl-0-2-0"
+        type: "tag"
+        value: "v0.4.0"
 
   - name: "sesterl_json"
     source:
