@@ -25,7 +25,7 @@ module Sup = struct
         return(Result.map(UserServerSup.as_pid, res))
       end)
 
-    val init(init_arg) = act
+    val init(_) = act
       let sup_flags = SS.make_sup_flags(?strategy SS.OneForAll) in
       let child_specs =
         [

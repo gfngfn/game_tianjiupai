@@ -48,7 +48,7 @@ init(Req0, _) ->
 
 websocket_init({MaybeUserId, MaybeInfo}) ->
     (?LOGGER:info(
-        {"websocket_init (user_id: ~p)", 1},
+        {"websocket_init (user_id: ~s)", 1},
         {MaybeUserId}
     ))(erlang:atom_to_binary(?MODULE), ?LINE),
     case {MaybeUserId, MaybeInfo} of
@@ -67,7 +67,7 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
                     {ok, State};
                 {error, Reason} ->
                     (?LOGGER:info(
-                        {"succeeded in registration (user_id: ~p, reason: ~p)", 2},
+                        {"succeeded in registration (user_id: ~s, reason: ~p)", 2},
                         {UserId, Reason}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     {stop, Reason}

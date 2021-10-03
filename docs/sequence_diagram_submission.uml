@@ -1,0 +1,49 @@
+@startuml
+actor "Client A" as clientA
+participant "Ws Handler A" as ws_handlerA
+participant "HTTP Handler" as http_handler
+participant "Room Server" as room_server
+participant "Ws Handler B" as ws_handlerB
+participant "Ws Handler C" as ws_handlerC
+participant "Ws Handler D" as ws_handlerD
+actor "Client B" as clientB
+actor "Client C" as clientC
+actor "Client D" as clientD
+
+activate room_server
+activate ws_handlerA
+activate ws_handlerB
+activate ws_handlerC
+activate ws_handlerD
+
+clientA -> http_handler : PATCH /rooms/<room_id>\nRoomRequestToSubmitCards(submit_cards_request)
+activate http_handler
+http_handler -> room_server : submit
+room_server -> ws_handlerB : notify submission
+ws_handlerB -> clientB : NotifySubmission(notify_submission)
+room_server -> ws_handlerC : notify submission
+ws_handlerC -> clientC : NotifySubmission(notify_submission)
+room_server -> ws_handlerD : notify submission
+ws_handlerD -> clientD : NotifySubmission(notify_submission)
+http_handler <- room_server : return
+clientA <- http_handler : 200 OK\nsubmit_cards_response
+deactivate http_handler
+
+ws_handlerC <- clientC : CommandAck(snapshot_id)
+room_server <- ws_handlerC : ack
+ws_handlerD <- clientD : CommandAck(snapshot_id)
+room_server <- ws_handlerD : ack
+clientA -> ws_handlerA : CommandAck(snapshot_id)
+ws_handlerA -> room_server : ack
+ws_handlerB <- clientB : CommandAck(snapshot_id)
+room_server <- ws_handlerB : ack
+
+ws_handlerA <- room_server : notify next step
+clientA <- ws_handlerA : NotifyNextStep
+room_server -> ws_handlerB : notify next step
+ws_handlerB -> clientB : NotifyNextStep
+room_server -> ws_handlerC : notify next step
+ws_handlerC -> clientC : NotifyNextStep
+room_server -> ws_handlerD : notify next step
+ws_handlerD -> clientD : NotifyNextStep
+@enduml

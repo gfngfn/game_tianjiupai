@@ -28,7 +28,7 @@ module User :> sig
 
   val require_next_inning<$a> : fun(user_id, snapshot_id) -> [$a]unit
 
-  val set_websocket_connection<$a> : fun(user_id, RawValue.t) -> [$a]option<unit>
+  val set_websocket_connection<$a> : fun(user_id, pid<RawValue.t>) -> [$a]option<unit>
 
 end = struct
   open Stdlib
@@ -43,7 +43,7 @@ end = struct
   val create(user_name) = act
     do user_id <- generate_user_id() in
     do res <- UserServerSup.start_child(-user_id user_id, -user_name user_name) in
-    return(Result.map(fun(proc) -> user_id end, res))
+    return(Result.map(fun(_) -> user_id end, res))
 
   val exists(user_id) = act
     UserServer.exists(user_id)
@@ -58,7 +58,7 @@ end = struct
         do res <- UserServerSup.terminate_child(proc) in
         let _ =
           assert Logger.info(
-            f'user deleted (user_id: ~p, result: ~p)',
+            f'user deleted (user_id: ~s, result: ~p)',
             {user_id, res}
           )
         in

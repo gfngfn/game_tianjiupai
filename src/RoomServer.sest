@@ -14,19 +14,59 @@ module RoomServer :> sig
   val start_link<$a> : fun(room_id, binary) -> [$a]result<proc, GenServer.start_link_error>
   val as_pid : fun(proc) -> pid<info>
   val from_pid : fun(pid<info>) -> proc
-  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
+  val monitor<$a> : fun(room_id) -> [$a]option<MonitorRef.t>
 
   val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
   val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<room_summary>
+
+  #[doc(```
+    `get_personal_state(room_id, user_id)` returns
+    how the current state of the room `room_id` can be seen from the user `user_id`
+    if `user_id` is a member of `room_id`, or returns `None` otherwise.
+  ```)]
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
 
+  #[doc(```
+    `send_chat(room_id, from, text)` posts the chat message `text` written by the user `from`
+    to the room `room_id` and thereby notifies the other members in the room about the post.
+  ```)]
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
+
+  #[doc(```
+    `attend(room_id, user)` allows `user` to attend the room `room_id` if possible,
+    or rejects the attendance otherwise (due to no seat available or the non-existence of `room_id`).
+  ```)]
   val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
+
+  #[doc(```
+    `exit(room_id, user_id)` lets `user` exit the room `room_id`.
+  ```)]
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
+
+  #[doc(```
+    `submit(room_id, user_id, cards)` attempts to submit cards from the user `user_id`
+    to the table of the room `room_id`.
+    If the attempt succeeds, it returns the new state updated by the submission seen from the submitter.
+    It fails when:
+
+    * `room_id` does not exist,
+    * `user_id` is not a member of `room_id`, or
+    * the list `cards` is not a valid submission
+      (e.g. because there exists a card in `cards` that is not owned by `user_id`, or
+      `cards` is not a valid composition according to the rule).
+  ```)]
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<last>}>
+
+  #[doc(```
+    `ack(room_id, user_id, snapshot_id)` tells the room `room_id` that `user_id` returned ACK
+    and that thereby the synchronization between `user_id` and the server has been established.
+  ```)]
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
+
   val notify_connected<$a> : fun(room_id, user_id) -> [$a]unit
+
   val notify_disconnected<$a> : fun(room_id, user_id) -> [$a]unit
 
 end = struct
@@ -38,16 +78,6 @@ end = struct
 
   val maximum_num_innings() =
     8
-
-  val normal_atom : fun() -> RawValue.t = external 0 ```
-    normal_atom() ->
-        normal.
-  ```
-
-  val todo<$a, $b> : fun($a) -> $b = external 1 ```
-    todo(X) ->
-      erlang:error({todo, X}).
-  ```
 
   type settings = {
     room_id   : room_id,
@@ -86,28 +116,24 @@ end = struct
     | InternalWaiting(waiting_state)
     | InternalPlaying(whole_game_state)
 
-  type request_impl =
-    | GetWholeState
-    | GetPersonalState(user_id)
-    | SendChat(user, binary)
-    | Attend(user)
-    | Exit(user_id)
-    | Submit(user_id, list<Card.t>)
-
-  type response_impl =
-    | WholeState(room_summary)
-    | PersonalState(option<personal_state>)
-    | ChatSent
-    | Attended(option<personal_state>)
-    | Exited(bool)
-    | SubmissionDone(option<{observable_game_state, option<last>}>)
-
   module Callback = struct
     type init_arg = {room_id, binary}
 
-    type request = request_impl
+    type request =
+      | GetWholeState
+      | GetPersonalState(user_id)
+      | SendChat(user, binary)
+      | Attend(user)
+      | Exit(user_id)
+      | Submit(user_id, list<Card.t>)
 
-    type response = response_impl
+    type response =
+      | WholeState(room_summary)
+      | PersonalState(option<personal_state>)
+      | ChatSent
+      | Attended(option<personal_state>)
+      | Exited(bool)
+      | SubmissionDone(option<{observable_game_state, option<last>}>)
 
     type cast_message =
       | Ack(user_id, snapshot_id)
@@ -124,8 +150,6 @@ end = struct
     }
 
     type global = room_id
-
-    type stop_reason = RawValue.t
 
     val init(init_arg) = act
       let {room_id, room_name} = init_arg in
@@ -272,7 +296,7 @@ end = struct
 
     val warn_notification_failure(reason : RawValue.t, user_id : user_id, notifications : list<notification>) =
       assert Logger.warning(
-        f'notify_log failed (reason: ~p, to: ~p, notifications: ~p)',
+        f'notify_log failed (reason: ~p, to: ~s, notifications: ~p)',
         {reason, user_id, notifications}
       )
 
@@ -305,7 +329,7 @@ end = struct
     val handle_send_chat(user : user, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
       let comment = { from = user, text = text } in
-      do dummy <-
+      do _ <-
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
         notify_for_each(user_ids, [Models.NotifyComment(comment)])
       in
@@ -338,11 +362,11 @@ end = struct
                 | WaitingInput ->
                     let _ =
                       assert Logger.info(
-                        f'attend -> waiting input (seat: ~p, user_id: ~p)',
+                        f'attend -> waiting input (seat: ~p, user_id: ~s)',
                         {seat, user_id}
                       )
                     in
-                    do dummy <-
+                    do _ <-
                       notify_for_each(user_ids, [
                         Models.NotifyEnteredMidway({ user = user, seat = seat }),
                       ])
@@ -353,11 +377,11 @@ end = struct
                     if Quad.access(seat, sync_quad0) then
                       let _ =
                         assert Logger.info(
-                          f'attend -> no need to sync (seat: ~p, user_id: ~p, sync_quad: ~p)',
+                          f'attend -> no need to sync (seat: ~p, user_id: ~s, sync_quad: ~p)',
                           {seat, user_id, sync_quad0}
                         )
                       in
-                      do dummy <-
+                      do _ <-
                         notify_for_each(user_ids, [
                           Models.NotifyEnteredMidway({ user = user, seat = seat }),
                         ])
@@ -367,13 +391,13 @@ end = struct
                       let sync_quad1 = Quad.update(seat, true, sync_quad0) in
                       let _ =
                         assert Logger.info(
-                          f'attend -> sync update (seat: ~p, user_id: ~p, sync_quad: ~p)',
+                          f'attend -> sync update (seat: ~p, user_id: ~s, sync_quad: ~p)',
                           {seat, user_id, sync_quad1}
                         )
                       in
                       case Quad.decompose(sync_quad1) of
                       | {true, true, true, true} ->
-                          do dummy <-
+                          do _ <-
                             notify_for_each(user_ids, [
                               Models.NotifyEnteredMidway({ user = user, seat = seat }),
                               Models.NotifyNextStep,
@@ -382,7 +406,7 @@ end = struct
                           return({ game_state1 | sync = WaitingInput })
 
                       | _ ->
-                          do dummy <-
+                          do _ <-
                             notify_for_each(user_ids, [
                               Models.NotifyEnteredMidway({ user = user, seat = seat }),
                             ])
@@ -436,7 +460,7 @@ end = struct
                 let timer_quad = Quad.make({None, None, None, None}) in
                   /* TODO: make `timer_quad` from `disconnected` of the elements of `members` */
                 do game_state <- start_new_inning(game_meta, timer_quad) in
-                do dummy <-
+                do _ <-
                   List.for_each(
                     fun(u) -> act
                       let Some(obs) = make_observable_game_state(game_state, u) in
@@ -458,7 +482,7 @@ end = struct
                 let w = { user = user, disconnected = None } in
                   /* TODO: specify an appropriate value for `disconnected` */
                 let waiting_state = { waiting_state | members = List.append(members, [w]) } in
-                do dummy <- notify_for_each(List.map(fun(w) -> w.user.user_id end, members), [notif_enter]) in
+                do _ <- notify_for_each(List.map(fun(w) -> w.user.user_id end, members), [notif_enter]) in
                 let state =
                   { state |
                     room_state    = InternalWaiting(waiting_state),
@@ -520,7 +544,7 @@ end = struct
             GenServer.reply(Exited(false), state)
 
         | Some({user, user_ids_for_notification, room_state}) ->
-            do dummy <-
+            do _ <-
               notify_for_each(user_ids_for_notification, [Models.NotifyExited(user)])
             in
             let state =
@@ -563,7 +587,7 @@ end = struct
       case special_opt of
       | None ->
           {game_meta, None}
-      | Some(special) ->
+      | Some(_) ->
           let loser_seats = the_other_seats(winner_seat) in
           let num_consecutives = game_meta.num_consecutives in
           let parent_seat = game_meta.parent_seat in
@@ -824,9 +848,9 @@ end = struct
                       if is_front then
                         List.map(fun(card) -> Some(card) end, cards)
                       else
-                        List.map(fun(card) -> None end, cards)
+                        List.map(fun(_) -> None end, cards)
                     in
-                    do dummy <-
+                    do _ <-
                       List.for_each(
                         fun(u_opt) -> act
                           case u_opt of
@@ -922,7 +946,7 @@ end = struct
                       let sync_quad = Quad.update(seat, true, sync_quad) in
                       let _ =
                         assert Logger.info(
-                          f'update sync (snapshot_id: ~p, user_id: ~p, quad: ~p)',
+                          f'update sync (snapshot_id: ~s, user_id: ~s, quad: ~p)',
                           {snapshot_id, user_id, sync_quad}
                         )
                       in
@@ -933,7 +957,7 @@ end = struct
                             let user_id_opts = the_other_players(game_state, seat) in
                             List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
                           in
-                          do dummy <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
+                          do _ <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
                           return(Some(game_state))
 
@@ -944,7 +968,7 @@ end = struct
                   | WaitingInput ->
                       let _ =
                         assert Logger.warning(
-                          f'waiting input (snapshot_id: ~p, user_id: ~p)',
+                          f'waiting input (snapshot_id: ~s, user_id: ~s)',
                           {snapshot_id, user_id}
                         )
                       in
@@ -953,7 +977,7 @@ end = struct
                 else
                   let _ =
                     assert Logger.warning(
-                      f'snapshot mismatch (got: ~p, expected: ~p, user_id: ~p)',
+                      f'snapshot mismatch (got: ~s, expected: ~s, user_id: ~s)',
                       {snapshot_id, game_state.snapshot_id, user_id}
                     )
                   in
@@ -991,7 +1015,7 @@ end = struct
                       let inning_sync_quad = Quad.update(seat, true, inning_sync_quad) in
                       let _ =
                         assert Logger.info(
-                          f'update inning sync (snapshot_id: ~p, inning_sync_quad: ~p)',
+                          f'update inning sync (snapshot_id: ~s, inning_sync_quad: ~p)',
                           {snapshot_id, inning_sync_quad}
                         )
                       in
@@ -1006,13 +1030,13 @@ end = struct
                           let user_ids_for_notification = user_id :: user_ids in
                           if inning_index >= maximum_num_innings() then
                           /* If the last inning has ended: */
-                            do dummy <-
+                            do _ <-
                               notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose])
                             in
                             return(Some(RoomClose))
                           else
                             do game_state <- start_new_inning(game_state.meta, game_state.timers) in
-                            do dummy <-
+                            do _ <-
                               List.for_each(
                                 fun(u) -> act
                                   let Some(obs) = make_observable_game_state(game_state, u) in
@@ -1044,7 +1068,7 @@ end = struct
           GenServer.no_reply(state)
 
       | Some(RoomClose) ->
-          GenServer.stop(normal_atom(), state)
+          GenServer.no_reply_and_stop(StopReason.normal(), state)
 
       | Some(RoomTransitionToNextInning(game_state, game_index_opt)) ->
           let state =
@@ -1074,7 +1098,7 @@ end = struct
                         if Binary.equal(w0.user.user_id, user_id) then
                           if is_connected then
                           /* When the user of `user_id` re-connects to the server: */
-                            do res <-
+                            do Ok({}) <-
                               case w0.disconnected of
                               | None ->
                                   return(Ok({}))
@@ -1082,7 +1106,7 @@ end = struct
                                   do res <- Timer.cancel(timer) in
                                   let _ =
                                     assert Logger.info(
-                                      f'cancels timer (waiting, user_id: ~p, timer: ~p, result: ~p)',
+                                      f'cancels timer (waiting, user_id: ~s, timer: ~p, result: ~p)',
                                       {user_id, timer, res}
                                     )
                                   in
@@ -1097,7 +1121,7 @@ end = struct
                             in
                             let _ =
                               assert Logger.info(
-                                f'sets timer (waiting, user_id: ~p, result: ~p)',
+                                f'sets timer (waiting, user_id: ~s, result: ~p)',
                                 {user_id, res}
                               )
                             in
@@ -1165,7 +1189,7 @@ end = struct
                     | None ->
                         let _ =
                           assert Logger.info(
-                            f'no timer (playing, seat: ~p, user_id: ~p)',
+                            f'no timer (playing, seat: ~p, user_id: ~s)',
                             {seat, user_id}
                           )
                         in
@@ -1174,7 +1198,7 @@ end = struct
                         do res <- Timer.cancel(timer) in
                         let _ =
                           assert Logger.info(
-                            f'cancels timer (playing, user_id: ~p, timer: ~p, result: ~p)',
+                            f'cancels timer (playing, user_id: ~s, timer: ~p, result: ~p)',
                             {user_id, timer, res}
                           )
                         in
@@ -1187,7 +1211,7 @@ end = struct
                     in
                     let _ =
                       assert Logger.info(
-                        f'sets timer (playing, seat: ~p, user_id: ~p, result: ~p)',
+                        f'sets timer (playing, seat: ~p, user_id: ~s, result: ~p)',
                         {seat, user_id, res}
                       )
                     in
@@ -1210,7 +1234,7 @@ end = struct
 
       | Some({user, user_ids_for_notification, room_state}) ->
           let connection = { user = user, is_connected = is_connected } in
-          do dummy <- notify_for_each(user_ids_for_notification, [Models.NotifyConnection(connection)]) in
+          do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyConnection(connection)]) in
           let state =
             { state |
               room_state    = room_state,
@@ -1233,7 +1257,7 @@ end = struct
     val handle_disconnection_timeout(user_id : user_id, state : state) = act
       let _ =
         assert Logger.info(
-          f'disconnection timeout (user_id: ~p)',
+          f'disconnection timeout (user_id: ~s)',
           {user_id}
         )
       in
@@ -1253,10 +1277,10 @@ end = struct
                     fun(w) -> Bool.not(Binary.equal(w.user.user_id, user_id)) end,
                     waiting_members0)
                 in
-                do dummy <-
+                do _ <-
                   send_room_deletion_to_user_server(user_id)
                 in
-                do dummy <-
+                do _ <-
                   let user_ids =
                     List.filter_map(
                       fun(w) ->
@@ -1282,7 +1306,7 @@ end = struct
                 let players0 = meta0.players in
                 let Some(player) = Quad.access(seat, players0) in
                 let user = player.user in
-                do dummy <-
+                do _ <-
                   let user_ids =
                     let user_id_opts = the_other_players(game_state, seat) in
                     List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
@@ -1339,7 +1363,7 @@ end = struct
                         let user_id_opts = the_other_players(game_state, seat) in
                         List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
                       in
-                      do dummy <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
+                      do _ <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
                       let game_state = { game_state | sync = WaitingInput } in
                       return({ state | room_state = InternalPlaying(game_state) })
 
@@ -1351,7 +1375,7 @@ end = struct
           end
       end
 
-    val handle_call(req, from, state) = act
+    val handle_call(req, _, state) = act
       case req of
       | GetWholeState ->
           let whole_state = make_whole_room_state(state) in
@@ -1382,6 +1406,14 @@ end = struct
           handle_set_connection_status(user_id, is_connected, state)
       end
 
+    val handle_timeout(state) = act
+      let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
+      GenServer.no_reply_and_stop(StopReason.normal(), state)
+
+    val handle_down(mref, pid, reason, state) = act
+      let _ = assert Logger.warning(f'unexpected down (mref: ~p, pid: ~p, reason: ~p)', {mref, pid, reason}) in
+      GenServer.no_reply(state)
+
     val handle_info(info, state) = act
       case info of
       | DisconnectionTimeout(user_id) ->
@@ -1392,8 +1424,8 @@ end = struct
           GenServer.no_reply(state)
       end
 
-    val terminate(state) = act
-      let _ = assert Logger.info(f'terminate (room_id: ~p)', {state.settings.room_id}) in
+    val terminate(reason, state) = act
+      let _ = assert Logger.info(f'terminate (reason: ~p, room_id: ~s)', {reason, state.settings.room_id}) in
       return({})
   end
 
@@ -1403,16 +1435,12 @@ end = struct
 
   type proc = Impl.proc
 
-  val monitor_impl<$a> : fun(pack sig end, room_id) -> [$a]option<RawValue.t> = external 2 ```
-    monitor_impl(Impl, RoomId) ->
-        case Impl:where_is_global(RoomId) of
-            error     -> error;
-            {ok, Pid} -> {ok, erlang:monitor(process, Pid)}
-        end.
-  ```
-
-  val monitor(room_id) = act
-    monitor_impl(pack Impl : sig end, room_id)
+  val monitor(room_id : room_id) = act
+    do proc_opt <- Impl.where_is_global(room_id) in
+    case proc_opt of
+    | Some(proc) -> do mref <- MonitorRef.monitor(Impl.as_pid(proc)) in return(Some(mref))
+    | None       -> return(None)
+    end
 
   val start_link<$a>(room_id : room_id, room_name : binary) : [$a]result<proc, GenServer.start_link_error> = act
     Impl.start_link_name({room_id, room_name}, -name Global(room_id))
@@ -1425,8 +1453,8 @@ end = struct
 
   val call<$a, $ret>(
     room_id : room_id,
-    req     : request_impl,
-    f       : fun(response_impl) -> [$a]option<$ret>
+    req     : Callback.request,
+    f       : fun(Callback.response) -> [$a]option<$ret>
   ) : [$a]option<$ret> = act
     do proc_opt <- Impl.where_is_global(room_id) in
     case proc_opt of
@@ -1434,77 +1462,75 @@ end = struct
         return(None)
 
     | Some(proc) ->
-        do resp <- Impl.call(proc, req) in
-        f(resp)
+        do resp_result <- Impl.call(proc, req) in
+        case resp_result of
+        | Ok(resp) ->
+            f(resp)
+
+        | Error(err) ->
+            let _ =
+              assert Logger.warning(
+                f'call failed (room_id: ~s, req: ~p, proc: ~p, error: ~p)',
+                {room_id, req, proc, err},
+              )
+            in
+            return(None)
+        end
     end
 
   val get_whole_state<$a>(room_id : room_id) : [$a]option<room_summary> = act
-    call(room_id, GetWholeState, fun(resp) -> act
-      case resp of
-      | WholeState(whole_state) -> return(Some(whole_state))
-      end
-    end)
+    call(room_id, Callback.GetWholeState,
+      fun(Callback.WholeState(whole_state)) -> act return(Some(whole_state)) end)
 
   val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<room_summary> = act
-    do resp <- Impl.call(proc, GetWholeState) in
-    case resp of
-    | WholeState(whole_state) -> return(Some(whole_state))
+    do resp_result <- Impl.call(proc, Callback.GetWholeState) in
+    case resp_result of
+    | Ok(Callback.WholeState(whole_state)) ->
+        return(Some(whole_state))
+
+    | Error(err) ->
+        let _ =
+          assert Logger.warning(
+            f'call failed (proc: ~p, error: ~p)',
+            {proc, err},
+          )
+        in
+        return(None)
     end
 
   val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_state> = act
-    call(room_id, GetPersonalState(user_id), fun(resp) -> act
-      case resp of
-      | PersonalState(personal_state_opt) -> return(personal_state_opt)
-      end
-    end)
+    call(room_id, Callback.GetPersonalState(user_id),
+      fun(Callback.PersonalState(personal_state_opt)) -> act return(personal_state_opt) end)
 
   val send_chat<$a>(room_id : room_id, user : user, text : binary) : [$a]option<unit> = act
-    call(room_id, SendChat(user, text), fun(resp) -> act
-      case resp of
-      | ChatSent -> return(Some({}))
-      end
-    end)
+    call(room_id, Callback.SendChat(user, text),
+      fun(Callback.ChatSent) -> act return(Some({})) end)
 
   val attend<$a>(room_id : room_id, user : user) : [$a]option<personal_state> = act
-    call(room_id, Attend(user), fun(resp) -> act
-      case resp of
-      | Attended(game_state_opt) -> return(game_state_opt)
-      end
-    end)
+    call(room_id, Callback.Attend(user),
+      fun(Callback.Attended(game_state_opt)) -> act return(game_state_opt) end)
 
   val exit<$a>(room_id, user_id) : [$a]option<unit> = act
-    call(room_id, Exit(user_id), fun(resp) -> act
-      case resp of
-      | Exited(false) -> return(None)
-      | Exited(true)  -> return(Some({}))
-      end
+    call(room_id, Callback.Exit(user_id), fun(Callback.Exited(success)) -> act
+      if success then return(Some({})) else return(None)
     end)
 
   val submit<$a>(room_id, user_id, cards) : [$a]option<{observable_game_state, option<last>}> = act
-    call(room_id, Submit(user_id, cards), fun(resp) -> act
-      case resp of
-      | SubmissionDone(v) -> return(v)
-      end
-    end)
+    call(room_id, Callback.Submit(user_id, cards),
+      fun(Callback.SubmissionDone(v)) -> act return(v) end)
 
   val ack<$a>(room_id, user_id, snapshot_id) : [$a]unit = act
     do proc_opt <- Impl.where_is_global(room_id) in
     case proc_opt of
-    | None ->
-        return({})
-
-    | Some(proc) ->
-        Impl.cast(proc, Callback.Ack(user_id, snapshot_id))
+    | None       -> return({})
+    | Some(proc) -> Impl.cast(proc, Callback.Ack(user_id, snapshot_id))
     end
 
   val require_next_inning<$a>(room_id, user_id, snapshot_id) : [$a]unit = act
     do proc_opt <- Impl.where_is_global(room_id) in
     case proc_opt of
-    | None ->
-        return({})
-
-    | Some(proc) ->
-        Impl.cast(proc, Callback.RequireNextInning(user_id, snapshot_id))
+    | None       -> return({})
+    | Some(proc) -> Impl.cast(proc, Callback.RequireNextInning(user_id, snapshot_id))
     end
 
   val set_connection(room_id, user_id, is_connected) = act
