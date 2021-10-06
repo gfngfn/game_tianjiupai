@@ -84,13 +84,13 @@ end = struct
     room_name : binary,
   }
 
-  type waiting_member = {
+  type internal_player = {
     user         : user,
     disconnected : option<Timer.t>,
   }
 
   type waiting_state = {
-    members : list<waiting_member>,
+    members : list<internal_player>,
   }
 
   type sync =
@@ -100,11 +100,6 @@ end = struct
   type whole_inning =
     | DuringInning(Inning.t)
     | InningEnd(Quad.t<list<Card.t>>, Quad.t<bool>)
-
-  type internal_player = {
-    user         : user,
-    disconnected : option<Timer.t>,
-  }
 
   type whole_game_meta =
     | Meta({
