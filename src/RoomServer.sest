@@ -1271,23 +1271,21 @@ end = struct
         )
       in
       let room_state0 = state.room_state in
-      do pair <-
+      do opt <-
         case room_state0 of
         | InternalWaiting(waiting_state) ->
             let waiting_members0 = waiting_state.members in
             case List.filter(fun(w) -> Binary.equal(w.user.user_id, user_id) end, waiting_members0) of
             | [] ->
-                return({None, room_state0})
+                return(None)
 
             | w :: _ ->
+                do _ <- send_room_deletion_to_user_server(user_id) in
                 let user = w.user in
                 let waiting_members1 =
                   List.filter(
                     fun(w) -> Bool.not(Binary.equal(w.user.user_id, user_id)) end,
                     waiting_members0)
-                in
-                do _ <-
-                  send_room_deletion_to_user_server(user_id)
                 in
                 do _ <-
                   let user_ids =
@@ -1302,15 +1300,16 @@ end = struct
                   in
                   notify_for_each(user_ids, [Models.NotifyExited(user)])
                 in
-                return({Some(user), InternalWaiting({ waiting_state | members = waiting_members1 })})
+                return(Some({user, InternalWaiting({ waiting_state | members = waiting_members1 })}))
             end
 
         | InternalPlaying(game_state) ->
             case find_user_seat(game_state, user_id) of
             | None ->
-                return({None, room_state0})
+                return(None)
 
             | Some(seat) ->
+                do _ <- send_room_deletion_to_user_server(user_id) in
                 let Meta(meta0) = game_state.meta in
                 let players0 = meta0.players in
                 let Some(player) = Quad.access(seat, players0) in
@@ -1326,21 +1325,20 @@ end = struct
                 in
                 let players1 = Quad.update(seat, None, players0) in
                 let game_state = { game_state | meta = Meta({ meta0 | players = players1 }) } in
-                return({Some(user), InternalPlaying(game_state)})
+                return(Some({user, InternalPlaying(game_state)}))
             end
         end
       in
-      let {user_opt, room_state1} = pair in
       let state =
-        case user_opt of
-        | Some(user) ->
+        case opt of
+        | Some({user, room_state1}) ->
             { state |
               reversed_logs = Models.LogExited(user) :: state.reversed_logs,
               room_state    = room_state1,
             }
 
         | None ->
-            { state | room_state = room_state1 }
+            state
         end
       in
       GenServer.no_reply(state)
