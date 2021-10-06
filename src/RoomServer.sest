@@ -148,6 +148,28 @@ end = struct
     type info =
       | DisconnectionTimeout(user_id)
 
+    val set_disconnection_timer(user_id : user_id, -log message) = act
+      do res <-
+        Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
+      in
+      let _ =
+        assert Logger.info(
+          f'sets timer (~s, user_id: ~s, result: ~p)',
+          {message, user_id, res}
+        )
+      in
+      return(res)
+
+    val cancel_disconnection_timer(timer : Timer.t, user_id : user_id, -log message) = act
+      do res <- Timer.cancel(timer) in
+      let _ =
+        assert Logger.info(
+          f'cancels timer (~s, user_id: ~s, timer: ~p, result: ~p)',
+          {message, user_id, timer, res}
+        )
+      in
+      return(res)
+
     type state = {
       settings      : settings,
       reversed_logs : list<log>,
@@ -1124,32 +1146,14 @@ end = struct
                           /* When the user of `user_id` re-connects to the server: */
                             do Ok({}) <-
                               case w0.disconnected of
-                              | None ->
-                                  return(Ok({}))
-                              | Some(timer) ->
-                                  do res <- Timer.cancel(timer) in
-                                  let _ =
-                                    assert Logger.info(
-                                      f'cancels timer (waiting, user_id: ~s, timer: ~p, result: ~p)',
-                                      {user_id, timer, res}
-                                    )
-                                  in
-                                  return(res)
+                              | None        -> return(Ok({}))
+                              | Some(timer) -> cancel_disconnection_timer(timer, user_id, -log "waiting")
                               end
                             in
                             return({ w0 | disconnected = None })
                           else
                           /* When the user of `user_id` closes the connection: */
-                            do res <-
-                              Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
-                            in
-                            let _ =
-                              assert Logger.info(
-                                f'sets timer (waiting, user_id: ~s, result: ~p)',
-                                {user_id, res}
-                              )
-                            in
-                            let Ok(timer) = res in
+                            do Ok(timer) <- set_disconnection_timer(user_id, -log "waiting") in
                             return({ w0 | disconnected = Some(timer) })
                         else
                           return(w0)
@@ -1186,7 +1190,7 @@ end = struct
                 let Meta(meta) = game_state.meta in
                 let players0 = meta.players in
                 let Some(p0) = Quad.access(seat, players0) in
-                do {} <-
+                do Ok({}) <-
                   case p0.disconnected of
                   | None ->
                       let _ =
@@ -1195,32 +1199,16 @@ end = struct
                           {seat, user_id}
                         )
                       in
-                      return({})
+                      return(Ok({}))
                   | Some(timer) ->
-                      do res <- Timer.cancel(timer) in
-                      let _ =
-                        assert Logger.info(
-                          f'cancels timer (playing, user_id: ~s, timer: ~p, result: ~p)',
-                          {user_id, timer, res}
-                        )
-                      in
-                      return({})
+                      cancel_disconnection_timer(timer, user_id, -log "playing")
                   end
                 in
                 do disconnected <-
                   if is_connected then
                     return(None)
                   else
-                    do res <-
-                      Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
-                    in
-                    let _ =
-                      assert Logger.info(
-                        f'sets timer (playing, seat: ~p, user_id: ~s, result: ~p)',
-                        {seat, user_id, res}
-                      )
-                    in
-                    let Ok(timer) = res in
+                    do Ok(timer) <- set_disconnection_timer(user_id, -log "playing") in
                     return(Some(timer))
                 in
                 let p1 = { p0 | disconnected = disconnected } in
