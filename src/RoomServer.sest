@@ -217,7 +217,7 @@ end = struct
         members    = members,
       }
 
-    val find_user_seat(game_state : whole_game_state, user_id : user_id) =
+    val find_user_seat(game_state : whole_game_state, user_id : user_id) : option<{Quad.seat, internal_player}> =
       let Meta(meta) = game_state.meta in
       let opt =
         Quad.find(
@@ -229,20 +229,7 @@ end = struct
           end,
           meta.players)
       in
-      Option.map(
-        fun(pair) ->
-          let {seat, _} = pair in
-          seat
-        end,
-        opt)
-
-    val the_other_seats(seat) =
-      case seat of
-      | Models.SeatA -> [Models.SeatB, Models.SeatC, Models.SeatD]
-      | Models.SeatB -> [Models.SeatC, Models.SeatD, Models.SeatA]
-      | Models.SeatC -> [Models.SeatD, Models.SeatA, Models.SeatB]
-      | Models.SeatD -> [Models.SeatA, Models.SeatB, Models.SeatC]
-      end
+      Option.map(fun({seat, Some(player)}) -> {seat, player} end, opt)
 
     val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<option<user_id>> =
       let Meta(meta) = game_state.meta in
@@ -285,7 +272,7 @@ end = struct
       | None ->
           None
 
-      | Some(seat) ->
+      | Some({seat, _}) ->
           let synchronizing =
             case game_state.sync of
             | WaitingInput   -> false
@@ -551,10 +538,9 @@ end = struct
             | None ->
                 None
 
-            | Some(seat) ->
+            | Some({seat, player}) ->
                 let Meta(meta0) = game_state.meta in
                 let players0 = meta0.players in
-                let Some(player) = Quad.access(seat, players0) in
                 let players1 = Quad.update(seat, None, players0) in
                 let user_ids_for_notification =
                   let user_id_opts = the_other_players(game_state, seat) in
@@ -637,7 +623,7 @@ end = struct
       | None ->
           {Meta(meta), None}
       | Some(_) ->
-          let loser_seats = the_other_seats(winner_seat) in
+          let loser_seats = Quad.the_other_seats(winner_seat) in
           let num_consecutives = meta.num_consecutives in
           let parent_seat = meta.parent_seat in
           let losers =
@@ -718,7 +704,7 @@ end = struct
       special_opt : option<special_inning_end>,
       gains_quad  : Quad.t<list<Card.t>>,
     ) : {whole_game_meta, Quad.t<int>} =
-      let loser_seats = the_other_seats(winner_seat) in
+      let loser_seats = Quad.the_other_seats(winner_seat) in
       let num_consecutives = meta.num_consecutives in
       let parent_seat = meta.parent_seat in
       if Quad.seat_equal(winner_seat, parent_seat) then
@@ -818,7 +804,7 @@ end = struct
         | None ->
             return(None)
 
-        | Some(seat) ->
+        | Some({seat, _}) ->
             case game_state.inning of
             | InningEnd(_, _) ->
                 return(None)
@@ -983,7 +969,7 @@ end = struct
             | None ->
                 return(None)
 
-            | Some(seat) ->
+            | Some({seat, _}) ->
                 if SnapshotId.equal(snapshot_id, game_state.snapshot_id) then
                   case game_state.sync of
                   | WaitingSync(sync_quad) ->
@@ -1049,7 +1035,7 @@ end = struct
             | None ->
                 return(None)
 
-            | Some(seat) ->
+            | Some({seat, _}) ->
                 if SnapshotId.equal(snapshot_id, game_state.snapshot_id) then
                   case game_state.inning of
                   | DuringInning(_) ->
@@ -1186,10 +1172,9 @@ end = struct
             | None ->
                 return(None)
 
-            | Some(seat) ->
+            | Some({seat, p0}) ->
                 let Meta(meta) = game_state.meta in
                 let players0 = meta.players in
-                let Some(p0) = Quad.access(seat, players0) in
                 do Ok({}) <-
                   case p0.disconnected of
                   | None ->
@@ -1308,11 +1293,10 @@ end = struct
             | None ->
                 return(None)
 
-            | Some(seat) ->
+            | Some({seat, player}) ->
                 do _ <- send_room_deletion_to_user_server(user_id) in
                 let Meta(meta0) = game_state.meta in
                 let players0 = meta0.players in
-                let Some(player) = Quad.access(seat, players0) in
                 let user = player.user in
                 do _ <-
                   let user_ids =
@@ -1353,7 +1337,7 @@ end = struct
           | None ->
               return(state)
 
-          | Some(seat) ->
+          | Some({seat, _}) ->
               case game_state.sync of
               | WaitingInput ->
                   return(state)

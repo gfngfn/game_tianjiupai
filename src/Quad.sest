@@ -10,6 +10,14 @@ module Quad = struct
         S1 =:= S2.
   ```
 
+  val the_other_seats(seat) : list<seat> =
+    case seat of
+    | SeatA -> [SeatB, SeatC, SeatD]
+    | SeatB -> [SeatC, SeatD, SeatA]
+    | SeatC -> [SeatD, SeatA, SeatB]
+    | SeatD -> [SeatA, SeatB, SeatC]
+    end
+
   val rec advance_seat(s, n) =
     if n < 0 then
       advance_seat(s, n + 4)
