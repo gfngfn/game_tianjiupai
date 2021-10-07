@@ -18,7 +18,8 @@
     error_reason/0
 ]).
 -export([
-    notify/2
+    notify/2,
+    where_is/1
 ]).
 
 %%====================================================================================================
@@ -155,10 +156,8 @@ register_name(UserId) ->
             end)
     of
         yes ->
-            case ?FRONT:set_websocket_connection(UserId, Self) of
-                {ok, ok} -> ok;
-                error    -> {error, set_websocket_connection_failed}
-            end;
+            ok = ?FRONT:set_websocket_connection(UserId, Self),
+            ok;
         no ->
             {error, failed_to_regster}
     end.

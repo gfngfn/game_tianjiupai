@@ -249,8 +249,8 @@ end = struct
               player_opt,
               fun(player) ->
                 case player.connection of
-                | Connected(_, _) -> None
-                | Disconnected(_) -> Some(player.user.user_id)
+                | Connected(_, _) -> Some(player.user.user_id)
+                | Disconnected(_) -> None
                 end
               end)
         end,
@@ -383,6 +383,7 @@ end = struct
 
     val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
       notify(UserId, Notifications) ->
+          io:format("!!! notify (user_id: ~s, notifications: ~p)~n", [UserId, Notifications]),
           case tianjiupai_websocket:notify(UserId, Notifications) of
               ok ->
                   ok;
@@ -1371,57 +1372,82 @@ end = struct
       let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
       GenServer.no_reply_and_stop(StopReason.normal(), state)
 
-    val handle_down(mref, pid, reason, state) = act
+    val handle_down(mref, _, _, state) = act
       case state.room_state of
       | InternalWaiting(waiting) ->
-          do acc <-
+          let waiting_members0 = waiting.members in
+          do {player_acc, log_acc} <-
             List.foldl_effect(
-              fun(acc, player) -> act
+              fun({player_acc, log_acc}, player) -> act
                 case player.connection of
                 | Connected(_, mref_ws) ->
                     if MonitorRef.equal(mref_ws, mref) then
-                      do Ok(timer) <- set_disconnection_timer(player.user.user_id, -log "waiting") in
-                      return({ player | connection = Disconnected(timer) } :: acc)
+                      let user = player.user in
+                      let user_id = user.user_id in
+                      do Ok(timer) <- set_disconnection_timer(user_id, -log "waiting") in
+                      let user_ids_for_notification = get_connected_user_ids_from_list(waiting_members0, -except user_id) in
+                      let connection = { user = user, is_connected = false } in
+                      do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyConnection(connection)]) in
+                      let player_acc = { player | connection = Disconnected(timer) } :: player_acc in
+                      let log_acc = LogConnection(connection) :: log_acc in
+                      return({player_acc, log_acc})
                     else
-                      return(player :: acc)
+                      return({player :: player_acc, log_acc})
 
                 | Disconnected(_) ->
-                    return(player :: acc)
+                    return({player :: player_acc, log_acc})
                 end
               end,
-              [],
-              waiting.members)
+              {[], state.reversed_logs},
+              waiting_members0)
           in
-          let players = List.reverse(acc) in
-          GenServer.no_reply({ state | room_state = InternalWaiting({ members = players }) })
+          let players = List.reverse(player_acc) in
+          GenServer.no_reply(
+            { state |
+              reversed_logs = log_acc,
+              room_state    = InternalWaiting({ members = players }),
+            })
 
       | InternalPlaying(game_state) ->
           let Meta(meta) = game_state.meta in
-          do players <-
-            Quad.map_effect(
-              fun(player_opt) -> act
+          let players0 = meta.players in
+          do {log_acc, players} <-
+            Quad.map_fold_effect(
+              fun(log_acc, player_opt) -> act
                 case player_opt of
                 | None ->
-                    return(None)
+                    return({log_acc, None})
 
                 | Some(player) ->
                     case player.connection of
                     | Connected(_, mref_ws) ->
                         if MonitorRef.equal(mref_ws, mref) then
-                          do Ok(timer) <- set_disconnection_timer(player.user.user_id, -log "waiting") in
-                          return(Some({ player | connection = Disconnected(timer) }))
+                          let user = player.user in
+                          let user_id = user.user_id in
+                          do Ok(timer) <- set_disconnection_timer(player.user.user_id, -log "playing") in
+                          let user_ids_for_notification = get_connected_user_ids_from_quad(players0, -except user_id) in
+                          let connection = { user = user, is_connected = false } in
+                          do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyConnection(connection)]) in
+                          let player = { player | connection = Disconnected(timer) } in
+                          let log_acc = LogConnection(connection) :: log_acc in
+                          return({log_acc, Some(player)})
                         else
-                          return(Some(player))
+                          return({log_acc, player_opt})
 
                     | Disconnected(_) ->
-                        return(Some(player))
+                        return({log_acc, player_opt})
                     end
                 end
               end,
-              meta.players)
+              state.reversed_logs,
+              players0)
           in
           let game_state = { game_state | meta = Meta({ meta | players = players }) } in
-          GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
+          GenServer.no_reply(
+            { state |
+              reversed_logs = log_acc,
+              room_state    = InternalPlaying(game_state),
+            })
       end
 
     val handle_info(info, state) = act

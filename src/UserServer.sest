@@ -32,7 +32,7 @@ module UserServer :> sig
 
   val from_pid : fun(pid<info>) -> proc
 
-  val set_websocket_connection<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]option<unit>
+  val set_websocket_connection<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]option<room_id>
 
   val get_proc<$a> : fun(user_id) -> [$a]option<proc>
 
@@ -67,7 +67,7 @@ end = struct
 
     type response =
       | RoomSet(bool)
-      | WebsocketConnectionSet
+      | WebsocketConnectionSet(option<room_id>)
       | UserStateGot(user_state)
 
     type cast_message =
@@ -151,7 +151,8 @@ end = struct
           in
           do monitor_ref_new <- WebSocketHandler.monitor(ws_proc) in
           let state = { state | websocket_connection = Some(monitor_ref_new) } in
-          GenServer.reply(WebsocketConnectionSet, state)
+          let room_id_opt = Option.map(fun({room_id, _}) -> room_id end, state.belongs_to) in
+          GenServer.reply(WebsocketConnectionSet(room_id_opt), state)
       end
 
     val handle_cast(msg, state) = act
@@ -281,6 +282,6 @@ end = struct
 
   val set_websocket_connection(user_id, ws_proc) = act
     call(user_id, Callback.SetWebsocketConnection(ws_proc),
-      fun(Callback.WebsocketConnectionSet) -> act return(Some({})) end)
+      fun(Callback.WebsocketConnectionSet(room_id_opt)) -> act return(room_id_opt) end)
 
 end
