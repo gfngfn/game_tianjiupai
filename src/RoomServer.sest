@@ -231,20 +231,25 @@ end = struct
       in
       Option.map(fun({seat, Some(player)}) -> {seat, player} end, opt)
 
-    val the_other_players(game_state : whole_game_state, seat : Quad.seat) : list<option<user_id>> =
+    val get_connected_user_ids(game_state : whole_game_state, -except seat0 : Quad.seat) : list<user_id> =
       let Meta(meta) = game_state.meta in
-      let {uo0, uo1, uo2, uo3} =
-        Quad.decompose(Quad.map(
-          fun(player_opt) -> Option.map(fun(player) -> player.user.user_id end, player_opt) end,
-          meta.players
-        ))
-      in
-      case seat of
-      | Models.SeatA -> [uo1, uo2, uo3]
-      | Models.SeatB -> [uo2, uo3, uo0]
-      | Models.SeatC -> [uo3, uo0, uo1]
-      | Models.SeatD -> [uo0, uo1, uo2]
-      end
+      let {p_a, p_b, p_c, p_d} = Quad.decompose(meta.players) in
+      let players = [{SeatA, p_a}, {SeatB, p_b}, {SeatC, p_c}, {SeatD, p_d}] in
+      List.filter_map(
+        fun({seat, player_opt}) ->
+          if Quad.seat_equal(seat, seat0) then
+            None
+          else
+            Option.bind(
+              player_opt,
+              fun(player) ->
+                case player.connection of
+                | None    -> None
+                | Some(_) -> Some(player.user.user_id)
+                end
+              end)
+        end,
+        players)
 
     val make_game_player(iplayer : internal_player) : game_player =
       let is_connected =
@@ -391,10 +396,7 @@ end = struct
               let player = { user = user, connection = None } in
               let players1 = Quad.update(seat, Some(player), meta0.players) in
               let game_state1 = { game_state0 | meta = Meta({ meta0 | players = players1 }) } in
-              let user_ids =
-                let user_id_opts = the_other_players(game_state1, seat) in
-                List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
-              in
+              let user_ids_for_notification = get_connected_user_ids(game_state1, -except seat) in
               do game_state2 <-
                 case game_state1.sync of
                 | WaitingInput ->
@@ -405,7 +407,7 @@ end = struct
                       )
                     in
                     do _ <-
-                      notify_for_each(user_ids, [
+                      notify_for_each(user_ids_for_notification, [
                         Models.NotifyEnteredMidway({ user = user, seat = seat }),
                       ])
                     in
@@ -420,7 +422,7 @@ end = struct
                         )
                       in
                       do _ <-
-                        notify_for_each(user_ids, [
+                        notify_for_each(user_ids_for_notification, [
                           Models.NotifyEnteredMidway({ user = user, seat = seat }),
                         ])
                       in
@@ -436,7 +438,7 @@ end = struct
                       case Quad.decompose(sync_quad1) of
                       | {true, true, true, true} ->
                           do _ <-
-                            notify_for_each(user_ids, [
+                            notify_for_each(user_ids_for_notification, [
                               Models.NotifyEnteredMidway({ user = user, seat = seat }),
                               Models.NotifyNextStep,
                             ])
@@ -445,7 +447,7 @@ end = struct
 
                       | _ ->
                           do _ <-
-                            notify_for_each(user_ids, [
+                            notify_for_each(user_ids_for_notification, [
                               Models.NotifyEnteredMidway({ user = user, seat = seat }),
                             ])
                           in
@@ -542,10 +544,7 @@ end = struct
                 let Meta(meta0) = game_state.meta in
                 let players0 = meta0.players in
                 let players1 = Quad.update(seat, None, players0) in
-                let user_ids_for_notification =
-                  let user_id_opts = the_other_players(game_state, seat) in
-                  List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
-                in
+                let user_ids_for_notification = get_connected_user_ids(game_state, -except seat) in
                 Some({
                   player.user,
                   user_ids_for_notification,
@@ -882,34 +881,29 @@ end = struct
                     in
                     do _ <-
                       List.for_each(
-                        fun(u_opt) -> act
-                          case u_opt of
-                          | None ->
-                              return({})
-                          | Some(u) ->
-                              let Some(obs) = make_observable_game_state(game_state, u) in
-                              let trick_last =
-                                Option.map(
-                                  fun(last) ->
-                                    {
-                                      table = last.table,
-                                      changes = last.changes,
-                                    }
-                                  end,
-                                  last_opt)
-                              in
-                              let submission =
+                        fun(u) -> act
+                          let Some(obs) = make_observable_game_state(game_state, u) in
+                          let trick_last =
+                            Option.map(
+                              fun(last) ->
                                 {
-                                  seat       = seat,
-                                  submitted  = card_opts,
-                                  new_state  = obs,
-                                  trick_last = trick_last,
+                                  table = last.table,
+                                  changes = last.changes,
                                 }
-                              in
-                              notify(u, [Models.NotifySubmission(submission)])
-                          end
+                              end,
+                              last_opt)
+                          in
+                          let submission =
+                            {
+                              seat       = seat,
+                              submitted  = card_opts,
+                              new_state  = obs,
+                              trick_last = trick_last,
+                            }
+                          in
+                          notify(u, [Models.NotifySubmission(submission)])
                         end,
-                        the_other_players(game_state, seat)
+                        get_connected_user_ids(game_state, -except seat)
                       )
                     in
                     let Some(obs) = make_observable_game_state(game_state, user_id) in
@@ -983,11 +977,8 @@ end = struct
                       case Quad.decompose(sync_quad) of
                       | {true, true, true, true} ->
                         /* If all the players are ready for the next step: */
-                          let user_ids =
-                            let user_id_opts = the_other_players(game_state, seat) in
-                            List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
-                          in
-                          do _ <- notify_for_each(user_id :: user_ids, [Models.NotifyNextStep]) in
+                          let user_ids_for_notification = get_connected_user_ids(game_state, -except seat) in
+                          do _ <- notify_for_each(user_id :: user_ids_for_notification, [Models.NotifyNextStep]) in
                           let game_state = { game_state | sync = WaitingInput } in
                           return(Some(game_state))
 
@@ -1055,16 +1046,11 @@ end = struct
                           let whole_game_meta = game_state.meta in
                           let Meta(meta) = whole_game_meta in
                           let inning_index = meta.inning_index in
-                          let user_ids =
-                            let user_id_opts = the_other_players(game_state, seat) in
-                            List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
-                          in
-                          let user_ids_for_notification = user_id :: user_ids in
+                          let user_ids_for_notification = get_connected_user_ids(game_state, -except seat) in
+                          let user_ids_for_notification = user_id :: user_ids_for_notification in
                           if inning_index >= maximum_num_innings() then
                           /* If the last inning has ended: */
-                            do _ <-
-                              notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose])
-                            in
+                            do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
                             return(Some(RoomClose))
                           else
                             do game_state <- start_new_inning(whole_game_meta) in
@@ -1074,7 +1060,7 @@ end = struct
                                   let Some(obs) = make_observable_game_state(game_state, u) in
                                   notify(u, [Models.NotifyGameStart(obs)])
                                 end,
-                                user_id :: user_ids)
+                                user_ids_for_notification)
                             in
                             let game_index =
                               let Meta(meta) = game_state.meta in
@@ -1298,15 +1284,8 @@ end = struct
                 let Meta(meta0) = game_state.meta in
                 let players0 = meta0.players in
                 let user = player.user in
-                do _ <-
-                  let user_ids =
-                    let user_id_opts = the_other_players(game_state, seat) in
-                    List.filter_map(
-                      fun(u_opt : option<binary>) -> u_opt end, /* TODO: filter connection players */
-                      user_id_opts)
-                  in
-                  notify_for_each(user_ids, [Models.NotifyExited(user)])
-                in
+                let user_ids_for_notification = get_connected_user_ids(game_state, -except seat) in
+                do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyExited(user)]) in
                 let players1 = Quad.update(seat, None, players0) in
                 let game_state = { game_state | meta = Meta({ meta0 | players = players1 }) } in
                 return(Some({user, InternalPlaying(game_state)}))
@@ -1347,11 +1326,8 @@ end = struct
                   case Quad.decompose(sync_quad) of
                   | {true, true, true, true} ->
                     /* If all the players are ready for the next step: */
-                      let user_ids =
-                        let user_id_opts = the_other_players(game_state, seat) in
-                        List.filter_map(fun(u_opt) -> u_opt end, user_id_opts)
-                      in
-                      do _ <- notify_for_each(user_ids, [Models.NotifyNextStep]) in
+                      let user_ids_for_notification = get_connected_user_ids(game_state, -except seat) in
+                      do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyNextStep]) in
                       let game_state = { game_state | sync = WaitingInput } in
                       return({ state | room_state = InternalPlaying(game_state) })
 
