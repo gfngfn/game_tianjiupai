@@ -1,6 +1,7 @@
 import Logger
 import Models
 import Room
+import WebSocketHandler
 
 module UserServer :> sig
   open Stdlib
@@ -14,9 +15,6 @@ module UserServer :> sig
     user_name  : user_name,
     belongs_to : option<room_id>,
   }
-
-  type websocket_proc = pid<RawValue.t>
-    /* For external use; corresponds to `pid()` */
 
   val start_link<$a> : fun(user_id, binary) -> [$a]result<proc, GenServer.start_link_error>
 
@@ -34,15 +32,13 @@ module UserServer :> sig
 
   val from_pid : fun(pid<info>) -> proc
 
-  val set_websocket_connection<$a> : fun(user_id, websocket_proc) -> [$a]option<unit>
+  val set_websocket_connection<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]option<unit>
 
   val get_proc<$a> : fun(user_id) -> [$a]option<proc>
 
 end = struct
   open Stdlib
   open Models
-
-  type websocket_proc = pid<RawValue.t>
 
   type user_state = {
     user_name  : user_name,
@@ -66,7 +62,7 @@ end = struct
 
     type request =
       | SetRoom(option<room_id>)
-      | SetWebsocketConnection(websocket_proc)
+      | SetWebsocketConnection(WebSocketHandler.proc)
       | GetUserState
 
     type response =
@@ -153,14 +149,8 @@ end = struct
             | Some(mref_ws) -> MonitorRef.demonitor(mref_ws)
             end
           in
-          do monitor_ref_new <- MonitorRef.monitor(ws_proc) in
+          do monitor_ref_new <- WebSocketHandler.monitor(ws_proc) in
           let state = { state | websocket_connection = Some(monitor_ref_new) } in
-          do _ <-
-            case state.belongs_to of
-            | None               -> return({})
-            | Some({room_id, _}) -> Room.notify_connected(room_id, state.settings.user_id)
-            end
-          in
           GenServer.reply(WebsocketConnectionSet, state)
       end
 
@@ -200,12 +190,6 @@ end = struct
               f'WebSocket connection closed (user_id: ~s, reason: ~p)',
               {user_id, reason}
             )
-          in
-          do _ <-
-            case state.belongs_to of
-            | None               -> return({})
-            | Some({room_id, _}) -> Room.notify_disconnected(room_id, user_id)
-            end
           in
           return({ state | websocket_connection = None })
         else

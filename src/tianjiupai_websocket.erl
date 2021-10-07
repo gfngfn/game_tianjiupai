@@ -120,6 +120,13 @@ notify(UserId, Notifications) ->
             {error, {failed_to_notify, UserId, Msg}}
     end.
 
+-spec where_is(tianjiupai:user_id()) -> error | {ok, pid()}.
+where_is(UserId) ->
+    case global:whereis_name(name(UserId)) of
+        undefined                   -> error;
+        Pid when erlang:is_pid(Pid) -> {ok, Pid}
+    end.
+
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
