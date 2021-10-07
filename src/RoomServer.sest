@@ -501,8 +501,10 @@ end = struct
                 do _ <-
                   List.for_each(
                     fun(u) -> act
-                      let Some(obs) = make_observable_game_state(game_state, u) in
-                      notify(u, [notif_enter, Models.NotifyGameStart(obs)])
+                      case make_observable_game_state(game_state, u) of
+                      | None      -> return({})
+                      | Some(obs) -> notify(u, [notif_enter, Models.NotifyGameStart(obs)])
+                      end
                     end,
                     [u0.user_id, u1.user_id, u2.user_id]
                   )
@@ -882,26 +884,31 @@ end = struct
                     do _ <-
                       List.for_each(
                         fun(u) -> act
-                          let Some(obs) = make_observable_game_state(game_state, u) in
-                          let trick_last =
-                            Option.map(
-                              fun(last) ->
+                          case make_observable_game_state(game_state, u) of
+                          | None ->
+                              return({})
+
+                          | Some(obs) ->
+                              let trick_last =
+                                Option.map(
+                                  fun(last) ->
+                                    {
+                                      table = last.table,
+                                      changes = last.changes,
+                                    }
+                                  end,
+                                  last_opt)
+                              in
+                              let submission =
                                 {
-                                  table = last.table,
-                                  changes = last.changes,
+                                  seat       = seat,
+                                  submitted  = card_opts,
+                                  new_state  = obs,
+                                  trick_last = trick_last,
                                 }
-                              end,
-                              last_opt)
-                          in
-                          let submission =
-                            {
-                              seat       = seat,
-                              submitted  = card_opts,
-                              new_state  = obs,
-                              trick_last = trick_last,
-                            }
-                          in
-                          notify(u, [Models.NotifySubmission(submission)])
+                              in
+                              notify(u, [Models.NotifySubmission(submission)])
+                          end
                         end,
                         get_connected_user_ids(game_state, -except seat)
                       )
@@ -1057,8 +1064,10 @@ end = struct
                             do _ <-
                               List.for_each(
                                 fun(u) -> act
-                                  let Some(obs) = make_observable_game_state(game_state, u) in
-                                  notify(u, [Models.NotifyGameStart(obs)])
+                                  case make_observable_game_state(game_state, u) of
+                                  | None      -> return({})
+                                  | Some(obs) -> notify(u, [Models.NotifyGameStart(obs)])
+                                  end
                                 end,
                                 user_ids_for_notification)
                             in
