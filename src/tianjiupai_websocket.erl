@@ -14,9 +14,6 @@
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
--export_type([
-    error_reason/0
-]).
 -export([
     notify/2,
     where_is/1
@@ -31,9 +28,6 @@
 
 -type message() ::
     {notifications, [tianjiupai:notification()]}.
-
--type error_reason() ::
-    {failed_to_notify, tianjiupai:user_id(), message()}.
 
 -define(FRONT, 'Tianjiupai.Api').
 -define(LOGGER, 'Tianjiupai.Logger').
@@ -110,15 +104,19 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok | {error, error_reason()}.
+-spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok.
 notify(UserId, Notifications) ->
     Msg = {notifications, Notifications},
     try
         _ = global:send(name(UserId), Msg),
         ok
     catch
-        _:_ ->
-            {error, {failed_to_notify, UserId, Msg}}
+        Class:Reason ->
+            (?LOGGER:warning(
+                {"failed to notify (user_id: ~s, notifications: ~p, class: ~p, reason: ~p)", 4},
+                {UserId, Notifications, Class, Reason}
+            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ok
     end.
 
 -spec where_is(tianjiupai:user_id()) -> error | {ok, pid()}.

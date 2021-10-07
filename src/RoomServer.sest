@@ -375,26 +375,11 @@ end = struct
         sync        = WaitingSync(make_initial_sync()),
       })
 
-    val warn_notification_failure(reason : RawValue.t, user_id : user_id, notifications : list<notification>) =
-      assert Logger.warning(
-        f'notify_log failed (reason: ~p, to: ~s, notifications: ~p)',
-        {reason, user_id, notifications}
-      )
+    val notify(user_id, notifications) = act
+      WebSocketHandler.notify(user_id, notifications)
 
-    val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
-      notify(UserId, Notifications) ->
-          io:format("!!! notify (user_id: ~s, notifications: ~p)~n", [UserId, Notifications]),
-          case tianjiupai_websocket:notify(UserId, Notifications) of
-              ok ->
-                  ok;
-              {error, Reason} ->
-                  ?MODULE:warn_notification_failure(Reason, UserId, Notifications),
-                  ok
-          end.
-    ```
-
-    val notify_for_each<$a>(user_ids : list<user_id>, logs : list<notification>) : [$a]unit = act
-      List.for_each(fun(user_id) -> act notify(user_id, logs) end, user_ids)
+    val notify_for_each<$a>(user_ids : list<user_id>, notifications : list<notification>) : [$a]unit = act
+      List.for_each(fun(user_id) -> act notify(user_id, notifications) end, user_ids)
 
     val find_empty_seat(game_state : whole_game_state) : option<Quad.seat> =
       let Meta(meta) = game_state.meta in
