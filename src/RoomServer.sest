@@ -85,8 +85,8 @@ end = struct
   }
 
   type internal_player = {
-    user         : user,
-    disconnected : option<Timer.t>,
+    user       : user,
+    connection : option<Timer.t>,
   }
 
   type waiting_state = {
@@ -248,7 +248,7 @@ end = struct
 
     val make_game_player(iplayer : internal_player) : game_player =
       let is_connected =
-        case iplayer.disconnected of
+        case iplayer.connection of
         | None    -> true
         | Some(_) -> false
         end
@@ -388,7 +388,7 @@ end = struct
               GenServer.reply(Attended(None), state)
           | Some(seat) ->
               let Meta(meta0) = game_state0.meta in
-              let player = { user = user, disconnected = None } in
+              let player = { user = user, connection = None } in
               let players1 = Quad.update(seat, Some(player), meta0.players) in
               let game_state1 = { game_state0 | meta = Meta({ meta0 | players = players1 }) } in
               let user_ids =
@@ -477,11 +477,11 @@ end = struct
                 let u1 = w1.user in
                 let u2 = w2.user in
                 let player_quad =
-                  let player0 = { user = u0, disconnected = w0.disconnected } in
-                  let player1 = { user = u1, disconnected = w1.disconnected } in
-                  let player2 = { user = u2, disconnected = w2.disconnected } in
-                  let player3 = { user = user, disconnected = None } in
-                     /* TODO: specify an appropriate value for `disconnected` */
+                  let player0 = { user = u0, connection = w0.connection } in
+                  let player1 = { user = u1, connection = w1.connection } in
+                  let player2 = { user = u2, connection = w2.connection } in
+                  let player3 = { user = user, connection = None } in
+                     /* TODO: specify an appropriate value for `connection` */
                   Quad.make({Some(player0), Some(player1), Some(player2), Some(player3)})
                 in
                 let parent_seat = Models.SeatA in
@@ -515,8 +515,8 @@ end = struct
                 GenServer.reply(Attended(Some(personal_state)), state)
 
             | _ ->
-                let w = { user = user, disconnected = None } in
-                  /* TODO: specify an appropriate value for `disconnected` */
+                let w = { user = user, connection = None } in
+                  /* TODO: specify an appropriate value for `connection` */
                 let waiting_state = { waiting_state | members = List.append(members, [w]) } in
                 do _ <- notify_for_each(List.map(fun(w) -> w.user.user_id end, members), [notif_enter]) in
                 let state =
@@ -1131,16 +1131,16 @@ end = struct
                           if is_connected then
                           /* When the user of `user_id` re-connects to the server: */
                             do Ok({}) <-
-                              case w0.disconnected of
+                              case w0.connection of
                               | None        -> return(Ok({}))
                               | Some(timer) -> cancel_disconnection_timer(timer, user_id, -log "waiting")
                               end
                             in
-                            return({ w0 | disconnected = None })
+                            return({ w0 | connection = None })
                           else
                           /* When the user of `user_id` closes the connection: */
                             do Ok(timer) <- set_disconnection_timer(user_id, -log "waiting") in
-                            return({ w0 | disconnected = Some(timer) })
+                            return({ w0 | connection = Some(timer) })
                         else
                           return(w0)
                       in
@@ -1154,7 +1154,7 @@ end = struct
                 let user_ids_for_notification =
                   List.filter_map(
                     fun(w) ->
-                      case w.disconnected of
+                      case w.connection of
                       | None ->
                           let u = w.user.user_id in
                           if Binary.equal(u, user_id) then None else Some(u)
@@ -1176,7 +1176,7 @@ end = struct
                 let Meta(meta) = game_state.meta in
                 let players0 = meta.players in
                 do Ok({}) <-
-                  case p0.disconnected of
+                  case p0.connection of
                   | None ->
                       let _ =
                         assert Logger.info(
@@ -1189,14 +1189,14 @@ end = struct
                       cancel_disconnection_timer(timer, user_id, -log "playing")
                   end
                 in
-                do disconnected <-
+                do connection <-
                   if is_connected then
                     return(None)
                   else
                     do Ok(timer) <- set_disconnection_timer(user_id, -log "playing") in
                     return(Some(timer))
                 in
-                let p1 = { p0 | disconnected = disconnected } in
+                let p1 = { p0 | connection = connection } in
                 let players1 = Quad.update(seat, Some(p1), players0) in
                 let user_ids_for_notification =
                   List.filter_map(
@@ -1205,7 +1205,7 @@ end = struct
                       | None ->
                           None
                       | Some(g) ->
-                          case g.disconnected of
+                          case g.connection of
                           | None ->
                               let u = g.user.user_id in
                               if Binary.equal(u, user_id) then None else Some(u)
@@ -1276,7 +1276,7 @@ end = struct
                   let user_ids =
                     List.filter_map(
                       fun(w) ->
-                        case w.disconnected of
+                        case w.connection of
                         | None    -> Some(w.user.user_id)
                         | Some(_) -> None
                         end
@@ -1302,7 +1302,7 @@ end = struct
                   let user_ids =
                     let user_id_opts = the_other_players(game_state, seat) in
                     List.filter_map(
-                      fun(u_opt : option<binary>) -> u_opt end, /* TODO: filter disconnected players */
+                      fun(u_opt : option<binary>) -> u_opt end, /* TODO: filter connection players */
                       user_id_opts)
                   in
                   notify_for_each(user_ids, [Models.NotifyExited(user)])
