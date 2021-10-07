@@ -72,6 +72,14 @@ module Quad = struct
     let {x0, x1, x2, x3} = decompose(quad) in
     make({f(x0), f(x1), f(x2), f(x3)})
 
+  val map_effect<$m, $a, $b>(f : fun($a) -> [$m]$b, quad : t<$a>) : [$m]t<$b> = act
+    let {x0, x1, x2, x3} = decompose(quad) in
+    do y0 <- f(x0) in
+    do y1 <- f(x1) in
+    do y2 <- f(x2) in
+    do y3 <- f(x3) in
+    return(make({y0, y1, y2, y3}))
+
   val find<$a>(f : fun($a) -> bool, quad : t<$a>) : option<{seat, $a}> =
     let {x0, x1, x2, x3} = decompose(quad) in
     case {f(x0), f(x1), f(x2), f(x3)} of
