@@ -193,37 +193,68 @@ module Api = struct
         return(None)
     end
 
+  val send_chat(user_id, text) = act
+    do user_state_opt <- User.get_info(user_id) in
+    case user_state_opt of
+    | None ->
+        return(None)
+
+    | Some(user_state) ->
+        case user_state.belongs_to of
+        | None ->
+            return(None)
+
+        | Some(room_id) ->
+            let user = { user_id = user_id, user_name = user_state.user_name } in
+            Room.send_chat(room_id, user, text)
+        end
+    end
+
+  val ack(user_id, snapshot_id) = act
+    do room_id_opt <- User.get_room(user_id) in
+    case room_id_opt of
+    | None ->
+        let _ = assert Logger.warning(f'ack failed (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
+        return({})
+
+    | Some(room_id) ->
+        do {} <- Room.ack(room_id, user_id, snapshot_id) in
+        let _ = assert Logger.info(f'ack (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
+        return({})
+    end
+
+  val require_next_inning(user_id, snapshot_id) = act
+    do room_id_opt <- User.get_room(user_id) in
+    case room_id_opt of
+    | None          -> return({})
+    | Some(room_id) -> Room.require_next_inning(room_id, user_id, snapshot_id)
+    end
+
   val perform_command(user_id : user_id, data : binary) = act
     case Json.Decode.run(Models.decode_command(), data) of
     | Ok(command) ->
         case command of
         | Models.CommandComment(text) ->
-            do res <- User.send_chat(user_id, text) in
-            let _ =
-              case res of
-              | Some({}) ->
-                  {}
-              | None ->
-                  assert Logger.warning(
-                    f'failed to send a chat comment (user_id: ~s, text: ~s)',
-                    {user_id, text}
-                  )
-              end
-            in
-            return({})
+            do res <- send_chat(user_id, text) in
+            case res of
+            | Some({}) ->
+                return({})
+
+            | None ->
+                let _ =
+                  assert Logger.warning(f'failed to send a chat comment (user_id: ~s, text: ~s)', {user_id, text})
+                in
+                return({})
+            end
+
         | Models.CommandAck(snapshot_id) ->
-            do res <- User.ack(user_id, snapshot_id) in
-            let _ =
-              assert Logger.info(
-                f'ack (user_id: ~s, snapshot_id: ~s, res: ~p)',
-                {user_id, snapshot_id, res}
-              )
-            in
-            return({})
+            ack(user_id, snapshot_id)
+
         | Models.CommandHeartbeat ->
             return({})
+
         | Models.CommandNextInning(snapshot_id) ->
-            do res <- User.require_next_inning(user_id, snapshot_id) in
+            do res <- require_next_inning(user_id, snapshot_id) in
             let _ =
               assert Logger.info(
                 f'next inning (user_id: ~s, snapshot_id: ~s, res: ~p)',
@@ -232,26 +263,21 @@ module Api = struct
             in
             return({})
         end
+
     | Error(_) ->
         return({})
     end
 
   val set_websocket_connection(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
-    do user_state_opt <- User.get_info(user_id) in
-    case user_state_opt of
-    | None ->
+    do room_opt <- User.get_room(user_id) in
+    case room_opt of
+    | Some(room_id) ->
+        do _ <- Room.set_connection(room_id, user_id, ws_proc) in
         return({})
 
-    | Some(user_state) ->
-        case user_state.belongs_to of
-        | Some(room_id) ->
-            do _ <- Room.set_connection(room_id, user_id, ws_proc) in
-            return({})
-
-        | None ->
-            /* TODO: do _ <- Plaza.subscribe(user_id, ws_proc) in */
-            return({})
-        end
+    | None ->
+        /* TODO: do _ <- Plaza.subscribe(user_id, ws_proc) in */
+        return({})
     end
 
   val encode_notification(notification) =

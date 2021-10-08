@@ -56,7 +56,7 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
             case register_name(UserId) of
                 ok ->
                     (?LOGGER:info(
-                        {"succeeded in registration (user_id: ~p)", 1},
+                        {"succeeded in registration (user_id: ~s)", 1},
                         {UserId}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     {ok, State};
@@ -95,7 +95,7 @@ websocket_info(Msg, State) ->
             {reply, Chunks, State};
         _ ->
             (?LOGGER:warning(
-                {"unknown message (messge: ~p)", 1},
+                {"unknown message (message: ~p)", 1},
                 {Msg}
             ))(erlang:atom_to_binary(?MODULE), ?LINE),
             {ok, State}
