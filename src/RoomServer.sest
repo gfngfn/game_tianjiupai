@@ -1357,7 +1357,7 @@ end = struct
       let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
       GenServer.no_reply_and_stop(StopReason.normal(), state)
 
-    val handle_down(mref, _, _, state) = act
+    val handle_down(mref, _, reason, state) = act
       case state.room_state of
       | InternalWaiting(waiting) ->
           let waiting_members0 = waiting.members in
@@ -1369,6 +1369,12 @@ end = struct
                     if MonitorRef.equal(mref_ws, mref) then
                       let user = player.user in
                       let user_id = user.user_id in
+                      let _ =
+                        assert Logger.info(
+                          f'WebSocket connection closed (user_id: ~s, reason: ~p)',
+                          {user_id, reason}
+                        )
+                      in
                       do Ok(timer) <- set_disconnection_timer(user_id, -log "waiting") in
                       let user_ids_for_notification = get_connected_user_ids_from_list(waiting_members0, -except user_id) in
                       let connection = { user = user, is_connected = false } in
@@ -1409,6 +1415,12 @@ end = struct
                         if MonitorRef.equal(mref_ws, mref) then
                           let user = player.user in
                           let user_id = user.user_id in
+                          let _ =
+                            assert Logger.info(
+                              f'WebSocket connection closed (user_id: ~s, reason: ~p)',
+                              {user_id, reason}
+                            )
+                          in
                           do Ok(timer) <- set_disconnection_timer(player.user.user_id, -log "playing") in
                           let user_ids_for_notification = get_connected_user_ids_from_quad(players0, -except user_id) in
                           let connection = { user = user, is_connected = false } in

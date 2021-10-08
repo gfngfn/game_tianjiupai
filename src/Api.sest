@@ -237,14 +237,21 @@ module Api = struct
     end
 
   val set_websocket_connection(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
-    do room_id_opt <- User.set_websocket_connection(user_id, ws_proc) in
-    case room_id_opt of
+    do user_state_opt <- User.get_info(user_id) in
+    case user_state_opt of
     | None ->
         return({})
 
-    | Some(room_id) ->
-        do _ <- Room.set_connection(room_id, user_id, ws_proc) in
-        return({})
+    | Some(user_state) ->
+        case user_state.belongs_to of
+        | Some(room_id) ->
+            do _ <- Room.set_connection(room_id, user_id, ws_proc) in
+            return({})
+
+        | None ->
+            /* TODO: do _ <- Plaza.subscribe(user_id, ws_proc) in */
+            return({})
+        end
     end
 
   val encode_notification(notification) =

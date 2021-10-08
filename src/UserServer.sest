@@ -32,8 +32,6 @@ module UserServer :> sig
 
   val from_pid : fun(pid<info>) -> proc
 
-  val set_websocket_connection<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]option<room_id>
-
   val get_proc<$a> : fun(user_id) -> [$a]option<proc>
 
 end = struct
@@ -55,19 +53,16 @@ end = struct
     }
 
     type state = {
-      settings             : settings,
-      belongs_to           : option<{room_id, MonitorRef.t}>,
-      websocket_connection : option<MonitorRef.t>,
+      settings   : settings,
+      belongs_to : option<{room_id, MonitorRef.t}>,
     }
 
     type request =
       | SetRoom(option<room_id>)
-      | SetWebsocketConnection(WebSocketHandler.proc)
       | GetUserState
 
     type response =
       | RoomSet(bool)
-      | WebsocketConnectionSet(option<room_id>)
       | UserStateGot(user_state)
 
     type cast_message =
@@ -84,24 +79,13 @@ end = struct
         {
           settings             = settings,
           belongs_to           = None,
-          websocket_connection = None,
         }
       in
       GenServer.init_ok(state)
 
     val monitor_room<$a>(room_id) : [$a]option<MonitorRef.t> = act
       Room.monitor(room_id)
-/*
-    val monitor<$a> : fun(websocket_proc) -> [$a]monitor_ref = external 1 ```
-      monitor(WsProc) ->
-          erlang:monitor(process, WsProc).
-    ```
 
-    val demonitor<$a> : fun(monitor_ref) -> [$a]unit = external 1 ```
-      demonitor(MonitorRef) ->
-          erlang:demonitor(MonitorRef).
-    ```
-*/
     val handle_call(req, _, state) = act
       case req of
       | GetUserState ->
@@ -115,6 +99,7 @@ end = struct
             }
           in
           GenServer.reply(UserStateGot(user_state), state)
+
       | SetRoom(room_id_opt) ->
           case room_id_opt of
           | None ->
@@ -126,49 +111,35 @@ end = struct
               in
               let state = { state | belongs_to = None } in
               GenServer.reply(RoomSet(true), state)
+
           | Some(room_id) ->
-              do monitor_ref_opt <- monitor_room(room_id) in
-              case monitor_ref_opt of
+              do mref_opt <- monitor_room(room_id) in
+              case mref_opt of
               | None ->
+                /* If the room does not exist: */
                   GenServer.reply(RoomSet(false), state)
-              | Some(monitor_ref_new) ->
+
+              | Some(mref_room_new) ->
                   do _ <-
                     case state.belongs_to of
                     | None                 -> return({})
                     | Some({_, mref_room}) -> MonitorRef.demonitor(mref_room)
                     end
                   in
-                  let state = { state | belongs_to = Some({room_id, monitor_ref_new}) } in
+                  let state = { state | belongs_to = Some({room_id, mref_room_new}) } in
                   GenServer.reply(RoomSet(true), state)
               end
           end
-      | SetWebsocketConnection(ws_proc) ->
-          do _ <-
-            case state.websocket_connection of
-            | None          -> return({})
-            | Some(mref_ws) -> MonitorRef.demonitor(mref_ws)
-            end
-          in
-          do monitor_ref_new <- WebSocketHandler.monitor(ws_proc) in
-          let state = { state | websocket_connection = Some(monitor_ref_new) } in
-          let room_id_opt = Option.map(fun({room_id, _}) -> room_id end, state.belongs_to) in
-          GenServer.reply(WebsocketConnectionSet(room_id_opt), state)
       end
 
     val handle_cast(msg, state) = act
       let _ = assert Logger.warning(f'unexpected cast message (message: ~p, state: ~p)', {msg, state}) in
       GenServer.no_reply(state)
 
-    val is_room_down(mref, state : state) =
+    val is_room_down(mref : MonitorRef.t, state : state) : bool =
       case state.belongs_to of
       | None                 -> false
       | Some({_, mref_room}) -> MonitorRef.equal(mref, mref_room)
-      end
-
-    val is_websocket_down(mref, state) =
-      case state.websocket_connection of
-      | None          -> false
-      | Some(mref_ws) -> MonitorRef.equal(mref, mref_ws)
       end
 
     val handle_timeout(state : state) = act
@@ -185,14 +156,6 @@ end = struct
             )
           in
           return({ state | belongs_to = None })
-        else if is_websocket_down(mref, state) then
-          let _ =
-            assert Logger.info(
-              f'WebSocket connection closed (user_id: ~s, reason: ~p)',
-              {user_id, reason}
-            )
-          in
-          return({ state | websocket_connection = None })
         else
           let _ =
             assert Logger.warning(
@@ -279,9 +242,5 @@ end = struct
     call(user_id, Callback.SetRoom(room_id_opt), fun(Callback.RoomSet(success)) -> act
       if success then return(Some({})) else return(None)
     end)
-
-  val set_websocket_connection(user_id, ws_proc) = act
-    call(user_id, Callback.SetWebsocketConnection(ws_proc),
-      fun(Callback.WebsocketConnectionSet(room_id_opt)) -> act return(room_id_opt) end)
 
 end
