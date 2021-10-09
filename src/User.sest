@@ -2,7 +2,6 @@ import Logger
 import Models
 import UserServerSup
 import UserServer
-import Room
 import WebSocketHandler
 
 module User :> sig

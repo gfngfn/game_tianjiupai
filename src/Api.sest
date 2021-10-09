@@ -242,7 +242,10 @@ module Api = struct
 
             | None ->
                 let _ =
-                  assert Logger.warning(f'failed to send a chat comment (user_id: ~s, text: ~s)', {user_id, text})
+                  assert Logger.warning(
+                    f'failed to send a chat comment (user_id: ~s, text: ~s)',
+                    {user_id, text}
+                  )
                 in
                 return({})
             end

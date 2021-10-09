@@ -231,6 +231,12 @@ update msg model =
             Err err ->
               ( { model | message = makeErrorMessage "got room" err }, Cmd.none )
 
+        ReceiveNotification (Err err) ->
+          ( { model | message = ( Warning, "invalid notification: " ++ JD.errorToString err ) }, Cmd.none )
+
+        ReceiveNotification (Ok (NotifyPlazaUpdate rooms)) ->
+          ( { model | state = AtPlaza ws user roomNameInput0 (Just rooms) }, Cmd.none )
+
         _ ->
           ( { model | message = ( Warning, "unexpected message (AtPlaza): " ++ showMessage msg ) }, Cmd.none )
 
@@ -552,6 +558,7 @@ showNotification notification =
     NotifyConnection _    -> "NotifyConnection"
     NotifyEnteredMidway _ -> "NotifyEnteredMidway"
     NotifyRoomClose       -> "NotifyRoomClose"
+    NotifyPlazaUpdate _   -> "NotifyPlazaUpdate"
 
 
 showMessage : Msg -> String
