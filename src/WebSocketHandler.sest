@@ -13,6 +13,8 @@ module WebSocketHandler :> sig
 
   val notify<$a> : fun(user_id, list<notification>) -> [$a]unit
 
+  val notify_by_proc<$a> : fun(proc, list<notification>) -> [$a]unit
+
   val monitor<$a> : fun(proc) -> [$a]MonitorRef.t
 
 end = struct
@@ -29,6 +31,11 @@ end = struct
   val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
     notify(UserId, Notifications) ->
         tianjiupai_websocket:notify(UserId, Notifications).
+  ```
+
+  val notify_by_proc<$a> : fun(proc, list<notification>) -> [$a]unit = external 2 ```
+    notify_by_proc(WsHandlerPid, Notification) ->
+        tianjiupai_websocket:notify_by_proc(WsHandlerPid, Notification).
   ```
 
   val monitor(ws_proc : proc) = act

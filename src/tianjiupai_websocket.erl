@@ -16,6 +16,7 @@
 %%====================================================================================================
 -export([
     notify/2,
+    notify_by_proc/2,
     where_is/1
 ]).
 
@@ -118,6 +119,12 @@ notify(UserId, Notifications) ->
             ))(erlang:atom_to_binary(?MODULE), ?LINE),
             ok
     end.
+
+-spec notify_by_proc(pid(), [tianjiupai:notification()]) -> ok.
+notify_by_proc(WsHandlerPid, Notifications) ->
+    Msg = {notifications, Notifications},
+    _ = WsHandlerPid ! Msg,
+    ok.
 
 -spec where_is(tianjiupai:user_id()) -> error | {ok, pid()}.
 where_is(UserId) ->

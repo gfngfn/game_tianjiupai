@@ -149,12 +149,7 @@ end = struct
       let user_id = state.settings.user_id in
       do state <-
         if is_room_down(mref, state) then
-          let _ =
-            assert Logger.info(
-              f'room closed (user_id: ~s, reason: ~p)',
-              {user_id, reason}
-            )
-          in
+          let _ = assert Logger.info(f'room closed (user_id: ~s, reason: ~p)', {user_id, reason}) in
           return({ state | belongs_to = None })
         else
           let _ =
@@ -168,8 +163,8 @@ end = struct
       GenServer.no_reply(state)
 
     val handle_info(info : RawValue.t, state : state) = act
-          let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
-          GenServer.no_reply(state)
+      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
+      GenServer.no_reply(state)
 
     val terminate(reason, state) = act
       let _ = assert Logger.info(f'terminate (reason: ~p, user_id: ~s)', {reason, state.settings.user_id}) in

@@ -1,0 +1,175 @@
+import Logger
+import Models
+import WebSocketHandler
+import Room
+
+module PlazaServer :> sig
+  open Stdlib
+  open Models
+
+  type info :: o
+
+  type proc :: o
+
+  val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
+
+  val as_pid : fun(proc) -> pid<info>
+
+end = struct
+  open Stdlib
+  open Models
+
+  module Callback = struct
+
+    type init_arg = unit
+
+    type request =
+      | GetRoomList
+
+    type response =
+      | RoomListGot(list<room_summary>)
+
+    type cast_message =
+      | UpdateRoom(room_summary)
+
+    type info =
+      | InfoDummy
+
+    type entry = {
+      room_summary : room_summary,
+      monitor      : MonitorRef.t,
+    }
+
+    type subscriber = {
+      proc    : WebSocketHandler.proc,
+      monitor : MonitorRef.t,
+    }
+
+    type state = {
+      rooms       : list<entry>,
+      subscribers : list<subscriber>,
+    }
+    /* A naïve implementation using lists */
+
+    type global = unit
+
+    val init({}) = act
+      let state = { rooms = [], subscribers = [] } in
+      GenServer.init_ok(state)
+
+    val handle_call(req, _, state) = act
+      case req of
+      | GetRoomList ->
+          let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
+          GenServer.reply(RoomListGot(room_summaries), state)
+      end
+
+    val publish(state) = act
+      let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
+      List.foldl_effect(
+        fun({}, subscriber) -> act
+          WebSocketHandler.notify_by_proc(subscriber.proc, [NotifyPlazaUpdate(room_summaries)])
+        end,
+        {},
+        state.subscribers)
+
+    val handle_cast(msg, state) = act
+      case msg of
+      | UpdateRoom(room_summary0) ->
+          let {found, acc} =
+            List.foldl(
+              fun({found, acc}, entry : entry) ->
+                if Binary.equal(room_summary0.room.room_id, entry.room_summary.room.room_id) then
+                  {true, { entry | room_summary = room_summary0 } :: acc}
+                else
+                  {found, entry :: acc}
+              end,
+              {false, []},
+              state.rooms)
+          in
+          do acc <-
+            if found then
+              return(acc)
+            else
+              do monitor_opt0 <- Room.monitor(room_summary0.room.room_id) in
+              case monitor_opt0 of
+              | None ->
+                  return(acc)
+
+              | Some(monitor0) ->
+                  let entry = { room_summary = room_summary0, monitor = monitor0 } in
+                  return(entry :: acc)
+              end
+          in
+          let room_entries = List.reverse(acc) in
+          let state = { state | rooms = room_entries } in
+          do _ <- publish(state) in
+          GenServer.no_reply(state)
+      end
+
+    val handle_down(mref, pid, reason, state : state) = act
+      let {room_found, entry_acc} =
+        List.foldl(
+          fun({room_found, entry_acc}, entry : entry) ->
+            if MonitorRef.equal(entry.monitor, mref) then
+              {true, entry :: entry_acc}
+            else
+              {room_found, entry_acc}
+          end,
+          {false, []},
+          state.rooms)
+      in
+      if room_found then
+        let state = { state | rooms = List.reverse(entry_acc) } in
+        do _ <- publish(state) in
+        GenServer.no_reply(state)
+      else
+        let {subscriber_found, subscriber_acc} =
+          List.foldl(
+            fun({subscriber_found, subscriber_acc}, subscriber : subscriber) ->
+              if MonitorRef.equal(subscriber.monitor, mref) then
+                {true, subscriber :: subscriber_acc}
+              else
+                {subscriber_found, subscriber_acc}
+            end,
+            {false, []},
+            state.subscribers)
+        in
+        if subscriber_found then
+          let state = { state | subscribers = List.reverse(subscriber_acc) } in
+          GenServer.no_reply(state)
+        else
+          let _ =
+            assert Logger.warning(
+              f'unexpected monitor ref (mref: ~p, pid: ~p, reason: ~p)',
+              {mref, pid, reason},
+            )
+          in
+          GenServer.no_reply(state)
+
+    val handle_timeout(state : state) = act
+      GenServer.no_reply(state)
+
+    val handle_info(info, state : state) = act
+      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
+      GenServer.no_reply(state)
+
+    val terminate(reason, state) = act
+      let _ = assert Logger.warning(f'terminate (reason: ~p, state: ~p)', {reason, state}) in
+      return({})
+
+  end
+
+  module Impl = GenServer.Make(Callback)
+
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val start_link() = act
+    Impl.start_link_name({}, -name Global({}))
+
+  val as_pid(proc) =
+    Impl.as_pid(proc)
+
+end
