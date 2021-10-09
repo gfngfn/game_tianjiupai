@@ -1,7 +1,7 @@
 import Logger
 import Models
 import WebSocketHandler
-import Room
+/* import Room */
 
 module PlazaServer :> sig
   open Stdlib
@@ -14,6 +14,12 @@ module PlazaServer :> sig
   val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
 
   val as_pid : fun(proc) -> pid<info>
+
+  val update_room<$a> : fun(room_summary) -> [$a]unit
+
+  val subscribe<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]unit
+
+  val unsubscribe<$a> : fun(user_id) -> [$a]unit
 
 end = struct
   open Stdlib
@@ -31,6 +37,8 @@ end = struct
 
     type cast_message =
       | UpdateRoom(room_summary)
+      | Subscribe(user_id, WebSocketHandler.proc)
+      | Unsubscribe(user_id)
 
     type info =
       | InfoDummy
@@ -41,6 +49,7 @@ end = struct
     }
 
     type subscriber = {
+      user_id : user_id,
       proc    : WebSocketHandler.proc,
       monitor : MonitorRef.t,
     }
@@ -57,14 +66,14 @@ end = struct
       let state = { rooms = [], subscribers = [] } in
       GenServer.init_ok(state)
 
-    val handle_call(req, _, state) = act
+    val handle_call(req, _, state : state) = act
       case req of
       | GetRoomList ->
           let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
           GenServer.reply(RoomListGot(room_summaries), state)
       end
 
-    val publish(state) = act
+    val publish(state : state) = act
       let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
       List.foldl_effect(
         fun({}, subscriber) -> act
@@ -73,38 +82,87 @@ end = struct
         {},
         state.subscribers)
 
-    val handle_cast(msg, state) = act
-      case msg of
-      | UpdateRoom(room_summary0) ->
-          let {found, acc} =
-            List.foldl(
-              fun({found, acc}, entry : entry) ->
-                if Binary.equal(room_summary0.room.room_id, entry.room_summary.room.room_id) then
-                  {true, { entry | room_summary = room_summary0 } :: acc}
-                else
-                  {found, entry :: acc}
-              end,
-              {false, []},
-              state.rooms)
-          in
-          do acc <-
-            if found then
-              return(acc)
-            else
-              do monitor_opt0 <- Room.monitor(room_summary0.room.room_id) in
-              case monitor_opt0 of
-              | None ->
-                  return(acc)
+    /* TODO: use `Room.monitor` after introducing recursive modules */
+    val monitor_room<$a> : fun(room_id) -> [$a]option<MonitorRef.t> = external 1 ```
+      monitor_room(RoomId) ->
+          'Tianjiupai.Room':monitor(RoomId).
+    ```
 
-              | Some(monitor0) ->
-                  let entry = { room_summary = room_summary0, monitor = monitor0 } in
-                  return(entry :: acc)
-              end
-          in
-          let room_entries = List.reverse(acc) in
-          let state = { state | rooms = room_entries } in
-          do _ <- publish(state) in
+    val handle_update_room(room_summary0, state : state) = act
+      let {found, acc} =
+        List.foldl(
+          fun({found, acc}, entry : entry) ->
+            if Binary.equal(room_summary0.room.room_id, entry.room_summary.room.room_id) then
+              {true, { entry | room_summary = room_summary0 } :: acc}
+            else
+              {found, entry :: acc}
+          end,
+          {false, []},
+          state.rooms)
+      in
+      do acc <-
+        if found then
+          return(acc)
+        else
+          do monitor_opt0 <- monitor_room(room_summary0.room.room_id) in
+          case monitor_opt0 of
+          | None ->
+              return(acc)
+
+          | Some(monitor0) ->
+              let entry = { room_summary = room_summary0, monitor = monitor0 } in
+              return(entry :: acc)
+          end
+      in
+      let room_entries = List.reverse(acc) in
+      let state = { state | rooms = room_entries } in
+      do _ <- publish(state) in
+      GenServer.no_reply(state)
+
+    val handle_subscribe(user_id0, ws_proc, state : state) = act
+      case
+        List.filter(
+          fun(subscriber) -> Binary.equal(subscriber.user_id, user_id0) end,
+          state.subscribers)
+      of
+      | _ :: _ ->
+          let _ = assert Logger.warning(f'already subscribed (user_id: ~s, pid: ~p)', {user_id0, ws_proc}) in
           GenServer.no_reply(state)
+
+      | [] ->
+          do ws_mref <- WebSocketHandler.monitor(ws_proc) in
+          let subscriber =
+            {
+              user_id = user_id0,
+              proc    = ws_proc,
+              monitor = ws_mref,
+            }
+          in
+          let _ = assert Logger.info(f'subscribe (user_id: ~s, pid: ~p)', {user_id0, ws_proc}) in
+          GenServer.no_reply({ state | subscribers = subscriber :: state.subscribers })
+      end
+
+    val handle_unsubscribe(user_id0, state : state) = act
+      let _ = assert Logger.info(f'unsubscribe (user_id: ~s)', {user_id0}) in
+      do subscriber_acc <-
+        List.foldl_effect(
+          fun(subscriber_acc, subscriber) -> act
+            if Binary.equal(subscriber.user_id, user_id0) then
+              do _ <- MonitorRef.demonitor(subscriber.monitor) in
+              return(subscriber_acc)
+            else
+              return(subscriber :: subscriber_acc)
+          end,
+          [],
+          state.subscribers)
+      in
+      GenServer.no_reply({ state | subscribers = List.reverse(subscriber_acc) })
+
+    val handle_cast(msg, state : state) = act
+      case msg of
+      | UpdateRoom(room_summary0)   -> handle_update_room(room_summary0, state)
+      | Subscribe(user_id, ws_proc) -> handle_subscribe(user_id, ws_proc, state)
+      | Unsubscribe(user_id)        -> handle_unsubscribe(user_id, state)
       end
 
     val handle_down(mref, pid, reason, state : state) = act
@@ -112,6 +170,12 @@ end = struct
         List.foldl(
           fun({room_found, entry_acc}, entry : entry) ->
             if MonitorRef.equal(entry.monitor, mref) then
+              let _ =
+                assert Logger.info(
+                  f'room down (room_id: ~s, pid: ~p, reason: ~p)',
+                  {entry.room_summary.room.room_id, pid, reason},
+                )
+              in
               {true, entry :: entry_acc}
             else
               {room_found, entry_acc}
@@ -128,6 +192,12 @@ end = struct
           List.foldl(
             fun({subscriber_found, subscriber_acc}, subscriber : subscriber) ->
               if MonitorRef.equal(subscriber.monitor, mref) then
+                let _ =
+                  assert Logger.info(
+                    f'subscriber down (user_id: ~s, pid: ~p, reason: ~p)',
+                    {subscriber.user_id, pid, reason},
+                  )
+                in
                 {true, subscriber :: subscriber_acc}
               else
                 {subscriber_found, subscriber_acc}
@@ -171,5 +241,17 @@ end = struct
 
   val as_pid(proc) =
     Impl.as_pid(proc)
+
+  val update_room(room_summary) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    Impl.cast(proc, Callback.UpdateRoom(room_summary))
+
+  val subscribe(user_id, ws_proc) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    Impl.cast(proc, Callback.Subscribe(user_id, ws_proc))
+
+  val unsubscribe(user_id) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    Impl.cast(proc, Callback.Unsubscribe(user_id))
 
 end

@@ -60,6 +60,7 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
                         {"succeeded in registration (user_id: ~s)", 1},
                         {UserId}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
+                    ok = ?FRONT:subscribe_plaza_if_needed(UserId, self()),
                     {ok, State};
                 {error, Reason} ->
                     (?LOGGER:info(

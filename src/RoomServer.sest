@@ -5,6 +5,7 @@ import Card
 import SnapshotId
 import Inning
 import WebSocketHandler
+import PlazaServer
 
 module RoomServer :> sig
   open Stdlib
@@ -394,6 +395,10 @@ end = struct
           end,
           meta.players))
 
+    val update_plaza(state : state) = act
+      let room_summary = make_whole_room_state(state) in
+      PlazaServer.update_room(room_summary)
+
     val handle_send_chat(user : user, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
       let comment = { from = user, text = text } in
@@ -416,6 +421,7 @@ end = struct
           case find_empty_seat(game_state0) of
           | None ->
               GenServer.reply(Attended(None), state)
+
           | Some(seat) ->
               let Meta(meta0) = game_state0.meta in
               do ws_mref <- WebSocketHandler.monitor(ws_proc) in
@@ -487,6 +493,7 @@ end = struct
                   reversed_logs = Models.LogEntered(user) :: state.reversed_logs,
                 }
               in
+              do {} <- update_plaza(state) in
               let Some(personal_state) = make_personal_state(state, user_id) in
               GenServer.reply(Attended(Some(personal_state)), state)
           end
@@ -541,6 +548,7 @@ end = struct
                     reversed_logs = Models.LogGameStart(game_index) :: log_enter :: state.reversed_logs,
                   }
                 in
+                do {} <- update_plaza(state) in
                 let Some(personal_state) = make_personal_state(state, user_id) in
                 GenServer.reply(Attended(Some(personal_state)), state)
 
@@ -554,6 +562,7 @@ end = struct
                     reversed_logs = log_enter :: state.reversed_logs,
                   }
                 in
+                do {} <- update_plaza(state) in
                 let Some(personal_state) = make_personal_state(state, user_id) in
                 GenServer.reply(Attended(Some(personal_state)), state)
             end
@@ -605,15 +614,14 @@ end = struct
             GenServer.reply(Exited(false), state)
 
         | Some({user, user_ids_for_notification, room_state}) ->
-            do _ <-
-              notify_for_each(user_ids_for_notification, [Models.NotifyExited(user)])
-            in
+            do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyExited(user)]) in
             let state =
               { state |
                 room_state    = room_state,
                 reversed_logs = Models.LogExited(user) :: state.reversed_logs,
               }
             in
+            do {} <- update_plaza(state) in
             GenServer.reply(Exited(true), state)
         end
 
@@ -648,6 +656,7 @@ end = struct
       case special_opt of
       | None ->
           {Meta(meta), None}
+
       | Some(_) ->
           let loser_seats = Quad.the_other_seats(winner_seat) in
           let num_consecutives = meta.num_consecutives in

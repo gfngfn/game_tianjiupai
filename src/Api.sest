@@ -3,6 +3,7 @@ import Models
 import User
 import Room
 import WebSocketHandler
+import PlazaServer
 
 module Api = struct
   open Models
@@ -35,6 +36,13 @@ module Api = struct
 
   val delete_user(user_id : user_id) = act
     User.delete(user_id)
+
+  val subscribe_plaza_if_needed(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
+    do room_id_opt <- User.get_room(user_id) in
+    case room_id_opt of
+    | None    -> PlazaServer.subscribe(user_id, ws_proc)
+    | Some(_) -> return({})
+    end
 
   val get_all_rooms() = act
     do room_summaries <- Room.get_all_rooms() in
@@ -110,6 +118,7 @@ module Api = struct
         do Some(user_name) <- User.get_name(user_id) in
         let user = { user_id = user_id, user_name = user_name } in
         do res <- Room.attend(room_id, user, ws_proc) in
+        do {} <- PlazaServer.unsubscribe(user_id) in
         let is_success =
           case res of
           | Some(_) -> true
@@ -129,15 +138,17 @@ module Api = struct
         | None ->
             return(None)
         end
+
     | None ->
         return(None)
     end
 
-  val exit_room(user_id : user_id, room_id : room_id) = act
+  val exit_room(user_id : user_id, room_id : room_id, ws_proc : WebSocketHandler.proc) = act
     do res <- User.set_room(user_id, None) in
     case res of
     | Some({}) ->
         do res <- Room.exit(room_id, user_id) in
+        do {} <- PlazaServer.subscribe(user_id, ws_proc) in
         let is_success =
           case res of
           | Some(_) -> true
@@ -175,12 +186,18 @@ module Api = struct
               end
             else
               return(None)
+
         | Models.RoomRequestToExitRoom(exit_room_request) ->
             let user_id = exit_room_request.user_id in
             if validator(user_id) then
-              exit_room(user_id, room_id)
+              do opt <- WebSocketHandler.where_is(user_id) in
+              case opt of
+              | Some(ws_proc) -> exit_room(user_id, room_id, ws_proc)
+              | None          -> return(None)
+              end
             else
               return(None)
+
         | Models.RoomRequestToSubmitCards(submit_cards_request) ->
             let user_id = submit_cards_request.user_id in
             let cards = submit_cards_request.cards in
