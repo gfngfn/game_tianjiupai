@@ -116,6 +116,7 @@ end = struct
       in
       let room_entries = List.reverse(acc) in
       let state = { state | rooms = room_entries } in
+      let _ = assert Logger.info(f'update room (room_id: ~s, found: ~p)', {room_summary0.room.room_id, found}) in
       do _ <- publish(state) in
       GenServer.no_reply(state)
 

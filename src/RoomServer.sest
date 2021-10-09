@@ -154,6 +154,14 @@ end = struct
     type info =
       | DisconnectionTimeout(user_id)
 
+    type state = {
+      settings      : settings,
+      reversed_logs : list<log>,
+      room_state    : internal_room_state,
+    }
+
+    type global = room_id
+
     val set_disconnection_timer(user_id : user_id, -log message) = act
       do res <-
         Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
@@ -175,23 +183,6 @@ end = struct
         )
       in
       return(res)
-
-    type state = {
-      settings      : settings,
-      reversed_logs : list<log>,
-      room_state    : internal_room_state,
-    }
-
-    type global = room_id
-
-    val init(init_arg) = act
-      let {room_id, room_name} = init_arg in
-      let settings = {room_id = room_id, room_name = room_name} in
-      GenServer.init_ok({
-        settings      = settings,
-        reversed_logs = [],
-        room_state    = InternalWaiting({members = []})
-      })
 
     val get_members_from_state(room_state : internal_room_state) : {bool, list<user>} =
       case room_state of
@@ -222,6 +213,23 @@ end = struct
         is_playing = is_playing,
         members    = members,
       }
+
+    val update_plaza(state : state) = act
+      let room_summary = make_whole_room_state(state) in
+      PlazaServer.update_room(room_summary)
+
+    val init(init_arg) = act
+      let {room_id, room_name} = init_arg in
+      let settings = {room_id = room_id, room_name = room_name} in
+      let state =
+        {
+          settings      = settings,
+          reversed_logs = [],
+          room_state    = InternalWaiting({members = []})
+        }
+      in
+      do _ <- update_plaza(state) in
+      GenServer.init_ok(state)
 
     val find_user_seat(game_state : whole_game_state, user_id : user_id) : option<{Quad.seat, internal_player}> =
       let Meta(meta) = game_state.meta in
@@ -394,10 +402,6 @@ end = struct
             end
           end,
           meta.players))
-
-    val update_plaza(state : state) = act
-      let room_summary = make_whole_room_state(state) in
-      PlazaServer.update_room(room_summary)
 
     val handle_send_chat(user : user, text : binary, state : state) = act
       let {_, members} = get_members_from_state(state.room_state) in
