@@ -1,5 +1,6 @@
 import Logger
 import Models
+import Constants
 import Quad
 import Card
 import SnapshotId
@@ -73,12 +74,6 @@ module RoomServer :> sig
 end = struct
   open Stdlib
   open Models
-
-  val disconnection_timeout() =
-    30000
-
-  val maximum_num_innings() =
-    8
 
   type settings = {
     room_id   : room_id,
@@ -163,7 +158,7 @@ end = struct
 
     val set_disconnection_timer(user_id : user_id, -log message) = act
       do res <-
-        Timer.send_after_self(disconnection_timeout(), DisconnectionTimeout(user_id))
+        Timer.send_after_self(Constants.disconnection_timeout(), DisconnectionTimeout(user_id))
       in
       let _ =
         assert Logger.info(
@@ -228,7 +223,13 @@ end = struct
         }
       in
       do _ <- update_plaza(state) in
-      GenServer.init_ok(state)
+      GenServer.init_ok(state, ?timeout Constants.room_expiration_timeout())
+
+    val reply(response, state) = act
+      GenServer.reply(response, state, ?timeout Constants.room_expiration_timeout())
+
+    val no_reply(state) = act
+      GenServer.no_reply(state, ?timeout Constants.room_expiration_timeout())
 
     val find_user_seat(game_state : whole_game_state, user_id : user_id) : option<{Quad.seat, internal_player}> =
       let Meta(meta) = game_state.meta in
@@ -409,7 +410,7 @@ end = struct
         let user_ids = List.map(fun (u) -> u.user_id end, members) in
         notify_for_each(user_ids, [Models.NotifyComment(comment)])
       in
-      GenServer.reply(ChatSent, { state | reversed_logs = Models.LogComment(comment) :: state.reversed_logs })
+      reply(ChatSent, { state | reversed_logs = Models.LogComment(comment) :: state.reversed_logs })
 
     val is_none(x) =
       case x of
@@ -423,7 +424,7 @@ end = struct
       | InternalPlaying(game_state0) ->
           case find_empty_seat(game_state0) of
           | None ->
-              GenServer.reply(Attended(None), state)
+              reply(Attended(None), state)
 
           | Some(seat) ->
               let Meta(meta0) = game_state0.meta in
@@ -498,14 +499,14 @@ end = struct
               in
               do {} <- update_plaza(state) in
               let Some(personal_state) = make_personal_state(state, user_id) in
-              GenServer.reply(Attended(Some(personal_state)), state)
+              reply(Attended(Some(personal_state)), state)
           end
 
       | InternalWaiting(waiting_state) ->
           let members = waiting_state.members in
           if List.any(fun(w) -> Binary.equal(w.user.user_id, user_id) end, members) then
             let Some(personal_state) = make_personal_state(state, user_id) in
-            GenServer.reply(Attended(Some(personal_state)), state)
+            reply(Attended(Some(personal_state)), state)
           else
             do ws_mref <- WebSocketHandler.monitor(ws_proc) in
             let log_enter = Models.LogEntered(user) in
@@ -553,7 +554,7 @@ end = struct
                 in
                 do {} <- update_plaza(state) in
                 let Some(personal_state) = make_personal_state(state, user_id) in
-                GenServer.reply(Attended(Some(personal_state)), state)
+                reply(Attended(Some(personal_state)), state)
 
             | _ ->
                 let w = { user = user, connection = Connected(ws_proc, ws_mref) } in
@@ -567,7 +568,7 @@ end = struct
                 in
                 do {} <- update_plaza(state) in
                 let Some(personal_state) = make_personal_state(state, user_id) in
-                GenServer.reply(Attended(Some(personal_state)), state)
+                reply(Attended(Some(personal_state)), state)
             end
       end
 
@@ -614,7 +615,7 @@ end = struct
         in
         case opt of
         | None ->
-            GenServer.reply(Exited(false), state)
+            reply(Exited(false), state)
 
         | Some({user, user_ids_for_notification, room_state}) ->
             do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyExited(user)]) in
@@ -625,7 +626,7 @@ end = struct
               }
             in
             do {} <- update_plaza(state) in
-            GenServer.reply(Exited(true), state)
+            reply(Exited(true), state)
         end
 
     val make_winner_diff(losers : list<{Quad.seat, int}>) : int =
@@ -971,7 +972,7 @@ end = struct
       in
       case opt of
       | None ->
-          GenServer.reply(SubmissionDone(None), state)
+          reply(SubmissionDone(None), state)
 
       | Some({obs, last_opt, game_state}) ->
           let reversed_logs =
@@ -987,7 +988,7 @@ end = struct
                 end
             end
           in
-          GenServer.reply(
+          reply(
             SubmissionDone(Some({obs, last_opt})),
             { state |
               room_state    = InternalPlaying(game_state),
@@ -1051,8 +1052,8 @@ end = struct
         end
       in
       case opt of
-      | None             -> GenServer.no_reply(state)
-      | Some(game_state) -> GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
+      | None             -> no_reply(state)
+      | Some(game_state) -> no_reply({ state | room_state = InternalPlaying(game_state) })
       end
 
     type transition =
@@ -1092,7 +1093,7 @@ end = struct
                           let inning_index = meta.inning_index in
                           let user_ids_for_notification = get_connected_user_ids(game_state, -except seat) in
                           let user_ids_for_notification = user_id :: user_ids_for_notification in
-                          if inning_index >= maximum_num_innings() then
+                          if inning_index >= Constants.maximum_num_innings() then
                           /* If the last inning has ended: */
                             do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
                             return(Some(RoomClose))
@@ -1129,7 +1130,7 @@ end = struct
       in
       case opt of
       | None ->
-          GenServer.no_reply(state)
+          no_reply(state)
 
       | Some(RoomClose) ->
           GenServer.no_reply_and_stop(StopReason.normal(), state)
@@ -1141,7 +1142,7 @@ end = struct
             | Some(game_index) -> { state | reversed_logs = Models.LogGameStart(game_index) :: state.reversed_logs }
             end
           in
-          GenServer.no_reply({ state | room_state = InternalPlaying(game_state) })
+          no_reply({ state | room_state = InternalPlaying(game_state) })
       end
 
     /* When the user of `user_id` re-connects to the server: */
@@ -1216,7 +1217,7 @@ end = struct
       in
       case opt of
       | None ->
-          GenServer.no_reply(state)
+          no_reply(state)
 
       | Some({user, user_ids_for_notification, room_state}) ->
           let connection = { user = user, is_connected = true } in
@@ -1227,7 +1228,7 @@ end = struct
               reversed_logs = Models.LogConnection(connection) :: state.reversed_logs,
             }
           in
-          GenServer.no_reply(state)
+          no_reply(state)
       end
 
     val send_room_deletion_to_user_server<$m> : fun(user_id) -> [$m]unit = external 1 ```
@@ -1299,7 +1300,7 @@ end = struct
             state
         end
       in
-      GenServer.no_reply(state)
+      no_reply(state)
 
     val update_sync(user_id : user_id, state : state) = act
       case state.room_state of
@@ -1338,17 +1339,22 @@ end = struct
       case req of
       | GetWholeState ->
           let whole_state = make_whole_room_state(state) in
-          GenServer.reply(WholeState(whole_state), state)
+          reply(WholeState(whole_state), state)
+
       | GetPersonalState(user_id) ->
           do state <- update_sync(user_id, state) in
           let personal_state_opt = make_personal_state(state, user_id) in
-          GenServer.reply(PersonalState(personal_state_opt), state)
+          reply(PersonalState(personal_state_opt), state)
+
       | SendChat(user, text) ->
           handle_send_chat(user, text, state)
+
       | Attend(user, ws_proc) ->
           handle_attend(user, ws_proc, state)
+
       | Exit(user_id) ->
           handle_exit(user_id, state)
+
       | Submit(user_id, cards) ->
           handle_submit(user_id, cards, state)
       end
@@ -1405,7 +1411,7 @@ end = struct
               waiting_members0)
           in
           let players = List.reverse(player_acc) in
-          GenServer.no_reply(
+          no_reply(
             { state |
               reversed_logs = log_acc,
               room_state    = InternalWaiting({ members = players }),
@@ -1452,7 +1458,7 @@ end = struct
               players0)
           in
           let game_state = { game_state | meta = Meta({ meta | players = players }) } in
-          GenServer.no_reply(
+          no_reply(
             { state |
               reversed_logs = log_acc,
               room_state    = InternalPlaying(game_state),
@@ -1466,7 +1472,7 @@ end = struct
 
       | _ ->
           let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
-          GenServer.no_reply(state)
+          no_reply(state)
       end
 
     val terminate(reason, state) = act
