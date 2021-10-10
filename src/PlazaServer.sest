@@ -214,9 +214,9 @@ end = struct
                     {subscriber.user_id, pid, reason},
                   )
                 in
-                {true, subscriber :: subscriber_acc}
+                {true, subscriber_acc}
               else
-                {subscriber_found, subscriber_acc}
+                {subscriber_found, subscriber :: subscriber_acc}
             end,
             {false, []},
             state.subscribers)

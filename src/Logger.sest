@@ -18,6 +18,6 @@ end = struct
     fun(filename, line) -> log_impl(Info, filename, line, fmt, args) end
 
   val warning<$a>(fmt : format<$a>, args : $a) =
-    fun(filename, line) -> log_impl(Info, filename, line, fmt, args) end
+    fun(filename, line) -> log_impl(Warning, filename, line, fmt, args) end
 
 end
