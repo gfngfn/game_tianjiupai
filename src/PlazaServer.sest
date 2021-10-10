@@ -15,6 +15,8 @@ module PlazaServer :> sig
 
   val as_pid : fun(proc) -> pid<info>
 
+  val get_all_rooms<$a> : fun() -> [$a]list<room_summary>
+
   val update_room<$a> : fun(room_summary) -> [$a]unit
 
   val subscribe<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]unit
@@ -120,28 +122,41 @@ end = struct
       do _ <- publish(state) in
       GenServer.no_reply(state)
 
-    val handle_subscribe(user_id0, ws_proc, state : state) = act
-      case
-        List.filter(
-          fun(subscriber) -> Binary.equal(subscriber.user_id, user_id0) end,
+    val handle_subscribe(user_id0, ws_proc0, state : state) = act
+      do ws_mref0 <- WebSocketHandler.monitor(ws_proc0) in
+      let subscriber0 =
+        {
+          user_id = user_id0,
+          proc    = ws_proc0,
+          monitor = ws_mref0,
+        }
+      in
+      do {subscriber_found, subscriber_acc} <-
+        List.foldl_effect(
+          fun({subscriber_found, subscriber_acc}, subscriber) -> act
+            if Binary.equal(subscriber.user_id, user_id0) then
+              let _ =
+                assert Logger.warning(
+                  f'already subscribed (user_id: ~s, old: ~p, new: ~p)',
+                  {user_id0, subscriber.proc, ws_proc0},
+                )
+              in
+              do _ <- MonitorRef.demonitor(subscriber.monitor) in
+              return({true, subscriber0 :: subscriber_acc})
+            else
+              return({subscriber_found, subscriber :: subscriber_acc})
+          end,
+          {false, []},
           state.subscribers)
-      of
-      | _ :: _ ->
-          let _ = assert Logger.warning(f'already subscribed (user_id: ~s, pid: ~p)', {user_id0, ws_proc}) in
-          GenServer.no_reply(state)
-
-      | [] ->
-          do ws_mref <- WebSocketHandler.monitor(ws_proc) in
-          let subscriber =
-            {
-              user_id = user_id0,
-              proc    = ws_proc,
-              monitor = ws_mref,
-            }
-          in
-          let _ = assert Logger.info(f'subscribe (user_id: ~s, pid: ~p)', {user_id0, ws_proc}) in
-          GenServer.no_reply({ state | subscribers = subscriber :: state.subscribers })
-      end
+      in
+      let subscriber_acc =
+        if subscriber_found then
+          subscriber_acc
+        else
+          subscriber0 :: subscriber_acc
+      in
+      let _ = assert Logger.info(f'subscribe (user_id: ~s, pid: ~p)', {user_id0, ws_proc0}) in
+      GenServer.no_reply({ state | subscribers = List.reverse(subscriber_acc) })
 
     val handle_unsubscribe(user_id0, state : state) = act
       let _ = assert Logger.info(f'unsubscribe (user_id: ~s)', {user_id0}) in
@@ -242,6 +257,14 @@ end = struct
 
   val as_pid(proc) =
     Impl.as_pid(proc)
+
+  val get_all_rooms() = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    do res <- Impl.call(proc, Callback.GetRoomList) in
+    case res of
+    | Ok(Callback.RoomListGot(room_summaries)) -> return(room_summaries)
+    | Error(_)                                 -> return([])
+    end
 
   val update_room(room_summary) = act
     do Some(proc) <- Impl.where_is_global({}) in

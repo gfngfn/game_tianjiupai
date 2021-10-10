@@ -3,6 +3,7 @@ import Card
 import RoomServerSup
 import RoomServer
 import WebSocketHandler
+import PlazaServer
 
 module Room :> sig
   open Stdlib
@@ -36,20 +37,7 @@ end = struct
     return(Result.map(fun(_) -> room_id end, res))
 
   val get_all_rooms() = act
-    do procs <- RoomServerSup.which_children() in
-    do acc <-
-      List.foldl_effect(
-        fun(acc, proc) -> act
-          do opt <- RoomServer.get_whole_state_by_proc(proc) in
-          case opt of
-          | Some(whole_state) -> return(whole_state :: acc)
-          | None              -> return(acc)
-          end
-        end,
-        [],
-        procs)
-    in
-    return(acc)
+    PlazaServer.get_all_rooms()
 
   val get_whole_state(room_id : room_id) = act
     RoomServer.get_whole_state(room_id)

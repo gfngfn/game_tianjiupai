@@ -21,7 +21,6 @@ module RoomServer :> sig
   val monitor<$a> : fun(room_id) -> [$a]option<MonitorRef.t>
 
   val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
-  val get_whole_state_by_proc<$a> : fun(proc) -> [$a]option<room_summary>
 
   #[doc(```
     `get_personal_state(room_id, user_id)` returns
@@ -1527,22 +1526,6 @@ end = struct
   val get_whole_state<$a>(room_id : room_id) : [$a]option<room_summary> = act
     call(room_id, Callback.GetWholeState,
       fun(Callback.WholeState(whole_state)) -> act return(Some(whole_state)) end)
-
-  val get_whole_state_by_proc<$a>(proc : proc) : [$a]option<room_summary> = act
-    do resp_result <- Impl.call(proc, Callback.GetWholeState) in
-    case resp_result of
-    | Ok(Callback.WholeState(whole_state)) ->
-        return(Some(whole_state))
-
-    | Error(err) ->
-        let _ =
-          assert Logger.warning(
-            f'call failed (proc: ~p, error: ~p)',
-            {proc, err},
-          )
-        in
-        return(None)
-    end
 
   val get_personal_state<$a>(room_id : room_id, user_id : user_id) : [$a]option<personal_state> = act
     call(room_id, Callback.GetPersonalState(user_id),
