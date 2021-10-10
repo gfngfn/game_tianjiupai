@@ -118,7 +118,7 @@ end = struct
       in
       let room_entries = List.reverse(acc) in
       let state = { state | rooms = room_entries } in
-      let _ = assert Logger.info(f'update room (room_id: ~s, found: ~p)', {room_summary0.room.room_id, found}) in
+      let _ = assert Logger.debug(f'update room (room_id: ~s, found: ~p)', {room_summary0.room.room_id, found}) in
       do _ <- publish(state) in
       GenServer.no_reply(state)
 
@@ -155,11 +155,11 @@ end = struct
         else
           subscriber0 :: subscriber_acc
       in
-      let _ = assert Logger.info(f'subscribe (user_id: ~s, pid: ~p)', {user_id0, ws_proc0}) in
+      let _ = assert Logger.debug(f'subscribe (user_id: ~s, pid: ~p)', {user_id0, ws_proc0}) in
       GenServer.no_reply({ state | subscribers = List.reverse(subscriber_acc) })
 
     val handle_unsubscribe(user_id0, state : state) = act
-      let _ = assert Logger.info(f'unsubscribe (user_id: ~s)', {user_id0}) in
+      let _ = assert Logger.debug(f'unsubscribe (user_id: ~s)', {user_id0}) in
       do subscriber_acc <-
         List.foldl_effect(
           fun(subscriber_acc, subscriber) -> act
@@ -187,7 +187,7 @@ end = struct
           fun({room_found, entry_acc}, entry : entry) ->
             if MonitorRef.equal(entry.monitor, mref) then
               let _ =
-                assert Logger.info(
+                assert Logger.debug(
                   f'room down (room_id: ~s, pid: ~p, reason: ~p)',
                   {entry.room_summary.room.room_id, pid, reason},
                 )
@@ -209,7 +209,7 @@ end = struct
             fun({subscriber_found, subscriber_acc}, subscriber : subscriber) ->
               if MonitorRef.equal(subscriber.monitor, mref) then
                 let _ =
-                  assert Logger.info(
+                  assert Logger.debug(
                     f'subscriber down (user_id: ~s, pid: ~p, reason: ~p)',
                     {subscriber.user_id, pid, reason},
                   )

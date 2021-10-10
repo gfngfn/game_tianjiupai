@@ -161,7 +161,7 @@ end = struct
         Timer.send_after_self(Constants.disconnection_timeout(), DisconnectionTimeout(user_id))
       in
       let _ =
-        assert Logger.info(
+        assert Logger.debug(
           f'sets timer (~s, user_id: ~s, result: ~p)',
           {message, user_id, res}
         )
@@ -171,7 +171,7 @@ end = struct
     val cancel_disconnection_timer(timer : Timer.t, user_id : user_id, -log message) = act
       do res <- Timer.cancel(timer) in
       let _ =
-        assert Logger.info(
+        assert Logger.debug(
           f'cancels timer (~s, user_id: ~s, timer: ~p, result: ~p)',
           {message, user_id, timer, res}
         )
@@ -467,36 +467,30 @@ end = struct
                 case game_state1.sync of
                 | WaitingInput ->
                     let _ =
-                      assert Logger.info(
+                      assert Logger.debug(
                         f'attend -> waiting input (seat: ~p, user_id: ~s)',
                         {seat, user_id}
                       )
                     in
-                    do _ <-
-                      notify_for_each(user_ids_for_notification, [
-                        Models.NotifyEnteredMidway({ user = user, seat = seat }),
-                      ])
-                    in
+                    let notif = NotifyEnteredMidway({ user = user, seat = seat }) in
+                    do _ <- notify_for_each(user_ids_for_notification, [notif]) in
                     return(game_state1)
 
                 | WaitingSync(sync_quad0) ->
                     if Quad.access(seat, sync_quad0) then
                       let _ =
-                        assert Logger.info(
+                        assert Logger.debug(
                           f'attend -> no need to sync (seat: ~p, user_id: ~s, sync_quad: ~p)',
                           {seat, user_id, sync_quad0}
                         )
                       in
-                      do _ <-
-                        notify_for_each(user_ids_for_notification, [
-                          Models.NotifyEnteredMidway({ user = user, seat = seat }),
-                        ])
-                      in
+                      let notif = NotifyEnteredMidway({ user = user, seat = seat }) in
+                      do _ <- notify_for_each(user_ids_for_notification, [notif]) in
                       return(game_state1)
                     else
                       let sync_quad1 = Quad.update(seat, true, sync_quad0) in
                       let _ =
-                        assert Logger.info(
+                        assert Logger.debug(
                           f'attend -> sync update (seat: ~p, user_id: ~s, sync_quad: ~p)',
                           {seat, user_id, sync_quad1}
                         )
@@ -505,8 +499,8 @@ end = struct
                       | {true, true, true, true} ->
                           do _ <-
                             notify_for_each(user_ids_for_notification, [
-                              Models.NotifyEnteredMidway({ user = user, seat = seat }),
-                              Models.NotifyNextStep,
+                              NotifyEnteredMidway({ user = user, seat = seat }),
+                              NotifyNextStep,
                             ])
                           in
                           return({ game_state1 | sync = WaitingInput })
@@ -514,7 +508,7 @@ end = struct
                       | _ ->
                           do _ <-
                             notify_for_each(user_ids_for_notification, [
-                              Models.NotifyEnteredMidway({ user = user, seat = seat }),
+                              NotifyEnteredMidway({ user = user, seat = seat }),
                             ])
                           in
                           return({ game_state1 | sync = WaitingSync(sync_quad1) })
@@ -1044,7 +1038,7 @@ end = struct
                   | WaitingSync(sync_quad) ->
                       let sync_quad = Quad.update(seat, true, sync_quad) in
                       let _ =
-                        assert Logger.info(
+                        assert Logger.debug(
                           f'update sync (snapshot_id: ~s, user_id: ~s, quad: ~p)',
                           {snapshot_id, user_id, sync_quad}
                         )
@@ -1061,10 +1055,11 @@ end = struct
                           let game_state = { game_state | sync = WaitingSync(sync_quad) } in
                           return(Some(game_state))
                       end
+
                   | WaitingInput ->
                       let _ =
                         assert Logger.warning(
-                          f'waiting input (snapshot_id: ~s, user_id: ~s)',
+                          f'ack during waiting input (snapshot_id: ~s, user_id: ~s)',
                           {snapshot_id, user_id}
                         )
                       in
@@ -1110,7 +1105,7 @@ end = struct
                   | InningEnd(gains_quad, inning_sync_quad) ->
                       let inning_sync_quad = Quad.update(seat, true, inning_sync_quad) in
                       let _ =
-                        assert Logger.info(
+                        assert Logger.debug(
                           f'update inning sync (snapshot_id: ~s, inning_sync_quad: ~p)',
                           {snapshot_id, inning_sync_quad}
                         )
@@ -1226,12 +1221,13 @@ end = struct
                   case p0.connection of
                   | Connected(_, _) ->
                       let _ =
-                        assert Logger.info(
+                        assert Logger.debug(
                           f'no timer (playing, seat: ~p, user_id: ~s)',
                           {seat, user_id}
                         )
                       in
                       return(Ok({}))
+
                   | Disconnected(timer) ->
                       cancel_disconnection_timer(timer, user_id, -log "playing")
                   end
@@ -1402,7 +1398,7 @@ end = struct
       end
 
     val handle_timeout(state) = act
-      let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
+      let _ = assert Logger.debug(f'timeout (room_id: ~s)', {state.settings.room_id}) in
       let user_ids_for_notification = get_all_connected_user_ids(state) in
       do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
       GenServer.no_reply_and_stop(StopReason.normal(), state)
@@ -1508,7 +1504,7 @@ end = struct
       end
 
     val terminate(reason, state) = act
-      let _ = assert Logger.info(f'terminate (reason: ~p, room_id: ~s)', {reason, state.settings.room_id}) in
+      let _ = assert Logger.debug(f'terminate (reason: ~p, room_id: ~s)', {reason, state.settings.room_id}) in
       return({})
   end
 

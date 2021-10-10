@@ -157,7 +157,7 @@ end = struct
       let user_id = state.settings.user_id in
       do state <-
         if is_room_down(mref, state) then
-          let _ = assert Logger.info(f'room closed (user_id: ~s, reason: ~p)', {user_id, reason}) in
+          let _ = assert Logger.debug(f'room closed (user_id: ~s, reason: ~p)', {user_id, reason}) in
           return({ state | belongs_to = None })
         else
           let _ =
@@ -175,7 +175,7 @@ end = struct
       no_reply(state)
 
     val terminate(reason, state) = act
-      let _ = assert Logger.info(f'terminate (reason: ~p, user_id: ~s)', {reason, state.settings.user_id}) in
+      let _ = assert Logger.debug(f'terminate (reason: ~p, user_id: ~s)', {reason, state.settings.user_id}) in
       return({})
   end
 

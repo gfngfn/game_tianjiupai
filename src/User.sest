@@ -12,7 +12,7 @@ module User :> sig
 
   val exists<$a> : fun(user_id) -> [$a]bool
 
-  val delete<$a> : fun(user_id) -> [$a]unit
+  val delete<$a> : fun(user_id) -> [$a]bool
 
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
 
@@ -44,17 +44,11 @@ end = struct
     do proc_opt <- UserServer.get_proc(user_id) in
     case proc_opt of
     | None ->
-        return({})
+        return(false)
 
     | Some(proc) ->
         do res <- UserServerSup.terminate_child(proc) in
-        let _ =
-          assert Logger.info(
-            f'user deleted (user_id: ~s, result: ~p)',
-            {user_id, res}
-          )
-        in
-        return({})
+        return(true)
     end
 
   val get_name(user_id) = act

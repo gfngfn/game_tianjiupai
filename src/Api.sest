@@ -35,7 +35,12 @@ module Api = struct
     User.exists(user_id)
 
   val delete_user(user_id : user_id) = act
-    User.delete(user_id)
+    do deleted <- User.delete(user_id) in
+    if deleted then
+      let _ = assert Logger.info(f'user deleted (user_id: ~s)', {user_id}) in
+      return({})
+    else
+      return({})
 
   val subscribe_plaza_if_needed(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
     do room_id_opt <- User.get_room(user_id) in
@@ -236,7 +241,7 @@ module Api = struct
 
     | Some(room_id) ->
         do {} <- Room.ack(room_id, user_id, snapshot_id) in
-        let _ = assert Logger.info(f'ack (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
+        let _ = assert Logger.debug(f'ack (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
         return({})
     end
 
@@ -276,7 +281,7 @@ module Api = struct
         | Models.CommandNextInning(snapshot_id) ->
             do res <- require_next_inning(user_id, snapshot_id) in
             let _ =
-              assert Logger.info(
+              assert Logger.debug(
                 f'next inning (user_id: ~s, snapshot_id: ~s, res: ~p)',
                 {user_id, snapshot_id, res}
               )
