@@ -192,9 +192,9 @@ end = struct
                   {entry.room_summary.room.room_id, pid, reason},
                 )
               in
-              {true, entry :: entry_acc}
+              {true, entry_acc}
             else
-              {room_found, entry_acc}
+              {room_found, entry :: entry_acc}
           end,
           {false, []},
           state.rooms)
