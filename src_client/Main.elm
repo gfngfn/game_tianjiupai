@@ -506,6 +506,9 @@ update msg model =
           let indices1 = indices0 |> Set.remove index in
           ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
 
+        ( _, ReceiveNotification (Ok (NotifyPlazaUpdate _)) ) ->
+          ( model, Cmd.none )
+
         _ ->
           ( { model | message = ( Warning, "unexpected message (InRoom): " ++ showMessage msg ) }, Cmd.none )
 

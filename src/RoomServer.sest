@@ -299,6 +299,36 @@ end = struct
         end,
         Quad.to_list(players))
 
+    val get_all_connected_user_ids(state : state) : list<user_id> =
+      case state.room_state of
+      | InternalWaiting(waiting_state) ->
+          List.filter_map(
+            fun(player) ->
+              case player.connection of
+              | Connected(_, _) -> Some(player.user.user_id)
+              | Disconnected(_) -> None
+              end
+            end,
+            waiting_state.members)
+
+      | InternalPlaying(whole_game_state) ->
+          let Meta(meta) = whole_game_state.meta in
+          List.filter_map(
+            fun(player_opt) ->
+              case player_opt of
+              | None ->
+                  None
+
+              | Some(player) ->
+                  case player.connection of
+                  | Connected(_, _) -> Some(player.user.user_id)
+                  | Disconnected(_) -> None
+                  end
+              end
+            end,
+            Quad.to_list(meta.players))
+      end
+
     val make_game_player(iplayer : internal_player) : game_player =
       let is_connected =
         case iplayer.connection of
@@ -1373,6 +1403,8 @@ end = struct
 
     val handle_timeout(state) = act
       let _ = assert Logger.info(f'timeout (room_id: ~s)', {state.settings.room_id}) in
+      let user_ids_for_notification = get_all_connected_user_ids(state) in
+      do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
       GenServer.no_reply_and_stop(StopReason.normal(), state)
 
     val handle_down(mref, _, reason, state) = act
