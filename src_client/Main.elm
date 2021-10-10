@@ -177,28 +177,11 @@ update msg model =
 
         ReceiveResponse (RoomCreated roomName result) ->
           case result of
-            Ok responseBody ->
-              case maybeRooms of
-                Just roomSummaries0 ->
-                  let
-                    roomId : RoomId
-                    roomId =
-                      responseBody.roomId
-
-                    roomSummary : RoomSummary
-                    roomSummary =
-                      { room      = { roomId = roomId, roomName = roomName }
-                      , members   = []
-                      , isPlaying = False
-                      }
-
-                    roomSummaries1 : List RoomSummary
-                    roomSummaries1 = roomSummary :: roomSummaries0
-                  in
-                  ( { model | state = AtPlaza ws user roomNameInput0 (Just roomSummaries1) }, Cmd.none )
-
-                Nothing ->
-                  ( model, Cmd.none )
+            Ok _ ->
+              -- Do not need to decode the response body and to update the list of rooms here;
+              -- `NotifyPlazaUpdate` updates the list of rooms.
+              let message = ( Information, "room '" ++ roomName ++ "' has been created") in
+              ( { model | message = message }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage "room creation" err }, Cmd.none )
