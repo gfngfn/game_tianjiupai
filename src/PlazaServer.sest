@@ -19,6 +19,8 @@ module PlazaServer :> sig
 
   val update_room<$a> : fun(room_summary) -> [$a]unit
 
+  val delete_room_sync<$a> : fun(room_id) -> [$a]unit
+
   val subscribe<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]unit
 
   val unsubscribe<$a> : fun(user_id) -> [$a]unit
@@ -33,9 +35,11 @@ end = struct
 
     type request =
       | GetRoomList
+      | DeleteRoomSync(room_id)
 
     type response =
       | RoomListGot(list<room_summary>)
+      | RoomDeleted
 
     type cast_message =
       | UpdateRoom(room_summary)
@@ -68,13 +72,6 @@ end = struct
       let state = { rooms = [], subscribers = [] } in
       GenServer.init_ok(state)
 
-    val handle_call(req, _, state : state) = act
-      case req of
-      | GetRoomList ->
-          let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
-          GenServer.reply(RoomListGot(room_summaries), state)
-      end
-
     val publish(state : state) = act
       let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
       List.foldl_effect(
@@ -83,6 +80,32 @@ end = struct
         end,
         {},
         state.subscribers)
+
+    val handle_delete_room_sync(room_id : room_id, state : state) = act
+      do entry_acc <-
+        List.foldl_effect(
+          fun(entry_acc, entry) -> act
+            if Binary.equal(entry.room_summary.room.room_id, room_id) then
+              do _ <- MonitorRef.demonitor(entry.monitor) in
+              return(entry_acc)
+            else
+              return(entry :: entry_acc)
+          end,
+          [], state.rooms)
+      in
+      let state = { state | rooms = List.reverse(entry_acc) } in
+      do _ <- publish(state) in
+      GenServer.reply(RoomDeleted, state)
+
+    val handle_call(req, _, state : state) = act
+      case req of
+      | GetRoomList ->
+          let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
+          GenServer.reply(RoomListGot(room_summaries), state)
+
+      | DeleteRoomSync(room_id) ->
+          handle_delete_room_sync(room_id, state)
+      end
 
     /* TODO: use `Room.monitor` after introducing recursive modules */
     val monitor_room<$a> : fun(room_id) -> [$a]option<MonitorRef.t> = external 1 ```
@@ -269,6 +292,18 @@ end = struct
   val update_room(room_summary) = act
     do Some(proc) <- Impl.where_is_global({}) in
     Impl.cast(proc, Callback.UpdateRoom(room_summary))
+
+  val delete_room_sync(room_id : room_id) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    do res <- Impl.call(proc, Callback.DeleteRoomSync(room_id)) in
+    case res of
+    | Ok(Callback.RoomDeleted) ->
+        return({})
+
+    | Error(err) ->
+        let _ = assert Logger.warning(f'delete room failed (room_id: ~s, reason: ~p)', {room_id, err}) in
+        return({})
+    end
 
   val subscribe(user_id, ws_proc) = act
     do Some(proc) <- Impl.where_is_global({}) in

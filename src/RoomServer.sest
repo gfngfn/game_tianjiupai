@@ -231,6 +231,9 @@ end = struct
     val no_reply(state) = act
       GenServer.no_reply(state, ?timeout Constants.room_expiration_timeout())
 
+    val stop(state) = act
+      GenServer.no_reply_and_stop(StopReason.normal(), state)
+
     val find_user_seat(game_state : whole_game_state, user_id : user_id) : option<{Quad.seat, internal_player}> =
       let Meta(meta) = game_state.meta in
       let opt =
@@ -1083,7 +1086,7 @@ end = struct
 
     type transition =
       | RoomTransitionToNextInning(whole_game_state, option<game_index>)
-      | RoomClose
+      | RoomClose(list<user_id>)
 
     val handle_require_next_inning(user_id : user_id, snapshot_id : snapshot_id, state : state) = act
       do opt <-
@@ -1120,8 +1123,7 @@ end = struct
                           let user_ids_for_notification = user_id :: user_ids_for_notification in
                           if inning_index >= Constants.maximum_num_innings() then
                           /* If the last inning has ended: */
-                            do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
-                            return(Some(RoomClose))
+                            return(Some(RoomClose(user_ids_for_notification)))
                           else
                             do game_state <- start_new_inning(whole_game_meta) in
                             do _ <-
@@ -1157,8 +1159,10 @@ end = struct
       | None ->
           no_reply(state)
 
-      | Some(RoomClose) ->
-          GenServer.no_reply_and_stop(StopReason.normal(), state)
+      | Some(RoomClose(user_ids_for_notification)) ->
+          do {} <- PlazaServer.delete_room_sync(state.settings.room_id) in
+          do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
+          stop(state)
 
       | Some(RoomTransitionToNextInning(game_state, game_index_opt)) ->
           let state =
@@ -1400,8 +1404,9 @@ end = struct
     val handle_timeout(state) = act
       let _ = assert Logger.debug(f'timeout (room_id: ~s)', {state.settings.room_id}) in
       let user_ids_for_notification = get_all_connected_user_ids(state) in
+      do {} <- PlazaServer.delete_room_sync(state.settings.room_id) in
       do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
-      GenServer.no_reply_and_stop(StopReason.normal(), state)
+      stop(state)
 
     val handle_down(mref, _, reason, state) = act
       case state.room_state of
