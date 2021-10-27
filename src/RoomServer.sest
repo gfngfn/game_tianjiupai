@@ -422,8 +422,18 @@ end = struct
 
     val stop(state) = act
       let user_ids_for_notification = get_all_connected_user_ids(state) in
+      let _ = assert Logger.debug(f'delete room sync (room_id: ~p)', {state.settings.room_id}) in
       do {} <- PlazaServer.delete_room_sync(state.settings.room_id) in
-      do _ <- notify_for_each(user_ids_for_notification, [Models.NotifyRoomClose]) in
+      let _ = assert Logger.debug(f'deleted from plaza (room_id: ~p)', {state.settings.room_id}) in
+      do {} <-
+        List.foldl_effect(
+          fun({}, user_id) -> act
+            do _ <- WebSocketHandler.notify_room_close(user_id) in
+            return({})
+          end,
+          {},
+          user_ids_for_notification)
+      in
       GenServer.no_reply_and_stop(StopReason.normal(), state)
 
     val find_empty_seat(game_state : whole_game_state) : option<Quad.seat> =
