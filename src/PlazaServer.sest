@@ -298,6 +298,7 @@ end = struct
     do res <- Impl.call(proc, Callback.DeleteRoomSync(room_id)) in
     case res of
     | Ok(Callback.RoomDeleted) ->
+        let _ = assert Logger.debug(f'room deleted (room_id: ~s)', {room_id}) in
         return({})
 
     | Error(err) ->

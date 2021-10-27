@@ -97,6 +97,10 @@ websocket_info(Msg, State) ->
             {reply, Chunks, State};
         room_closed ->
             UserId = get_user_id(State),
+            (?LOGGER:debug(
+                {"room closed (user_id: ~s)", 1},
+                {UserId}
+            ))(erlang:atom_to_binary(?MODULE), ?LINE),
             ?FRONT:subscribe_plaza(UserId, self()),
             Bin = ?FRONT:encode_notification(notify_room_close),
             Chunks = [{text, Bin}],
