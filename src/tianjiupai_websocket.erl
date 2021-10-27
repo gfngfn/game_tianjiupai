@@ -17,6 +17,7 @@
 -export([
     notify/2,
     notify_by_proc/2,
+    notify_room_close/1,
     where_is/1
 ]).
 
@@ -60,7 +61,6 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
                         {"succeeded in registration (user_id: ~s)", 1},
                         {UserId}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
-                    ok = ?FRONT:subscribe_plaza_if_needed(UserId, self()),
                     {ok, State};
                 {error, Reason} ->
                     (?LOGGER:info(
@@ -95,6 +95,12 @@ websocket_info(Msg, State) ->
                     end,
                     Notifications),
             {reply, Chunks, State};
+        room_closed ->
+            UserId = get_user_id(State),
+            ?FRONT:subscribe_plaza(UserId, self()),
+            Bin = ?FRONT:encode_notification(notify_room_close),
+            Chunks = [{text, Bin}],
+            {reply, Chunks, State};
         _ ->
             (?LOGGER:warning(
                 {"unknown message (message: ~p)", 1},
@@ -126,6 +132,20 @@ notify_by_proc(WsHandlerPid, Notifications) ->
     Msg = {notifications, Notifications},
     _ = WsHandlerPid ! Msg,
     ok.
+
+-spec notify_room_close(tianjiupai:user_id()) -> ok.
+notify_room_close(UserId) ->
+    try
+        _ = global:send(name(UserId), room_closed),
+        ok
+    catch
+        Class:Reason ->
+            (?LOGGER:warning(
+                {"failed to notify room close (user_id: ~s, class: ~p, reason: ~p)", 3},
+                {UserId, Class, Reason}
+            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ok
+    end.
 
 -spec where_is(tianjiupai:user_id()) -> error | {ok, pid()}.
 where_is(UserId) ->

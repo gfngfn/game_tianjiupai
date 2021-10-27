@@ -42,12 +42,8 @@ module Api = struct
     else
       return({})
 
-  val subscribe_plaza_if_needed(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
-    do room_id_opt <- User.get_room(user_id) in
-    case room_id_opt of
-    | None    -> PlazaServer.subscribe(user_id, ws_proc)
-    | Some(_) -> return({})
-    end
+  val subscribe_plaza(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
+    PlazaServer.subscribe(user_id, ws_proc)
 
   val get_all_rooms() = act
     do room_summaries <- Room.get_all_rooms() in
@@ -301,7 +297,7 @@ module Api = struct
         return({})
 
     | None ->
-        /* TODO: do _ <- Plaza.subscribe(user_id, ws_proc) in */
+        do _ <- subscribe_plaza(user_id, ws_proc) in
         return({})
     end
 

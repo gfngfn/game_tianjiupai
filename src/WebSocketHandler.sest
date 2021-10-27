@@ -38,6 +38,11 @@ end = struct
         tianjiupai_websocket:notify_by_proc(WsHandlerPid, Notification).
   ```
 
+  val notify_room_close<$a> : fun(user_id) -> [$a]unit = external 1 ```
+    notify_room_close(UserId) ->
+        tianjiupai_websocket:notify_room_close(UserId).
+  ```
+
   val monitor(ws_proc : proc) = act
     MonitorRef.monitor(ws_proc)
 
