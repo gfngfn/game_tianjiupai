@@ -133,6 +133,7 @@ notification :=
   | NotifyConnection    : connection
   | NotifyEnteredMidway : midway_enter
   | NotifyRoomClose
+  | NotifyPlazaUpdate   : list(room_summary)
 
 last := {
   table   : table,

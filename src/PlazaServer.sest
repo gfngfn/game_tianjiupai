@@ -1,0 +1,317 @@
+import Logger
+import Models
+import WebSocketHandler
+/* import Room */
+
+module PlazaServer :> sig
+  open Stdlib
+  open Models
+
+  type info :: o
+
+  type proc :: o
+
+  val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
+
+  val as_pid : fun(proc) -> pid<info>
+
+  val get_all_rooms<$a> : fun() -> [$a]list<room_summary>
+
+  val update_room<$a> : fun(room_summary) -> [$a]unit
+
+  val delete_room_sync<$a> : fun(room_id) -> [$a]unit
+
+  val subscribe<$a> : fun(user_id, WebSocketHandler.proc) -> [$a]unit
+
+  val unsubscribe<$a> : fun(user_id) -> [$a]unit
+
+end = struct
+  open Stdlib
+  open Models
+
+  module Callback = struct
+
+    type init_arg = unit
+
+    type request =
+      | GetRoomList
+      | DeleteRoomSync(room_id)
+
+    type response =
+      | RoomListGot(list<room_summary>)
+      | RoomDeleted
+
+    type cast_message =
+      | UpdateRoom(room_summary)
+      | Subscribe(user_id, WebSocketHandler.proc)
+      | Unsubscribe(user_id)
+
+    type info =
+      | InfoDummy
+
+    type entry = {
+      room_summary : room_summary,
+      monitor      : MonitorRef.t,
+    }
+
+    type subscriber = {
+      user_id : user_id,
+      proc    : WebSocketHandler.proc,
+      monitor : MonitorRef.t,
+    }
+
+    type state = {
+      rooms       : list<entry>,
+      subscribers : list<subscriber>,
+    }
+    /* A naïve implementation using lists */
+
+    type global = unit
+
+    val init({}) = act
+      let state = { rooms = [], subscribers = [] } in
+      GenServer.init_ok(state)
+
+    val publish(state : state) = act
+      let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
+      List.foldl_effect(
+        fun({}, subscriber) -> act
+          WebSocketHandler.notify_by_proc(subscriber.proc, [NotifyPlazaUpdate(room_summaries)])
+        end,
+        {},
+        state.subscribers)
+
+    val handle_delete_room_sync(room_id : room_id, state : state) = act
+      do entry_acc <-
+        List.foldl_effect(
+          fun(entry_acc, entry) -> act
+            if Binary.equal(entry.room_summary.room.room_id, room_id) then
+              do _ <- MonitorRef.demonitor(entry.monitor) in
+              return(entry_acc)
+            else
+              return(entry :: entry_acc)
+          end,
+          [], state.rooms)
+      in
+      let state = { state | rooms = List.reverse(entry_acc) } in
+      do _ <- publish(state) in
+      GenServer.reply(RoomDeleted, state)
+
+    val handle_call(req, _, state : state) = act
+      case req of
+      | GetRoomList ->
+          let room_summaries = List.map(fun(entry) -> entry.room_summary end, state.rooms) in
+          GenServer.reply(RoomListGot(room_summaries), state)
+
+      | DeleteRoomSync(room_id) ->
+          handle_delete_room_sync(room_id, state)
+      end
+
+    /* TODO: use `Room.monitor` after introducing recursive modules */
+    val monitor_room<$a> : fun(room_id) -> [$a]option<MonitorRef.t> = external 1 ```
+      monitor_room(RoomId) ->
+          'Tianjiupai.Room':monitor(RoomId).
+    ```
+
+    val handle_update_room(room_summary0, state : state) = act
+      let {found, acc} =
+        List.foldl(
+          fun({found, acc}, entry : entry) ->
+            if Binary.equal(room_summary0.room.room_id, entry.room_summary.room.room_id) then
+              {true, { entry | room_summary = room_summary0 } :: acc}
+            else
+              {found, entry :: acc}
+          end,
+          {false, []},
+          state.rooms)
+      in
+      do acc <-
+        if found then
+          return(acc)
+        else
+          do monitor_opt0 <- monitor_room(room_summary0.room.room_id) in
+          case monitor_opt0 of
+          | None ->
+              return(acc)
+
+          | Some(monitor0) ->
+              let entry = { room_summary = room_summary0, monitor = monitor0 } in
+              return(entry :: acc)
+          end
+      in
+      let room_entries = List.reverse(acc) in
+      let state = { state | rooms = room_entries } in
+      let _ = assert Logger.debug(f'update room (room_id: ~s, found: ~p)', {room_summary0.room.room_id, found}) in
+      do _ <- publish(state) in
+      GenServer.no_reply(state)
+
+    val handle_subscribe(user_id0, ws_proc0, state : state) = act
+      do ws_mref0 <- WebSocketHandler.monitor(ws_proc0) in
+      let subscriber0 =
+        {
+          user_id = user_id0,
+          proc    = ws_proc0,
+          monitor = ws_mref0,
+        }
+      in
+      do {subscriber_found, subscriber_acc} <-
+        List.foldl_effect(
+          fun({subscriber_found, subscriber_acc}, subscriber) -> act
+            if Binary.equal(subscriber.user_id, user_id0) then
+              let _ =
+                assert Logger.warning(
+                  f'already subscribed (user_id: ~s, old: ~p, new: ~p)',
+                  {user_id0, subscriber.proc, ws_proc0},
+                )
+              in
+              do _ <- MonitorRef.demonitor(subscriber.monitor) in
+              return({true, subscriber0 :: subscriber_acc})
+            else
+              return({subscriber_found, subscriber :: subscriber_acc})
+          end,
+          {false, []},
+          state.subscribers)
+      in
+      let subscriber_acc =
+        if subscriber_found then
+          subscriber_acc
+        else
+          subscriber0 :: subscriber_acc
+      in
+      let _ = assert Logger.debug(f'subscribe (user_id: ~s, pid: ~p)', {user_id0, ws_proc0}) in
+      GenServer.no_reply({ state | subscribers = List.reverse(subscriber_acc) })
+
+    val handle_unsubscribe(user_id0, state : state) = act
+      let _ = assert Logger.debug(f'unsubscribe (user_id: ~s)', {user_id0}) in
+      do subscriber_acc <-
+        List.foldl_effect(
+          fun(subscriber_acc, subscriber) -> act
+            if Binary.equal(subscriber.user_id, user_id0) then
+              do _ <- MonitorRef.demonitor(subscriber.monitor) in
+              return(subscriber_acc)
+            else
+              return(subscriber :: subscriber_acc)
+          end,
+          [],
+          state.subscribers)
+      in
+      GenServer.no_reply({ state | subscribers = List.reverse(subscriber_acc) })
+
+    val handle_cast(msg, state : state) = act
+      case msg of
+      | UpdateRoom(room_summary0)   -> handle_update_room(room_summary0, state)
+      | Subscribe(user_id, ws_proc) -> handle_subscribe(user_id, ws_proc, state)
+      | Unsubscribe(user_id)        -> handle_unsubscribe(user_id, state)
+      end
+
+    val handle_down(mref, pid, reason, state : state) = act
+      let {room_found, entry_acc} =
+        List.foldl(
+          fun({room_found, entry_acc}, entry : entry) ->
+            if MonitorRef.equal(entry.monitor, mref) then
+              let _ =
+                assert Logger.debug(
+                  f'room down (room_id: ~s, pid: ~p, reason: ~p)',
+                  {entry.room_summary.room.room_id, pid, reason},
+                )
+              in
+              {true, entry_acc}
+            else
+              {room_found, entry :: entry_acc}
+          end,
+          {false, []},
+          state.rooms)
+      in
+      if room_found then
+        let state = { state | rooms = List.reverse(entry_acc) } in
+        do _ <- publish(state) in
+        GenServer.no_reply(state)
+      else
+        let {subscriber_found, subscriber_acc} =
+          List.foldl(
+            fun({subscriber_found, subscriber_acc}, subscriber : subscriber) ->
+              if MonitorRef.equal(subscriber.monitor, mref) then
+                let _ =
+                  assert Logger.debug(
+                    f'subscriber down (user_id: ~s, pid: ~p, reason: ~p)',
+                    {subscriber.user_id, pid, reason},
+                  )
+                in
+                {true, subscriber_acc}
+              else
+                {subscriber_found, subscriber :: subscriber_acc}
+            end,
+            {false, []},
+            state.subscribers)
+        in
+        if subscriber_found then
+          let state = { state | subscribers = List.reverse(subscriber_acc) } in
+          GenServer.no_reply(state)
+        else
+          let _ =
+            assert Logger.warning(
+              f'unexpected monitor ref (mref: ~p, pid: ~p, reason: ~p)',
+              {mref, pid, reason},
+            )
+          in
+          GenServer.no_reply(state)
+
+    val handle_timeout(state : state) = act
+      GenServer.no_reply(state)
+
+    val handle_info(info, state : state) = act
+      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
+      GenServer.no_reply(state)
+
+    val terminate(reason, state) = act
+      let _ = assert Logger.warning(f'terminate (reason: ~p, state: ~p)', {reason, state}) in
+      return({})
+
+  end
+
+  module Impl = GenServer.Make(Callback)
+
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val start_link() = act
+    Impl.start_link_name({}, -name Global({}))
+
+  val as_pid(proc) =
+    Impl.as_pid(proc)
+
+  val get_all_rooms() = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    do res <- Impl.call(proc, Callback.GetRoomList) in
+    case res of
+    | Ok(Callback.RoomListGot(room_summaries)) -> return(room_summaries)
+    | Error(_)                                 -> return([])
+    end
+
+  val update_room(room_summary) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    Impl.cast(proc, Callback.UpdateRoom(room_summary))
+
+  val delete_room_sync(room_id : room_id) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    do res <- Impl.call(proc, Callback.DeleteRoomSync(room_id)) in
+    case res of
+    | Ok(Callback.RoomDeleted) ->
+        let _ = assert Logger.debug(f'room deleted (room_id: ~s)', {room_id}) in
+        return({})
+
+    | Error(err) ->
+        let _ = assert Logger.warning(f'delete room failed (room_id: ~s, reason: ~p)', {room_id, err}) in
+        return({})
+    end
+
+  val subscribe(user_id, ws_proc) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    Impl.cast(proc, Callback.Subscribe(user_id, ws_proc))
+
+  val unsubscribe(user_id) = act
+    do Some(proc) <- Impl.where_is_global({}) in
+    Impl.cast(proc, Callback.Unsubscribe(user_id))
+
+end

@@ -2,6 +2,8 @@ import Logger
 import Models
 import User
 import Room
+import WebSocketHandler
+import PlazaServer
 
 module Api = struct
   open Models
@@ -33,7 +35,15 @@ module Api = struct
     User.exists(user_id)
 
   val delete_user(user_id : user_id) = act
-    User.delete(user_id)
+    do deleted <- User.delete(user_id) in
+    if deleted then
+      let _ = assert Logger.info(f'user deleted (user_id: ~s)', {user_id}) in
+      return({})
+    else
+      return({})
+
+  val subscribe_plaza(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
+    PlazaServer.subscribe(user_id, ws_proc)
 
   val get_all_rooms() = act
     do room_summaries <- Room.get_all_rooms() in
@@ -102,13 +112,14 @@ module Api = struct
         return(None)
     end
 
-  val enter_room(user_id : user_id, room_id : room_id) = act
+  val enter_room(user_id : user_id, room_id : room_id, ws_proc : WebSocketHandler.proc) = act
     do res <- User.set_room(user_id, Some(room_id)) in
     case res of
     | Some({}) ->
         do Some(user_name) <- User.get_name(user_id) in
         let user = { user_id = user_id, user_name = user_name } in
-        do res <- Room.attend(room_id, user) in
+        do res <- Room.attend(room_id, user, ws_proc) in
+        do {} <- PlazaServer.unsubscribe(user_id) in
         let is_success =
           case res of
           | Some(_) -> true
@@ -128,15 +139,17 @@ module Api = struct
         | None ->
             return(None)
         end
+
     | None ->
         return(None)
     end
 
-  val exit_room(user_id : user_id, room_id : room_id) = act
+  val exit_room(user_id : user_id, room_id : room_id, ws_proc : WebSocketHandler.proc) = act
     do res <- User.set_room(user_id, None) in
     case res of
     | Some({}) ->
         do res <- Room.exit(room_id, user_id) in
+        do {} <- PlazaServer.subscribe(user_id, ws_proc) in
         let is_success =
           case res of
           | Some(_) -> true
@@ -167,15 +180,25 @@ module Api = struct
         | Models.RoomRequestToEnterRoom(enter_room_request) ->
             let user_id = enter_room_request.user_id in
             if validator(user_id) then
-              enter_room(user_id, room_id)
+              do opt <- WebSocketHandler.where_is(user_id) in
+              case opt of
+              | Some(ws_proc) -> enter_room(user_id, room_id, ws_proc)
+              | None          -> return(None)
+              end
             else
               return(None)
+
         | Models.RoomRequestToExitRoom(exit_room_request) ->
             let user_id = exit_room_request.user_id in
             if validator(user_id) then
-              exit_room(user_id, room_id)
+              do opt <- WebSocketHandler.where_is(user_id) in
+              case opt of
+              | Some(ws_proc) -> exit_room(user_id, room_id, ws_proc)
+              | None          -> return(None)
+              end
             else
               return(None)
+
         | Models.RoomRequestToSubmitCards(submit_cards_request) ->
             let user_id = submit_cards_request.user_id in
             let cards = submit_cards_request.cards in
@@ -188,51 +211,95 @@ module Api = struct
         return(None)
     end
 
+  val send_chat(user_id, text) = act
+    do user_state_opt <- User.get_info(user_id) in
+    case user_state_opt of
+    | None ->
+        return(None)
+
+    | Some(user_state) ->
+        case user_state.belongs_to of
+        | None ->
+            return(None)
+
+        | Some(room_id) ->
+            let user = { user_id = user_id, user_name = user_state.user_name } in
+            Room.send_chat(room_id, user, text)
+        end
+    end
+
+  val ack(user_id, snapshot_id) = act
+    do room_id_opt <- User.get_room(user_id) in
+    case room_id_opt of
+    | None ->
+        let _ = assert Logger.warning(f'ack failed (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
+        return({})
+
+    | Some(room_id) ->
+        do {} <- Room.ack(room_id, user_id, snapshot_id) in
+        let _ = assert Logger.debug(f'ack (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
+        return({})
+    end
+
+  val require_next_inning(user_id, snapshot_id) = act
+    do room_id_opt <- User.get_room(user_id) in
+    case room_id_opt of
+    | None          -> return({})
+    | Some(room_id) -> Room.require_next_inning(room_id, user_id, snapshot_id)
+    end
+
   val perform_command(user_id : user_id, data : binary) = act
     case Json.Decode.run(Models.decode_command(), data) of
     | Ok(command) ->
         case command of
         | Models.CommandComment(text) ->
-            do res <- User.send_chat(user_id, text) in
-            let _ =
-              case res of
-              | Some({}) ->
-                  {}
-              | None ->
+            do res <- send_chat(user_id, text) in
+            case res of
+            | Some({}) ->
+                return({})
+
+            | None ->
+                let _ =
                   assert Logger.warning(
                     f'failed to send a chat comment (user_id: ~s, text: ~s)',
                     {user_id, text}
                   )
-              end
-            in
-            return({})
+                in
+                return({})
+            end
+
         | Models.CommandAck(snapshot_id) ->
-            do res <- User.ack(user_id, snapshot_id) in
-            let _ =
-              assert Logger.info(
-                f'ack (user_id: ~s, snapshot_id: ~s, res: ~p)',
-                {user_id, snapshot_id, res}
-              )
-            in
-            return({})
+            ack(user_id, snapshot_id)
+
         | Models.CommandHeartbeat ->
             return({})
+
         | Models.CommandNextInning(snapshot_id) ->
-            do res <- User.require_next_inning(user_id, snapshot_id) in
+            do res <- require_next_inning(user_id, snapshot_id) in
             let _ =
-              assert Logger.info(
+              assert Logger.debug(
                 f'next inning (user_id: ~s, snapshot_id: ~s, res: ~p)',
                 {user_id, snapshot_id, res}
               )
             in
             return({})
         end
+
     | Error(_) ->
         return({})
     end
 
-  val set_websocket_connection(user_id : user_id, ws_pid) = act
-    User.set_websocket_connection(user_id, ws_pid)
+  val set_websocket_connection(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
+    do room_opt <- User.get_room(user_id) in
+    case room_opt of
+    | Some(room_id) ->
+        do _ <- Room.set_connection(room_id, user_id, ws_proc) in
+        return({})
+
+    | None ->
+        do _ <- subscribe_plaza(user_id, ws_proc) in
+        return({})
+    end
 
   val encode_notification(notification) =
     let enc = Models.encode_notification() in

@@ -1,0 +1,15 @@
+module Constants = struct
+
+  val disconnection_timeout() =
+    30000  /* 30 seconds */
+
+  val maximum_num_innings() =
+    8
+
+  val room_expiration_timeout() =
+    1000 * 60 * 60 * 24  /* one day */
+
+  val user_expiration_timeout() =
+    1000 * 60 * 60 * 24  /* one day */
+
+end

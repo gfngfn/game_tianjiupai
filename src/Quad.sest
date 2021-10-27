@@ -10,6 +10,14 @@ module Quad = struct
         S1 =:= S2.
   ```
 
+  val the_other_seats(seat) : list<seat> =
+    case seat of
+    | SeatA -> [SeatB, SeatC, SeatD]
+    | SeatB -> [SeatC, SeatD, SeatA]
+    | SeatC -> [SeatD, SeatA, SeatB]
+    | SeatD -> [SeatA, SeatB, SeatC]
+    end
+
   val rec advance_seat(s, n) =
     if n < 0 then
       advance_seat(s, n + 4)
@@ -63,6 +71,15 @@ module Quad = struct
   val map<$a, $b>(f : fun($a) -> $b, quad : t<$a>) : t<$b> =
     let {x0, x1, x2, x3} = decompose(quad) in
     make({f(x0), f(x1), f(x2), f(x3)})
+
+  val map_fold_effect<$m, $a, $b, $c>(f : fun($c, $a) -> [$m]{$c, $b}, acc : $c, quad : t<$a>) : [$m]{$c, t<$b>} = act
+    let {x0, x1, x2, x3} = decompose(quad) in
+    do {acc, y0} <- f(acc, x0) in
+    do {acc, y1} <- f(acc, x1) in
+    do {acc, y2} <- f(acc, x2) in
+    do {acc, y3} <- f(acc, x3) in
+    let quad = make({y0, y1, y2, y3}) in
+    return({acc, quad})
 
   val find<$a>(f : fun($a) -> bool, quad : t<$a>) : option<{seat, $a}> =
     let {x0, x1, x2, x3} = decompose(quad) in

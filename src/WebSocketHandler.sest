@@ -1,0 +1,51 @@
+import Models
+
+module WebSocketHandler :> sig
+  open Stdlib
+  open Models
+
+  #[doc(```
+    The type for PIDs of `tianjiupai_websocket`.
+  ```)]
+  type proc :: o
+
+  val where_is<$a> : fun(user_id) -> [$a]option<proc>
+
+  val notify<$a> : fun(user_id, list<notification>) -> [$a]unit
+
+  val notify_by_proc<$a> : fun(proc, list<notification>) -> [$a]unit
+
+  val notify_room_close<$a> : fun(user_id) -> [$a]unit
+
+  val monitor<$a> : fun(proc) -> [$a]MonitorRef.t
+
+end = struct
+  open Stdlib
+  open Models
+
+  type proc = pid<RawValue.t>
+
+  val where_is<$a> : fun(user_id) -> [$a]option<proc> = external 1 ```
+    where_is(UserId) ->
+        tianjiupai_websocket:where_is(UserId).
+  ```
+
+  val notify<$a> : fun(user_id, list<notification>) -> [$a]unit = external 2 ```
+    notify(UserId, Notifications) ->
+        tianjiupai_websocket:notify(UserId, Notifications).
+  ```
+
+  val notify_by_proc<$a> : fun(proc, list<notification>) -> [$a]unit = external 2 ```
+    notify_by_proc(WsHandlerPid, Notification) ->
+        tianjiupai_websocket:notify_by_proc(WsHandlerPid, Notification).
+  ```
+
+  val notify_room_close<$a> : fun(user_id) -> [$a]unit = external 1 ```
+    notify_room_close(UserId) ->
+        tianjiupai_websocket:notify_room_close(UserId).
+  ```
+
+  val monitor(ws_proc : proc) = act
+    MonitorRef.monitor(ws_proc)
+
+end
