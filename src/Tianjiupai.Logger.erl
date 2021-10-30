@@ -1,9 +1,10 @@
 -module('Tianjiupai.Logger').
--export(['log_impl'/5, 'info'/2, 'warning'/2]).
+-export(['log_impl'/5, 'debug'/2, 'info'/2, 'warning'/2]).
     log_impl(Level, Filename, Line, FormatAndArity, Args) ->
         {Format, _} = FormatAndArity,
         FilenameStr = erlang:binary_to_list(Filename),
         logger:log(Level, Format, erlang:tuple_to_list(Args), #{ file => FilenameStr, line => Line }).
   
-'info'(S434Fmt, S435Args) -> fun(S436Filename, S437Line) -> 'Tianjiupai.Logger':'log_impl'('info', S436Filename, S437Line, S434Fmt, S435Args) end.
-'warning'(S439Fmt, S440Args) -> fun(S441Filename, S442Line) -> 'Tianjiupai.Logger':'log_impl'('info', S441Filename, S442Line, S439Fmt, S440Args) end.
+'debug'(S478Fmt, S479Args) -> fun(S480Filename, S481Line) -> 'Tianjiupai.Logger':'log_impl'('debug', S480Filename, S481Line, S478Fmt, S479Args) end.
+'info'(S483Fmt, S484Args) -> fun(S485Filename, S486Line) -> 'Tianjiupai.Logger':'log_impl'('info', S485Filename, S486Line, S483Fmt, S484Args) end.
+'warning'(S488Fmt, S489Args) -> fun(S490Filename, S491Line) -> 'Tianjiupai.Logger':'log_impl'('warning', S490Filename, S491Line, S488Fmt, S489Args) end.

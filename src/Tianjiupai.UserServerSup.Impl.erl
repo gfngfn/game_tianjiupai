@@ -1,7 +1,7 @@
 -module('Tianjiupai.UserServerSup.Impl').
 -behaviour(supervisor).
 -export(['init_impl'/1, 'init'/1, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'start_child'/2, 'which_children'/1, 'terminate_child'/2]).
-'init_impl'(S2172InitArg) -> 'Tianjiupai.UserServerSup.Callback':'init'(S2172InitArg).
+'init_impl'(S2390InitArg) -> 'Tianjiupai.UserServerSup.Callback':'init'(S2390InitArg).
       init(InitArg) ->
           % io:format("debug L('o' )J (~p) init:~n  ~p~n", [?MODULE, InitArg]),
           {SupFlagsImpl, ChildSpecImpl} = init_impl(InitArg),

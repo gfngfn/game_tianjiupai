@@ -6,8 +6,8 @@
         % io:format("debug L('o' )J make_child_proc, after~n  ~p~n", [Result]),
         Result.
   
-'make_child_spec'(S152Start) -> ?MODULE:'make_child_spec'(S152Start, #{}).
-'make_child_spec'(S152Start, S2393) -> S153Restart = sesterl_internal_prim:decode_option_with_default(S2393, restart, fun() -> 'permanent' end), S154ShutdownOpt = sesterl_internal_prim:decode_option(S2393, shutdown), S155Typ = sesterl_internal_prim:decode_option_with_default(S2393, type, fun() -> 'worker' end), begin S157Shutdown = case {S154ShutdownOpt, S155Typ} of {{'ok', S156Shutdown}, _} -> S156Shutdown; {'error', 'worker'} -> {'timeout', 5000}; {'error', 'supervisor'} -> 'infinity' end, #{restart => S153Restart, shutdown => S157Shutdown, start => S152Start, typ => S155Typ} end.
+'make_child_spec'(S102Start) -> ?MODULE:'make_child_spec'(S102Start, #{}).
+'make_child_spec'(S102Start, S2652) -> S103Restart = sesterl_internal_prim:decode_option_with_default(S2652, restart, fun() -> 'permanent' end), S104ShutdownOpt = sesterl_internal_prim:decode_option(S2652, shutdown), S105Typ = sesterl_internal_prim:decode_option_with_default(S2652, type, fun() -> 'worker' end), begin S107Shutdown = case {S104ShutdownOpt, S105Typ} of {{'ok', S106Shutdown}, _} -> S106Shutdown; {'error', 'worker'} -> {'timeout', 5000}; {'error', 'supervisor'} -> 'infinity' end, #{restart => S103Restart, shutdown => S107Shutdown, start => S102Start, typ => S105Typ} end.
 'make_sup_flags'() -> ?MODULE:'make_sup_flags'(#{}).
-'make_sup_flags'(S2394) -> S159Intensity = sesterl_internal_prim:decode_option_with_default(S2394, intensity, fun() -> 1 end), S160Period = sesterl_internal_prim:decode_option_with_default(S2394, period, fun() -> 5 end), #{intensity => S159Intensity, period => S160Period}.
-'init_ok'(S162SupFlags, S163ChildSpec) -> sesterl_internal_prim:'return'({S162SupFlags, S163ChildSpec}).
+'make_sup_flags'(S2653) -> S109Intensity = sesterl_internal_prim:decode_option_with_default(S2653, intensity, fun() -> 1 end), S110Period = sesterl_internal_prim:decode_option_with_default(S2653, period, fun() -> 5 end), #{intensity => S109Intensity, period => S110Period}.
+'init_ok'(S112SupFlags, S113ChildSpec) -> sesterl_internal_prim:'return'({S112SupFlags, S113ChildSpec}).

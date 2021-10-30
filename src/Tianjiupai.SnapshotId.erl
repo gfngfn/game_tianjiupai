@@ -4,4 +4,4 @@
         Uuid = uuid:get_v4(),
         list_to_binary(uuid:uuid_to_string(Uuid)).
   
-'equal'(S993S1, S994S2) -> 'SesterlStdlib.Binary':'equal'(S993S1, S994S2).
+'equal'(S1073S1, S1074S2) -> 'SesterlStdlib.Binary':'equal'(S1073S1, S1074S2).

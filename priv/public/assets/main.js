@@ -5171,6 +5171,9 @@ var author$project$Models$NotifyGameStart = function (a) {
 	return {$: 'NotifyGameStart', a: a};
 };
 var author$project$Models$NotifyNextStep = {$: 'NotifyNextStep'};
+var author$project$Models$NotifyPlazaUpdate = function (a) {
+	return {$: 'NotifyPlazaUpdate', a: a};
+};
 var author$project$Models$NotifyRoomClose = {$: 'NotifyRoomClose'};
 var author$project$Models$NotifySubmission = function (a) {
 	return {$: 'NotifySubmission', a: a};
@@ -5213,6 +5216,8 @@ var author$project$Models$decodeConnection = A2(
 			A2(elm$json$Json$Decode$field, 'user', author$project$Models$decodeUser));
 	},
 	A2(elm$json$Json$Decode$field, 'is_connected', author$project$Models$decodeBool));
+var elm$json$Json$Decode$list = _Json_decodeList;
+var author$project$Models$decodeList = elm$json$Json$Decode$list;
 var author$project$Models$SeatA = {$: 'SeatA'};
 var author$project$Models$SeatB = {$: 'SeatB'};
 var author$project$Models$SeatC = {$: 'SeatC'};
@@ -5366,8 +5371,6 @@ var author$project$Models$decodeCard = A2(
 		}
 	},
 	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
-var elm$json$Json$Decode$list = _Json_decodeList;
-var author$project$Models$decodeList = elm$json$Json$Decode$list;
 var author$project$Models$DoubleBoth = function (a) {
 	return {$: 'DoubleBoth', a: a};
 };
@@ -5670,6 +5673,39 @@ var author$project$Models$decodeObservableGameState = A2(
 			A2(elm$json$Json$Decode$field, 'observable_inning', author$project$Models$decodeObservableInning));
 	},
 	A2(elm$json$Json$Decode$field, 'meta', author$project$Models$decodeGameMeta));
+var author$project$Models$decodeRoomName = author$project$Models$decodeString;
+var author$project$Models$decodeRoom = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeyRoomId) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyRoomName) {
+				return elm$json$Json$Decode$succeed(
+					{roomId: localKeyRoomId, roomName: localKeyRoomName});
+			},
+			A2(elm$json$Json$Decode$field, 'room_name', author$project$Models$decodeRoomName));
+	},
+	A2(elm$json$Json$Decode$field, 'room_id', author$project$Models$decodeRoomId));
+var author$project$Models$decodeRoomSummary = A2(
+	elm$json$Json$Decode$andThen,
+	function (localKeyIsPlaying) {
+		return A2(
+			elm$json$Json$Decode$andThen,
+			function (localKeyMembers) {
+				return A2(
+					elm$json$Json$Decode$andThen,
+					function (localKeyRoom) {
+						return elm$json$Json$Decode$succeed(
+							{isPlaying: localKeyIsPlaying, members: localKeyMembers, room: localKeyRoom});
+					},
+					A2(elm$json$Json$Decode$field, 'room', author$project$Models$decodeRoom));
+			},
+			A2(
+				elm$json$Json$Decode$field,
+				'members',
+				author$project$Models$decodeList(author$project$Models$decodeUser)));
+	},
+	A2(elm$json$Json$Decode$field, 'is_playing', author$project$Models$decodeBool));
 var author$project$Models$NormalInningEnd = {$: 'NormalInningEnd'};
 var author$project$Models$SpecialInningEnd = function (a) {
 	return {$: 'SpecialInningEnd', a: a};
@@ -5835,6 +5871,14 @@ var author$project$Models$decodeNotification = A2(
 					A2(elm$json$Json$Decode$map, author$project$Models$NotifyGameStart, author$project$Models$decodeObservableGameState));
 			case 'NotifyNextStep':
 				return elm$json$Json$Decode$succeed(author$project$Models$NotifyNextStep);
+			case 'NotifyPlazaUpdate':
+				return A2(
+					elm$json$Json$Decode$field,
+					'_arg',
+					A2(
+						elm$json$Json$Decode$map,
+						author$project$Models$NotifyPlazaUpdate,
+						author$project$Models$decodeList(author$project$Models$decodeRoomSummary)));
 			case 'NotifyRoomClose':
 				return elm$json$Json$Decode$succeed(author$project$Models$NotifyRoomClose);
 			case 'NotifySubmission':
@@ -7711,19 +7755,6 @@ var author$project$Models$decodeObservableRoomState = A2(
 		}
 	},
 	A2(elm$json$Json$Decode$field, '_label', elm$json$Json$Decode$string));
-var author$project$Models$decodeRoomName = author$project$Models$decodeString;
-var author$project$Models$decodeRoom = A2(
-	elm$json$Json$Decode$andThen,
-	function (localKeyRoomId) {
-		return A2(
-			elm$json$Json$Decode$andThen,
-			function (localKeyRoomName) {
-				return elm$json$Json$Decode$succeed(
-					{roomId: localKeyRoomId, roomName: localKeyRoomName});
-			},
-			A2(elm$json$Json$Decode$field, 'room_name', author$project$Models$decodeRoomName));
-	},
-	A2(elm$json$Json$Decode$field, 'room_id', author$project$Models$decodeRoomId));
 var author$project$Models$decodePersonalState = A2(
 	elm$json$Json$Decode$andThen,
 	function (localKeyGame) {
@@ -7916,26 +7947,6 @@ var author$project$HttpClient$exitRoom = F3(
 var author$project$Common$AllRoomsGot = function (a) {
 	return {$: 'AllRoomsGot', a: a};
 };
-var author$project$Models$decodeRoomSummary = A2(
-	elm$json$Json$Decode$andThen,
-	function (localKeyIsPlaying) {
-		return A2(
-			elm$json$Json$Decode$andThen,
-			function (localKeyMembers) {
-				return A2(
-					elm$json$Json$Decode$andThen,
-					function (localKeyRoom) {
-						return elm$json$Json$Decode$succeed(
-							{isPlaying: localKeyIsPlaying, members: localKeyMembers, room: localKeyRoom});
-					},
-					A2(elm$json$Json$Decode$field, 'room', author$project$Models$decodeRoom));
-			},
-			A2(
-				elm$json$Json$Decode$field,
-				'members',
-				author$project$Models$decodeList(author$project$Models$decodeUser)));
-	},
-	A2(elm$json$Json$Decode$field, 'is_playing', author$project$Models$decodeBool));
 var author$project$Models$decodeGetAllRoomsResponse = A2(
 	elm$json$Json$Decode$andThen,
 	function (localKeyRooms) {
@@ -8116,8 +8127,10 @@ var author$project$Main$showNotification = function (notification) {
 			return 'NotifyConnection';
 		case 'NotifyEnteredMidway':
 			return 'NotifyEnteredMidway';
-		default:
+		case 'NotifyRoomClose':
 			return 'NotifyRoomClose';
+		default:
+			return 'NotifyPlazaUpdate';
 	}
 };
 var author$project$Main$showResponse = function (resp) {
@@ -8459,7 +8472,7 @@ var author$project$Main$update = F2(
 				var user = _n0.b;
 				var roomNameInput0 = _n0.c;
 				var maybeRooms = _n0.d;
-				_n9$11:
+				_n9$13:
 				while (true) {
 					switch (msg.$) {
 						case 'WindowResized':
@@ -8486,7 +8499,7 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n9$11;
+								break _n9$13;
 							}
 						case 'SendRequest':
 							switch (msg.a.$) {
@@ -8509,7 +8522,7 @@ var author$project$Main$update = F2(
 									var cmd = A3(author$project$HttpClient$enterRoom, model.origin, user.userId, roomId);
 									return _Utils_Tuple2(model, cmd);
 								default:
-									break _n9$11;
+									break _n9$13;
 							}
 						case 'ReceiveResponse':
 							switch (msg.a.$) {
@@ -8569,31 +8582,12 @@ var author$project$Main$update = F2(
 									var roomName = _n15.a;
 									var result = _n15.b;
 									if (result.$ === 'Ok') {
-										var responseBody = result.a;
-										if (maybeRooms.$ === 'Just') {
-											var roomSummaries0 = maybeRooms.a;
-											var roomId = responseBody.roomId;
-											var roomSummary = {
-												isPlaying: false,
-												members: _List_Nil,
-												room: {roomId: roomId, roomName: roomName}
-											};
-											var roomSummaries1 = A2(elm$core$List$cons, roomSummary, roomSummaries0);
-											return _Utils_Tuple2(
-												_Utils_update(
-													model,
-													{
-														state: A4(
-															author$project$Common$AtPlaza,
-															ws,
-															user,
-															roomNameInput0,
-															elm$core$Maybe$Just(roomSummaries1))
-													}),
-												elm$core$Platform$Cmd$none);
-										} else {
-											return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
-										}
+										var message = _Utils_Tuple2(author$project$Common$Information, 'room \'' + (roomName + '\' has been created'));
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{message: message}),
+											elm$core$Platform$Cmd$none);
 									} else {
 										var err = result.a;
 										return _Utils_Tuple2(
@@ -8605,13 +8599,13 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								case 'RoomEntered':
-									var _n18 = msg.a;
-									var roomId = _n18.a;
-									var result = _n18.b;
+									var _n17 = msg.a;
+									var roomId = _n17.a;
+									var result = _n17.b;
 									if (result.$ === 'Ok') {
 										var pstate0 = result.a;
-										var _n20 = pstate0.game;
-										if (_n20.$ === 'WaitingStart') {
+										var _n19 = pstate0.game;
+										if (_n19.$ === 'WaitingStart') {
 											return _Utils_Tuple2(
 												_Utils_update(
 													model,
@@ -8620,7 +8614,7 @@ var author$project$Main$update = F2(
 													}),
 												elm$core$Platform$Cmd$none);
 										} else {
-											var ostate0 = _n20.a;
+											var ostate0 = _n19.a;
 											var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate0.snapshotId);
 											var ostate1 = ostate0;
 											var pstate1 = _Utils_update(
@@ -8650,9 +8644,9 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								case 'RoomGot':
-									var _n21 = msg.a;
-									var roomId = _n21.a;
-									var result = _n21.b;
+									var _n20 = msg.a;
+									var roomId = _n20.a;
+									var result = _n20.b;
 									if (result.$ === 'Ok') {
 										var pstate = result.a;
 										return _Utils_Tuple2(
@@ -8673,10 +8667,41 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								default:
-									break _n9$11;
+									break _n9$13;
+							}
+						case 'ReceiveNotification':
+							if (msg.a.$ === 'Err') {
+								var err = msg.a.a;
+								return _Utils_Tuple2(
+									_Utils_update(
+										model,
+										{
+											message: _Utils_Tuple2(
+												author$project$Common$Warning,
+												'invalid notification: ' + elm$json$Json$Decode$errorToString(err))
+										}),
+									elm$core$Platform$Cmd$none);
+							} else {
+								if (msg.a.a.$ === 'NotifyPlazaUpdate') {
+									var rooms = msg.a.a.a;
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												state: A4(
+													author$project$Common$AtPlaza,
+													ws,
+													user,
+													roomNameInput0,
+													elm$core$Maybe$Just(rooms))
+											}),
+										elm$core$Platform$Cmd$none);
+								} else {
+									break _n9$13;
+								}
 							}
 						default:
-							break _n9$11;
+							break _n9$13;
 					}
 				}
 				return _Utils_Tuple2(
@@ -8694,14 +8719,14 @@ var author$project$Main$update = F2(
 				var pstate0 = _n0.c;
 				var indices0 = _n0.d;
 				var chatTextInput0 = _n0.e;
-				var _n23 = _Utils_Tuple2(pstate0.game, msg);
-				_n23$22:
+				var _n22 = _Utils_Tuple2(pstate0.game, msg);
+				_n22$23:
 				while (true) {
-					switch (_n23.b.$) {
+					switch (_n22.b.$) {
 						case 'WindowResized':
-							var _n24 = _n23.b;
-							var width = _n24.a;
-							var height = _n24.b;
+							var _n23 = _n22.b;
+							var width = _n23.a;
+							var height = _n23.b;
 							return _Utils_Tuple2(
 								_Utils_update(
 									model,
@@ -8713,12 +8738,12 @@ var author$project$Main$update = F2(
 									}),
 								elm$core$Platform$Cmd$none);
 						case 'Heartbeat':
-							var _n25 = _n23.b;
+							var _n24 = _n22.b;
 							var cmd = author$project$WebSocketClient$sendHeartbeat(ws);
 							return _Utils_Tuple2(model, cmd);
 						case 'UpdateInput':
-							if (_n23.b.a.$ === 'ChatInput') {
-								var chatTextInput1 = _n23.b.a.a;
+							if (_n22.b.a.$ === 'ChatInput') {
+								var chatTextInput1 = _n22.b.a.a;
 								return _Utils_Tuple2(
 									_Utils_update(
 										model,
@@ -8727,14 +8752,14 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n23$22;
+								break _n22$23;
 							}
 						case 'ReceiveResponse':
-							switch (_n23.b.a.$) {
+							switch (_n22.b.a.$) {
 								case 'RoomExited':
-									var _n27 = _n23.b.a;
-									var roomId = _n27.a;
-									var res = _n27.b;
+									var _n26 = _n22.b.a;
+									var roomId = _n26.a;
+									var res = _n26.b;
 									if (res.$ === 'Ok') {
 										var cmd = author$project$HttpClient$getAllRooms(model.origin);
 										return _Utils_Tuple2(
@@ -8755,18 +8780,18 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								case 'SubmissionDone':
-									if (_n23.a.$ === 'PlayingGame') {
-										var ostate0 = _n23.a.a;
-										var res = _n23.b.a.a;
+									if (_n22.a.$ === 'PlayingGame') {
+										var ostate0 = _n22.a.a;
+										var res = _n22.b.a.a;
 										var nextResult = function () {
 											if (res.$ === 'Ok') {
 												var submissionResponse = res.a;
 												var newState = submissionResponse.newState;
-												var _n40 = _Utils_Tuple2(submissionResponse.trickLast, ostate0.observableInning);
-												if (_n40.a.$ === 'Just') {
-													if (_n40.b.$ === 'ObservableDuringInning') {
-														var last = _n40.a.a;
-														var oinning0 = _n40.b.a;
+												var _n39 = _Utils_Tuple2(submissionResponse.trickLast, ostate0.observableInning);
+												if (_n39.a.$ === 'Just') {
+													if (_n39.b.$ === 'ObservableDuringInning') {
+														var last = _n39.a.a;
+														var oinning0 = _n39.b.a;
 														var oinning1 = _Utils_update(
 															oinning0,
 															{table: last.table, yourHand: last.hand});
@@ -8776,11 +8801,11 @@ var author$project$Main$update = F2(
 																observableInning: author$project$Models$ObservableDuringInning(oinning1)
 															});
 														var logs1 = function () {
-															var _n41 = last.changes;
-															if (_n41.$ === 'Nothing') {
+															var _n40 = last.changes;
+															if (_n40.$ === 'Nothing') {
 																return pstate0.logs;
 															} else {
-																var changes = _n41.a;
+																var changes = _n40.a;
 																return _Utils_ap(
 																	pstate0.logs,
 																	_List_fromArray(
@@ -8816,7 +8841,7 @@ var author$project$Main$update = F2(
 																'unexpected message (Just, _): ' + author$project$Main$showMessage(msg)));
 													}
 												} else {
-													var _n42 = _n40.a;
+													var _n41 = _n39.a;
 													var ostate1 = newState;
 													var state1 = A5(
 														author$project$Common$InRoom,
@@ -8874,15 +8899,15 @@ var author$project$Main$update = F2(
 												elm$core$Platform$Cmd$none);
 										}
 									} else {
-										break _n23$22;
+										break _n22$23;
 									}
 								default:
-									break _n23$22;
+									break _n22$23;
 							}
 						case 'TransitionToNextTrick':
-							if (_n23.a.$ === 'PlayingGame') {
-								var ostate0 = _n23.a.a;
-								var ostate1 = _n23.b.a;
+							if (_n22.a.$ === 'PlayingGame') {
+								var ostate0 = _n22.a.a;
+								var ostate1 = _n22.b.a;
 								if (ostate0.synchronizing) {
 									var ostate2 = _Utils_update(
 										ostate1,
@@ -8919,11 +8944,132 @@ var author$project$Main$update = F2(
 										elm$core$Platform$Cmd$none);
 								}
 							} else {
-								break _n23$22;
+								break _n22$23;
+							}
+						case 'SendRequest':
+							switch (_n22.b.a.$) {
+								case 'SendChat':
+									var _n25 = _n22.b.a;
+									var cmd = A2(author$project$WebSocketClient$sendChat, ws, chatTextInput0);
+									return _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{
+												state: A5(author$project$Common$InRoom, ws, user, pstate0, indices0, '')
+											}),
+										cmd);
+								case 'ExitRoom':
+									var roomId = _n22.b.a.a;
+									var cmd = A3(author$project$HttpClient$exitRoom, model.origin, user.userId, roomId);
+									return _Utils_Tuple2(model, cmd);
+								case 'SubmitCards':
+									if (_n22.a.$ === 'PlayingGame') {
+										var ostate0 = _n22.a.a;
+										var _n43 = _n22.b.a;
+										var _n44 = ostate0.observableInning;
+										if (_n44.$ === 'ObservableDuringInning') {
+											var inning = _n44.a;
+											var ostate1 = _Utils_update(
+												ostate0,
+												{synchronizing: true});
+											var indices1 = elm$core$Set$empty;
+											var state1 = A5(
+												author$project$Common$InRoom,
+												ws,
+												user,
+												_Utils_update(
+													pstate0,
+													{
+														game: author$project$Models$PlayingGame(ostate1)
+													}),
+												indices1,
+												chatTextInput0);
+											var cards = A2(author$project$Main$pickupSelectedCards, indices0, inning.yourHand);
+											var cmd = A4(author$project$HttpClient$submitCards, model.origin, user.userId, pstate0.room.roomId, cards);
+											return A2(
+												elm$core$Debug$log,
+												'SubmitCards (+)',
+												_Utils_Tuple2(
+													_Utils_update(
+														model,
+														{state: state1}),
+													cmd));
+										} else {
+											return _Utils_Tuple2(
+												_Utils_update(
+													model,
+													{
+														message: _Utils_Tuple2(author$project$Common$Warning, 'inning has already ended')
+													}),
+												elm$core$Platform$Cmd$none);
+										}
+									} else {
+										break _n22$23;
+									}
+								case 'RequireNextInning':
+									if (_n22.a.$ === 'PlayingGame') {
+										var ostate0 = _n22.a.a;
+										var _n45 = _n22.b.a;
+										var cmd = A2(author$project$WebSocketClient$requireNextInning, ws, ostate0.snapshotId);
+										var ostate1 = _Utils_update(
+											ostate0,
+											{synchronizing: true});
+										var state1 = A5(
+											author$project$Common$InRoom,
+											ws,
+											user,
+											_Utils_update(
+												pstate0,
+												{
+													game: author$project$Models$PlayingGame(ostate1)
+												}),
+											indices0,
+											chatTextInput0);
+										return A2(
+											elm$core$Debug$log,
+											'RequireNextInning (+)',
+											_Utils_Tuple2(
+												_Utils_update(
+													model,
+													{state: state1}),
+												cmd));
+									} else {
+										break _n22$23;
+									}
+								default:
+									break _n22$23;
+							}
+						case 'SelectCard':
+							if (_n22.a.$ === 'PlayingGame') {
+								var index = _n22.b.a;
+								var indices1 = A2(elm$core$Set$insert, index, indices0);
+								return _Utils_Tuple2(
+									_Utils_update(
+										model,
+										{
+											state: A5(author$project$Common$InRoom, ws, user, pstate0, indices1, chatTextInput0)
+										}),
+									elm$core$Platform$Cmd$none);
+							} else {
+								break _n22$23;
+							}
+						case 'UnselectCard':
+							if (_n22.a.$ === 'PlayingGame') {
+								var index = _n22.b.a;
+								var indices1 = A2(elm$core$Set$remove, index, indices0);
+								return _Utils_Tuple2(
+									_Utils_update(
+										model,
+										{
+											state: A5(author$project$Common$InRoom, ws, user, pstate0, indices1, chatTextInput0)
+										}),
+									elm$core$Platform$Cmd$none);
+							} else {
+								break _n22$23;
 							}
 						case 'ReceiveNotification':
-							if (_n23.b.a.$ === 'Err') {
-								var err = _n23.b.a.a;
+							if (_n22.b.a.$ === 'Err') {
+								var err = _n22.b.a.a;
 								return _Utils_Tuple2(
 									_Utils_update(
 										model,
@@ -8934,9 +9080,9 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								switch (_n23.b.a.a.$) {
+								switch (_n22.b.a.a.$) {
 									case 'NotifyComment':
-										var comment = _n23.b.a.a.a;
+										var comment = _n22.b.a.a.a;
 										var pstate1 = _Utils_update(
 											pstate0,
 											{
@@ -8955,17 +9101,17 @@ var author$project$Main$update = F2(
 												}),
 											elm$core$Platform$Cmd$none);
 									case 'NotifyEntered':
-										if (_n23.a.$ === 'WaitingStart') {
-											var users0 = _n23.a.a;
-											var userEntered = _n23.b.a.a.a;
+										if (_n22.a.$ === 'WaitingStart') {
+											var users0 = _n22.a.a;
+											var userEntered = _n22.b.a.a.a;
 											var users1 = function () {
-												var _n29 = A2(
+												var _n28 = A2(
 													elm$core$List$filter,
 													function (u) {
 														return _Utils_eq(u.userId, userEntered.userId);
 													},
 													users0);
-												if (!_n29.b) {
+												if (!_n28.b) {
 													return _Utils_ap(
 														users0,
 														_List_fromArray(
@@ -8993,17 +9139,17 @@ var author$project$Main$update = F2(
 													}),
 												elm$core$Platform$Cmd$none);
 										} else {
-											break _n23$22;
+											break _n22$23;
 										}
 									case 'NotifyExited':
-										var game0 = _n23.a;
-										var userExited = _n23.b.a.a.a;
+										var game0 = _n22.a;
+										var userExited = _n22.b.a.a.a;
 										var game1 = function () {
 											if (game0.$ === 'PlayingGame') {
 												var ostate0 = game0.a;
 												var meta0 = ostate0.meta;
 												var players0 = meta0.players;
-												var _n31 = A2(
+												var _n30 = A2(
 													author$project$PerSeat$find,
 													function (maybePlayer) {
 														if (maybePlayer.$ === 'Nothing') {
@@ -9014,10 +9160,10 @@ var author$project$Main$update = F2(
 														}
 													},
 													players0);
-												if (_n31.$ === 'Nothing') {
+												if (_n30.$ === 'Nothing') {
 													return A2(elm$core$Debug$log, 'Warning: received NotifyExited, but already no ' + userExited.userId, game0);
 												} else {
-													var seat = _n31.a;
+													var seat = _n30.a;
 													var players1 = A3(author$project$PerSeat$update, seat, elm$core$Maybe$Nothing, players0);
 													return author$project$Models$PlayingGame(
 														_Utils_update(
@@ -9058,7 +9204,7 @@ var author$project$Main$update = F2(
 												}),
 											elm$core$Platform$Cmd$none);
 									case 'NotifyConnection':
-										var connection = _n23.b.a.a.a;
+										var connection = _n22.b.a.a.a;
 										var pstate1 = _Utils_update(
 											pstate0,
 											{
@@ -9077,7 +9223,7 @@ var author$project$Main$update = F2(
 												}),
 											elm$core$Platform$Cmd$none);
 									case 'NotifyGameStart':
-										var ostate0 = _n23.b.a.a.a;
+										var ostate0 = _n22.b.a.a.a;
 										var cmd = A2(author$project$WebSocketClient$sendAck, ws, ostate0.snapshotId);
 										var ostate1 = _Utils_update(
 											ostate0,
@@ -9105,7 +9251,7 @@ var author$project$Main$update = F2(
 													{state: state1}),
 												cmd));
 									case 'NotifyRoomClose':
-										var _n33 = _n23.b.a.a;
+										var _n32 = _n22.b.a.a;
 										var cmd = author$project$HttpClient$getAllRooms(model.origin);
 										return _Utils_Tuple2(
 											_Utils_update(
@@ -9115,9 +9261,9 @@ var author$project$Main$update = F2(
 												}),
 											cmd);
 									case 'NotifyEnteredMidway':
-										if (_n23.a.$ === 'PlayingGame') {
-											var ostate0 = _n23.a.a;
-											var midwayEnter = _n23.b.a.a.a;
+										if (_n22.a.$ === 'PlayingGame') {
+											var ostate0 = _n22.a.a;
+											var midwayEnter = _n22.b.a.a.a;
 											var userEntered = midwayEnter.user;
 											var seat = midwayEnter.seat;
 											var meta0 = ostate0.meta;
@@ -9153,19 +9299,19 @@ var author$project$Main$update = F2(
 													}),
 												elm$core$Platform$Cmd$none);
 										} else {
-											break _n23$22;
+											break _n22$23;
 										}
 									case 'NotifySubmission':
-										if (_n23.a.$ === 'PlayingGame') {
-											var ostate0 = _n23.a.a;
-											var submission = _n23.b.a.a.a;
+										if (_n22.a.$ === 'PlayingGame') {
+											var ostate0 = _n22.a.a;
+											var submission = _n22.b.a.a.a;
 											var newState = submission.newState;
 											var maybeNext = function () {
-												var _n35 = _Utils_Tuple2(submission.trickLast, ostate0.observableInning);
-												if (_n35.a.$ === 'Just') {
-													if (_n35.b.$ === 'ObservableDuringInning') {
-														var observableLast = _n35.a.a;
-														var oinning0 = _n35.b.a;
+												var _n34 = _Utils_Tuple2(submission.trickLast, ostate0.observableInning);
+												if (_n34.a.$ === 'Just') {
+													if (_n34.b.$ === 'ObservableDuringInning') {
+														var observableLast = _n34.a.a;
+														var oinning0 = _n34.b.a;
 														var oinning1 = _Utils_update(
 															oinning0,
 															{table: observableLast.table});
@@ -9176,11 +9322,11 @@ var author$project$Main$update = F2(
 																synchronizing: true
 															});
 														var logs1 = function () {
-															var _n36 = observableLast.changes;
-															if (_n36.$ === 'Nothing') {
+															var _n35 = observableLast.changes;
+															if (_n35.$ === 'Nothing') {
 																return pstate0.logs;
 															} else {
-																var changes = _n36.a;
+																var changes = _n35.a;
 																return _Utils_ap(
 																	pstate0.logs,
 																	_List_fromArray(
@@ -9210,7 +9356,7 @@ var author$project$Main$update = F2(
 														return elm$core$Maybe$Nothing;
 													}
 												} else {
-													var _n37 = _n35.a;
+													var _n36 = _n34.a;
 													var ostate1 = _Utils_update(
 														newState,
 														{synchronizing: true});
@@ -9248,12 +9394,12 @@ var author$project$Main$update = F2(
 													elm$core$Platform$Cmd$none);
 											}
 										} else {
-											break _n23$22;
+											break _n22$23;
 										}
-									default:
-										if (_n23.a.$ === 'PlayingGame') {
-											var ostate0 = _n23.a.a;
-											var _n43 = _n23.b.a.a;
+									case 'NotifyNextStep':
+										if (_n22.a.$ === 'PlayingGame') {
+											var ostate0 = _n22.a.a;
+											var _n42 = _n22.b.a.a;
 											if (ostate0.synchronizing) {
 												var ostate1 = _Utils_update(
 													ostate0,
@@ -9289,133 +9435,14 @@ var author$project$Main$update = F2(
 													elm$core$Platform$Cmd$none);
 											}
 										} else {
-											break _n23$22;
+											break _n22$23;
 										}
+									default:
+										return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
 								}
 							}
-						case 'SendRequest':
-							switch (_n23.b.a.$) {
-								case 'SendChat':
-									var _n26 = _n23.b.a;
-									var cmd = A2(author$project$WebSocketClient$sendChat, ws, chatTextInput0);
-									return _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{
-												state: A5(author$project$Common$InRoom, ws, user, pstate0, indices0, '')
-											}),
-										cmd);
-								case 'ExitRoom':
-									var roomId = _n23.b.a.a;
-									var cmd = A3(author$project$HttpClient$exitRoom, model.origin, user.userId, roomId);
-									return _Utils_Tuple2(model, cmd);
-								case 'SubmitCards':
-									if (_n23.a.$ === 'PlayingGame') {
-										var ostate0 = _n23.a.a;
-										var _n44 = _n23.b.a;
-										var _n45 = ostate0.observableInning;
-										if (_n45.$ === 'ObservableDuringInning') {
-											var inning = _n45.a;
-											var ostate1 = _Utils_update(
-												ostate0,
-												{synchronizing: true});
-											var indices1 = elm$core$Set$empty;
-											var state1 = A5(
-												author$project$Common$InRoom,
-												ws,
-												user,
-												_Utils_update(
-													pstate0,
-													{
-														game: author$project$Models$PlayingGame(ostate1)
-													}),
-												indices1,
-												chatTextInput0);
-											var cards = A2(author$project$Main$pickupSelectedCards, indices0, inning.yourHand);
-											var cmd = A4(author$project$HttpClient$submitCards, model.origin, user.userId, pstate0.room.roomId, cards);
-											return A2(
-												elm$core$Debug$log,
-												'SubmitCards (+)',
-												_Utils_Tuple2(
-													_Utils_update(
-														model,
-														{state: state1}),
-													cmd));
-										} else {
-											return _Utils_Tuple2(
-												_Utils_update(
-													model,
-													{
-														message: _Utils_Tuple2(author$project$Common$Warning, 'inning has already ended')
-													}),
-												elm$core$Platform$Cmd$none);
-										}
-									} else {
-										break _n23$22;
-									}
-								case 'RequireNextInning':
-									if (_n23.a.$ === 'PlayingGame') {
-										var ostate0 = _n23.a.a;
-										var _n46 = _n23.b.a;
-										var cmd = A2(author$project$WebSocketClient$requireNextInning, ws, ostate0.snapshotId);
-										var ostate1 = _Utils_update(
-											ostate0,
-											{synchronizing: true});
-										var state1 = A5(
-											author$project$Common$InRoom,
-											ws,
-											user,
-											_Utils_update(
-												pstate0,
-												{
-													game: author$project$Models$PlayingGame(ostate1)
-												}),
-											indices0,
-											chatTextInput0);
-										return A2(
-											elm$core$Debug$log,
-											'RequireNextInning (+)',
-											_Utils_Tuple2(
-												_Utils_update(
-													model,
-													{state: state1}),
-												cmd));
-									} else {
-										break _n23$22;
-									}
-								default:
-									break _n23$22;
-							}
-						case 'SelectCard':
-							if (_n23.a.$ === 'PlayingGame') {
-								var index = _n23.b.a;
-								var indices1 = A2(elm$core$Set$insert, index, indices0);
-								return _Utils_Tuple2(
-									_Utils_update(
-										model,
-										{
-											state: A5(author$project$Common$InRoom, ws, user, pstate0, indices1, chatTextInput0)
-										}),
-									elm$core$Platform$Cmd$none);
-							} else {
-								break _n23$22;
-							}
-						case 'UnselectCard':
-							if (_n23.a.$ === 'PlayingGame') {
-								var index = _n23.b.a;
-								var indices1 = A2(elm$core$Set$remove, index, indices0);
-								return _Utils_Tuple2(
-									_Utils_update(
-										model,
-										{
-											state: A5(author$project$Common$InRoom, ws, user, pstate0, indices1, chatTextInput0)
-										}),
-									elm$core$Platform$Cmd$none);
-							} else {
-								break _n23$22;
-							}
 						default:
-							break _n23$22;
+							break _n22$23;
 					}
 				}
 				return _Utils_Tuple2(
