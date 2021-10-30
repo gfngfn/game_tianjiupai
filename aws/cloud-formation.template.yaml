@@ -149,7 +149,6 @@ Resources:
             apt:
               "make": []
               "nginx": []
-              "erlang": []
           files:
             "/home/ubuntu/install.sh":
               mode: "000755"
@@ -161,9 +160,15 @@ Resources:
                 PROJECT_PATH="${BUILD_ROOT_PATH}/game_tianjiupai"
                 PROJECT_URL="https://github.com/gfngfn/game_tianjiupai"
                 BRANCH_NAME="temp-deploy"
+                ERLANG_URL="https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc"
                 REBAR3_URL="https://s3.amazonaws.com/rebar3/rebar3"
                 echo "==== Overwrite settings for Nginx ===="
                 sudo cp /home/ubuntu/nginx.conf /etc/nginx/sites-enabled/default
+                echo "==== Installing The Latest Erlang/OTP (Currently 24) ===="
+                wget -O- "${ERLANG_URL}" | sudo apt-key add -
+                echo "deb https://packages.erlang-solutions.com/ubuntu focal contrib" | sudo tee /etc/apt/sources.list.d/erlang-solution.list
+                sudo apt update
+                sudo apt install -y erlang
                 echo "==== Installing Rebar3 ===="
                 sudo wget -O /home/ubuntu/rebar3 "${REBAR3_URL}"
                 sudo chmod a+x /home/ubuntu/rebar3
