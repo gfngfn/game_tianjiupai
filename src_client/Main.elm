@@ -177,28 +177,11 @@ update msg model =
 
         ReceiveResponse (RoomCreated roomName result) ->
           case result of
-            Ok responseBody ->
-              case maybeRooms of
-                Just roomSummaries0 ->
-                  let
-                    roomId : RoomId
-                    roomId =
-                      responseBody.roomId
-
-                    roomSummary : RoomSummary
-                    roomSummary =
-                      { room      = { roomId = roomId, roomName = roomName }
-                      , members   = []
-                      , isPlaying = False
-                      }
-
-                    roomSummaries1 : List RoomSummary
-                    roomSummaries1 = roomSummary :: roomSummaries0
-                  in
-                  ( { model | state = AtPlaza ws user roomNameInput0 (Just roomSummaries1) }, Cmd.none )
-
-                Nothing ->
-                  ( model, Cmd.none )
+            Ok _ ->
+              -- Do not need to decode the response body and to update the list of rooms here;
+              -- `NotifyPlazaUpdate` updates the list of rooms.
+              let message = ( Information, "room '" ++ roomName ++ "' has been created") in
+              ( { model | message = message }, Cmd.none )
 
             Err err ->
               ( { model | message = makeErrorMessage "room creation" err }, Cmd.none )
@@ -230,6 +213,12 @@ update msg model =
 
             Err err ->
               ( { model | message = makeErrorMessage "got room" err }, Cmd.none )
+
+        ReceiveNotification (Err err) ->
+          ( { model | message = ( Warning, "invalid notification: " ++ JD.errorToString err ) }, Cmd.none )
+
+        ReceiveNotification (Ok (NotifyPlazaUpdate rooms)) ->
+          ( { model | state = AtPlaza ws user roomNameInput0 (Just rooms) }, Cmd.none )
 
         _ ->
           ( { model | message = ( Warning, "unexpected message (AtPlaza): " ++ showMessage msg ) }, Cmd.none )
@@ -517,6 +506,9 @@ update msg model =
           let indices1 = indices0 |> Set.remove index in
           ( { model | state = InRoom ws user pstate0 indices1 chatTextInput0 }, Cmd.none )
 
+        ( _, ReceiveNotification (Ok (NotifyPlazaUpdate _)) ) ->
+          ( model, Cmd.none )
+
         _ ->
           ( { model | message = ( Warning, "unexpected message (InRoom): " ++ showMessage msg ) }, Cmd.none )
 
@@ -552,6 +544,7 @@ showNotification notification =
     NotifyConnection _    -> "NotifyConnection"
     NotifyEnteredMidway _ -> "NotifyEnteredMidway"
     NotifyRoomClose       -> "NotifyRoomClose"
+    NotifyPlazaUpdate _   -> "NotifyPlazaUpdate"
 
 
 showMessage : Msg -> String

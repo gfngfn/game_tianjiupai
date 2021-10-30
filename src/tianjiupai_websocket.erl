@@ -14,11 +14,11 @@
 %%====================================================================================================
 %% Exported API
 %%====================================================================================================
--export_type([
-    error_reason/0
-]).
 -export([
-    notify/2
+    notify/2,
+    notify_by_proc/2,
+    notify_room_close/1,
+    where_is/1
 ]).
 
 %%====================================================================================================
@@ -30,9 +30,6 @@
 
 -type message() ::
     {notifications, [tianjiupai:notification()]}.
-
--type error_reason() ::
-    {failed_to_notify, tianjiupai:user_id(), message()}.
 
 -define(FRONT, 'Tianjiupai.Api').
 -define(LOGGER, 'Tianjiupai.Logger').
@@ -48,7 +45,7 @@ init(Req0, _) ->
 
 websocket_init({MaybeUserId, MaybeInfo}) ->
     (?LOGGER:info(
-        {"websocket_init (user_id: ~p)", 1},
+        {"websocket_init (user_id: ~s)", 1},
         {MaybeUserId}
     ))(erlang:atom_to_binary(?MODULE), ?LINE),
     case {MaybeUserId, MaybeInfo} of
@@ -61,13 +58,13 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
             case register_name(UserId) of
                 ok ->
                     (?LOGGER:info(
-                        {"succeeded in registration (user_id: ~p)", 1},
+                        {"succeeded in registration (user_id: ~s)", 1},
                         {UserId}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     {ok, State};
                 {error, Reason} ->
                     (?LOGGER:info(
-                        {"succeeded in registration (user_id: ~p, reason: ~p)", 2},
+                        {"succeeded in registration (user_id: ~s, reason: ~p)", 2},
                         {UserId, Reason}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     {stop, Reason}
@@ -98,9 +95,19 @@ websocket_info(Msg, State) ->
                     end,
                     Notifications),
             {reply, Chunks, State};
+        room_closed ->
+            UserId = get_user_id(State),
+            (?LOGGER:debug(
+                {"room closed (user_id: ~s)", 1},
+                {UserId}
+            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ?FRONT:subscribe_plaza(UserId, self()),
+            Bin = ?FRONT:encode_notification(notify_room_close),
+            Chunks = [{text, Bin}],
+            {reply, Chunks, State};
         _ ->
             (?LOGGER:warning(
-                {"unknown message (messge: ~p)", 1},
+                {"unknown message (message: ~p)", 1},
                 {Msg}
             ))(erlang:atom_to_binary(?MODULE), ?LINE),
             {ok, State}
@@ -109,15 +116,46 @@ websocket_info(Msg, State) ->
 %%====================================================================================================
 %% Exported Functions
 %%====================================================================================================
--spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok | {error, error_reason()}.
+-spec notify(tianjiupai:user_id(), [tianjiupai:notification()]) -> ok.
 notify(UserId, Notifications) ->
     Msg = {notifications, Notifications},
     try
         _ = global:send(name(UserId), Msg),
         ok
     catch
-        _:_ ->
-            {error, {failed_to_notify, UserId, Msg}}
+        Class:Reason ->
+            (?LOGGER:warning(
+                {"failed to notify (user_id: ~s, notifications: ~p, class: ~p, reason: ~p)", 4},
+                {UserId, Notifications, Class, Reason}
+            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ok
+    end.
+
+-spec notify_by_proc(pid(), [tianjiupai:notification()]) -> ok.
+notify_by_proc(WsHandlerPid, Notifications) ->
+    Msg = {notifications, Notifications},
+    _ = WsHandlerPid ! Msg,
+    ok.
+
+-spec notify_room_close(tianjiupai:user_id()) -> ok.
+notify_room_close(UserId) ->
+    try
+        _ = global:send(name(UserId), room_closed),
+        ok
+    catch
+        Class:Reason ->
+            (?LOGGER:warning(
+                {"failed to notify room close (user_id: ~s, class: ~p, reason: ~p)", 3},
+                {UserId, Class, Reason}
+            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ok
+    end.
+
+-spec where_is(tianjiupai:user_id()) -> error | {ok, pid()}.
+where_is(UserId) ->
+    case global:whereis_name(name(UserId)) of
+        undefined                   -> error;
+        Pid when erlang:is_pid(Pid) -> {ok, Pid}
     end.
 
 %%====================================================================================================
@@ -148,10 +186,8 @@ register_name(UserId) ->
             end)
     of
         yes ->
-            case ?FRONT:set_websocket_connection(UserId, Self) of
-                {ok, ok} -> ok;
-                error    -> {error, set_websocket_connection_failed}
-            end;
+            ok = ?FRONT:set_websocket_connection(UserId, Self),
+            ok;
         no ->
             {error, failed_to_regster}
     end.

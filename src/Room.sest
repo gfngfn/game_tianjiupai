@@ -2,6 +2,8 @@ import Models
 import Card
 import RoomServerSup
 import RoomServer
+import WebSocketHandler
+import PlazaServer
 
 module Room :> sig
   open Stdlib
@@ -12,15 +14,13 @@ module Room :> sig
   val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
   val send_chat<$a> : fun(room_id, user, binary) -> [$a]option<unit>
-  val attend<$a> : fun(room_id, user) -> [$a]option<personal_state>
+  val attend<$a> : fun(room_id, user, WebSocketHandler.proc) -> [$a]option<personal_state>
   val exit<$a> : fun(room_id, user_id) -> [$a]option<unit>
   val submit<$a> : fun(room_id, user_id, list<Card.t>) -> [$a]option<{observable_game_state, option<last>}>
   val ack<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
   val require_next_inning<$a> : fun(room_id, user_id, snapshot_id) -> [$a]unit
-  val notify_connected<$a> : fun(room_id, user_id) -> [$a]unit
-  val notify_disconnected<$a> : fun(room_id, user_id) -> [$a]unit
-
-  val monitor<$a> : fun(room_id) -> [$a]option<RawValue.t>
+  val set_connection<$a> : fun(room_id, user_id, WebSocketHandler.proc) -> [$a]unit
+  val monitor<$a> : fun(room_id) -> [$a]option<MonitorRef.t>
 end = struct
   open Stdlib
   open Models
@@ -34,23 +34,10 @@ end = struct
   val create<$a>(room_name : room_name) : [$a]result<room_id, GenServer.start_link_error> = act
     do room_id <- generate_room_id() in
     do res <- RoomServerSup.start_child(-room_id room_id, -room_name room_name) in
-    return(Result.map(fun(proc) -> room_id end, res))
+    return(Result.map(fun(_) -> room_id end, res))
 
   val get_all_rooms() = act
-    do procs <- RoomServerSup.which_children() in
-    do acc <-
-      List.foldl_effect(
-        fun(acc, proc) -> act
-          do opt <- RoomServer.get_whole_state_by_proc(proc) in
-          case opt of
-          | Some(whole_state) -> return(whole_state :: acc)
-          | None              -> return(acc)
-          end
-        end,
-        [],
-        procs)
-    in
-    return(acc)
+    PlazaServer.get_all_rooms()
 
   val get_whole_state(room_id : room_id) = act
     RoomServer.get_whole_state(room_id)
@@ -58,8 +45,8 @@ end = struct
   val get_personal_state(room_id, user_id) = act
     RoomServer.get_personal_state(room_id, user_id)
 
-  val attend(room_id, user) = act
-    RoomServer.attend(room_id, user)
+  val attend(room_id, user, ws_proc) = act
+    RoomServer.attend(room_id, user, ws_proc)
 
   val exit(room_id, user_id) = act
     RoomServer.exit(room_id, user_id)
@@ -76,11 +63,8 @@ end = struct
   val require_next_inning(room_id, user_id, snapshot_id) = act
     RoomServer.require_next_inning(room_id, user_id, snapshot_id)
 
-  val notify_connected(room_id, user_id) = act
-    RoomServer.notify_connected(room_id, user_id)
-
-  val notify_disconnected(room_id, user_id) = act
-    RoomServer.notify_disconnected(room_id, user_id)
+  val set_connection(room_id, user_id, ws_proc) = act
+    RoomServer.set_connection(room_id, user_id, ws_proc)
 
   val monitor(room_id) = act
     RoomServer.monitor(room_id)

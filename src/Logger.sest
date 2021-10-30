@@ -1,9 +1,11 @@
 module Logger :> sig
+  val debug<$a> : fun(format<$a>, $a) -> fun(binary, int) -> unit
   val info<$a> : fun(format<$a>, $a) -> fun(binary, int) -> unit
   val warning<$a> : fun(format<$a>, $a) -> fun(binary, int) -> unit
 end = struct
 
   type level =
+    | Debug
     | Info
     | Warning
 
@@ -14,10 +16,13 @@ end = struct
         logger:log(Level, Format, erlang:tuple_to_list(Args), #{ file => FilenameStr, line => Line }).
   ```
 
+  val debug<$a>(fmt : format<$a>, args : $a) =
+    fun(filename, line) -> log_impl(Debug, filename, line, fmt, args) end
+
   val info<$a>(fmt : format<$a>, args : $a) =
     fun(filename, line) -> log_impl(Info, filename, line, fmt, args) end
 
   val warning<$a>(fmt : format<$a>, args : $a) =
-    fun(filename, line) -> log_impl(Info, filename, line, fmt, args) end
+    fun(filename, line) -> log_impl(Warning, filename, line, fmt, args) end
 
 end
