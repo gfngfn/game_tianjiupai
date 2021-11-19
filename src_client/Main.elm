@@ -120,18 +120,26 @@ update msg model =
               ( { model | message = makeErrorMessage "user creation" err }, Cmd.none )
 
         OpenWebSocket ws ->
-            case maybeUserAndRoom of
-              Just ( user, Nothing ) ->
-                let cmd = HttpClient.getAllRooms model.origin in
-                ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+          case maybeUserAndRoom of
+            Just ( user, Nothing ) ->
+              let cmd = HttpClient.getAllRooms model.origin in
+              ( { model | state = AtPlaza ws user "" Nothing }, cmd )
 
-              Just ( user, Just roomId ) ->
-                let cmd = HttpClient.getRoom model.origin user.userId roomId in
-                ( { model | state = AtPlaza ws user "" Nothing }, cmd )
+            Just ( user, Just roomId ) ->
+              let cmd = HttpClient.getRoom model.origin user.userId roomId in
+              ( { model | state = AtPlaza ws user "" Nothing }, cmd )
 
-              Nothing ->
-                let message = ( Warning, "unexpected message (AtEntrance): " ++ showMessage msg ) in
-                ( { model | message = message }, Cmd.none )
+            Nothing ->
+              let message = ( Warning, "unexpected message (AtEntrance): " ++ showMessage msg ) in
+              ( { model | message = message }, Cmd.none )
+
+        CloseWebSocket ->
+          let message = ( Warning, "WebSocket connection closed (AtEntrance)" ) in
+          ( { model | message = message }, Cmd.none )
+
+        ErrorOfWebSocket s ->
+          let message = ( Warning, "WebSocket error (AtEntrance): " ++ s ) in
+          ( { model | message = message }, Cmd.none )
 
         _ ->
           let message = ( Warning, "unexpected message (AtEntrance): " ++ showMessage msg ) in
@@ -219,6 +227,14 @@ update msg model =
 
         ReceiveNotification (Ok (NotifyPlazaUpdate rooms)) ->
           ( { model | state = AtPlaza ws user roomNameInput0 (Just rooms) }, Cmd.none )
+
+        CloseWebSocket ->
+          let message = ( Warning, "WebSocket connection closed (AtPlaza)" ) in
+          ( { model | message = message }, Cmd.none )
+
+        ErrorOfWebSocket s ->
+          let message = ( Warning, "WebSocket error (AtPlaza): " ++ s ) in
+          ( { model | message = message }, Cmd.none )
 
         _ ->
           ( { model | message = ( Warning, "unexpected message (AtPlaza): " ++ showMessage msg ) }, Cmd.none )
@@ -509,6 +525,14 @@ update msg model =
         ( _, ReceiveNotification (Ok (NotifyPlazaUpdate _)) ) ->
           ( model, Cmd.none )
 
+        ( _, CloseWebSocket ) ->
+          let message = ( Warning, "WebSocket connection closed (InRoom)" ) in
+          ( { model | message = message }, Cmd.none )
+
+        ( _, ErrorOfWebSocket s ) ->
+          let message = ( Warning, "WebSocket error (InRoom): " ++ s ) in
+          ( { model | message = message }, Cmd.none )
+
         _ ->
           ( { model | message = ( Warning, "unexpected message (InRoom): " ++ showMessage msg ) }, Cmd.none )
 
@@ -556,6 +580,8 @@ showMessage msg =
     ReceiveNotification (Err _) -> "ReceiveNotification (error)"
     ReceiveNotification (Ok nt) -> "ReceiveNotification (" ++ showNotification nt ++ ")"
     OpenWebSocket _             -> "OpenWebSocket"
+    CloseWebSocket              -> "CloseWebSocket"
+    ErrorOfWebSocket _          -> "ErrorOfWebSocket"
     SelectCard _                -> "SelectCard"
     UnselectCard _              -> "UnselectCard"
     TransitionToNextTrick _     -> "TransitionToNextTrick"

@@ -72,6 +72,8 @@ type Msg
   | ReceiveResponse Response
   | ReceiveNotification (Result JD.Error Notification)
   | OpenWebSocket Port.WebSocket
+  | CloseWebSocket
+  | ErrorOfWebSocket String
   | TransitionToNextTrick ObservableGameState
   | Heartbeat
   | WindowResized Int Int
