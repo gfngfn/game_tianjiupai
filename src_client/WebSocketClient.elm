@@ -32,6 +32,20 @@ onOpen =
   )
 
 
+onClose : Sub Msg
+onClose =
+  Port.onCloseWebSocket (\ws ->
+    CloseWebSocket
+  )
+
+
+onError : Sub Msg
+onError =
+  Port.onErrorOfWebSocket (\s ->
+    ErrorOfWebSocket s
+  )
+
+
 sendChat : WebSocket -> String -> Cmd Msg
 sendChat ws text =
   let s = JE.encode 0 (encodeCommand (CommandComment text)) in

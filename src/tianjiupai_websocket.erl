@@ -55,19 +55,21 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
             {stop, session_unavailable};
         {UserId, #{user_id := UserId} = Info} ->
             State = #state{session_info = Info},
-            case register_name(UserId) of
-                ok ->
+            Self = self(),
+            case register_name(UserId, Self) of
+                true ->
+                    ok = ?FRONT:set_websocket_connection(UserId, Self),
                     (?LOGGER:info(
                         {"succeeded in registration (user_id: ~s)", 1},
                         {UserId}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
                     {ok, State};
-                {error, Reason} ->
+                false ->
                     (?LOGGER:info(
-                        {"succeeded in registration (user_id: ~s, reason: ~p)", 2},
-                        {UserId, Reason}
+                        {"failed to register (user_id: ~s)", 1},
+                        {UserId}
                     ))(erlang:atom_to_binary(?MODULE), ?LINE),
-                    {stop, Reason}
+                    {stop, register_name_failed}
             end;
         _ ->
             {stop, user_id_mismatch}
@@ -161,35 +163,11 @@ where_is(UserId) ->
 %%====================================================================================================
 %% Internal Functions
 %%====================================================================================================
--spec register_name(tianjiupai:user_id()) -> ok | {error, Reason :: term()}.
-register_name(UserId) ->
-    Self = self(),
-    case
-        global:register_name(
-            name(UserId),
-            Self,
-            fun(Name, Pid1, Pid2) ->
-                    (?LOGGER:warning(
-                        {"name clash (name: ~p, pid1: ~p, pid2: ~p, new: ~p)", 4},
-                        {Name, Pid1, Pid2, Self}
-                    ))(erlang:atom_to_binary(?MODULE), ?LINE),
-                    case {Pid1, Pid2} of
-                        {Self, _} ->
-                            erlang:exit(Pid2),
-                            Self;
-                        {_, Self} ->
-                            erlang:exit(Pid1),
-                            Self;
-                        _ ->
-                            none
-                    end
-            end)
-    of
-        yes ->
-            ok = ?FRONT:set_websocket_connection(UserId, Self),
-            ok;
-        no ->
-            {error, failed_to_regster}
+-spec register_name(tianjiupai:user_id(), pid()) -> boolean().
+register_name(UserId, Self) ->
+    case global:register_name(name(UserId), Self) of
+        yes -> true;
+        no  -> false
     end.
 
 name(UserId) ->
