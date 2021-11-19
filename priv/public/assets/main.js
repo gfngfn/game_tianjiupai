@@ -8163,6 +8163,10 @@ var author$project$Main$showMessage = function (msg) {
 			}
 		case 'OpenWebSocket':
 			return 'OpenWebSocket';
+		case 'CloseWebSocket':
+			return 'CloseWebSocket';
+		case 'ErrorOfWebSocket':
+			return 'ErrorOfWebSocket';
 		case 'SelectCard':
 			return 'SelectCard';
 		case 'UnselectCard':
@@ -8346,7 +8350,7 @@ var author$project$Main$update = F2(
 			case 'AtEntrance':
 				var userNameInput = _n0.a;
 				var maybeUserAndRoom = _n0.b;
-				_n1$6:
+				_n1$8:
 				while (true) {
 					switch (msg.$) {
 						case 'WindowResized':
@@ -8372,7 +8376,7 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n1$6;
+								break _n1$8;
 							}
 						case 'SendRequest':
 							if (msg.a.$ === 'CreateUser') {
@@ -8380,7 +8384,7 @@ var author$project$Main$update = F2(
 								var cmd = A2(author$project$HttpClient$createUser, model.origin, userNameInput);
 								return _Utils_Tuple2(model, cmd);
 							} else {
-								break _n1$6;
+								break _n1$8;
 							}
 						case 'ReceiveResponse':
 							if (msg.a.$ === 'UserCreated') {
@@ -8415,7 +8419,7 @@ var author$project$Main$update = F2(
 										elm$core$Platform$Cmd$none);
 								}
 							} else {
-								break _n1$6;
+								break _n1$8;
 							}
 						case 'OpenWebSocket':
 							var ws = msg.a;
@@ -8455,8 +8459,23 @@ var author$project$Main$update = F2(
 										{message: message}),
 									elm$core$Platform$Cmd$none);
 							}
+						case 'CloseWebSocket':
+							var message = _Utils_Tuple2(author$project$Common$Warning, 'WebSocket connection closed (AtEntrance)');
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{message: message}),
+								elm$core$Platform$Cmd$none);
+						case 'ErrorOfWebSocket':
+							var s = msg.a;
+							var message = _Utils_Tuple2(author$project$Common$Warning, 'WebSocket error (AtEntrance): ' + s);
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{message: message}),
+								elm$core$Platform$Cmd$none);
 						default:
-							break _n1$6;
+							break _n1$8;
 					}
 				}
 				var message = _Utils_Tuple2(
@@ -8472,7 +8491,7 @@ var author$project$Main$update = F2(
 				var user = _n0.b;
 				var roomNameInput0 = _n0.c;
 				var maybeRooms = _n0.d;
-				_n9$13:
+				_n9$15:
 				while (true) {
 					switch (msg.$) {
 						case 'WindowResized':
@@ -8499,7 +8518,7 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n9$13;
+								break _n9$15;
 							}
 						case 'SendRequest':
 							switch (msg.a.$) {
@@ -8522,7 +8541,7 @@ var author$project$Main$update = F2(
 									var cmd = A3(author$project$HttpClient$enterRoom, model.origin, user.userId, roomId);
 									return _Utils_Tuple2(model, cmd);
 								default:
-									break _n9$13;
+									break _n9$15;
 							}
 						case 'ReceiveResponse':
 							switch (msg.a.$) {
@@ -8667,7 +8686,7 @@ var author$project$Main$update = F2(
 											elm$core$Platform$Cmd$none);
 									}
 								default:
-									break _n9$13;
+									break _n9$15;
 							}
 						case 'ReceiveNotification':
 							if (msg.a.$ === 'Err') {
@@ -8697,11 +8716,26 @@ var author$project$Main$update = F2(
 											}),
 										elm$core$Platform$Cmd$none);
 								} else {
-									break _n9$13;
+									break _n9$15;
 								}
 							}
+						case 'CloseWebSocket':
+							var message = _Utils_Tuple2(author$project$Common$Warning, 'WebSocket connection closed (AtPlaza)');
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{message: message}),
+								elm$core$Platform$Cmd$none);
+						case 'ErrorOfWebSocket':
+							var s = msg.a;
+							var message = _Utils_Tuple2(author$project$Common$Warning, 'WebSocket error (AtPlaza): ' + s);
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{message: message}),
+								elm$core$Platform$Cmd$none);
 						default:
-							break _n9$13;
+							break _n9$15;
 					}
 				}
 				return _Utils_Tuple2(
@@ -8720,7 +8754,7 @@ var author$project$Main$update = F2(
 				var indices0 = _n0.d;
 				var chatTextInput0 = _n0.e;
 				var _n22 = _Utils_Tuple2(pstate0.game, msg);
-				_n22$23:
+				_n22$25:
 				while (true) {
 					switch (_n22.b.$) {
 						case 'WindowResized':
@@ -8752,7 +8786,7 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n22$23;
+								break _n22$25;
 							}
 						case 'ReceiveResponse':
 							switch (_n22.b.a.$) {
@@ -8899,10 +8933,10 @@ var author$project$Main$update = F2(
 												elm$core$Platform$Cmd$none);
 										}
 									} else {
-										break _n22$23;
+										break _n22$25;
 									}
 								default:
-									break _n22$23;
+									break _n22$25;
 							}
 						case 'TransitionToNextTrick':
 							if (_n22.a.$ === 'PlayingGame') {
@@ -8944,7 +8978,7 @@ var author$project$Main$update = F2(
 										elm$core$Platform$Cmd$none);
 								}
 							} else {
-								break _n22$23;
+								break _n22$25;
 							}
 						case 'SendRequest':
 							switch (_n22.b.a.$) {
@@ -9004,7 +9038,7 @@ var author$project$Main$update = F2(
 												elm$core$Platform$Cmd$none);
 										}
 									} else {
-										break _n22$23;
+										break _n22$25;
 									}
 								case 'RequireNextInning':
 									if (_n22.a.$ === 'PlayingGame') {
@@ -9034,10 +9068,10 @@ var author$project$Main$update = F2(
 													{state: state1}),
 												cmd));
 									} else {
-										break _n22$23;
+										break _n22$25;
 									}
 								default:
-									break _n22$23;
+									break _n22$25;
 							}
 						case 'SelectCard':
 							if (_n22.a.$ === 'PlayingGame') {
@@ -9051,7 +9085,7 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n22$23;
+								break _n22$25;
 							}
 						case 'UnselectCard':
 							if (_n22.a.$ === 'PlayingGame') {
@@ -9065,7 +9099,7 @@ var author$project$Main$update = F2(
 										}),
 									elm$core$Platform$Cmd$none);
 							} else {
-								break _n22$23;
+								break _n22$25;
 							}
 						case 'ReceiveNotification':
 							if (_n22.b.a.$ === 'Err') {
@@ -9139,7 +9173,7 @@ var author$project$Main$update = F2(
 													}),
 												elm$core$Platform$Cmd$none);
 										} else {
-											break _n22$23;
+											break _n22$25;
 										}
 									case 'NotifyExited':
 										var game0 = _n22.a;
@@ -9299,7 +9333,7 @@ var author$project$Main$update = F2(
 													}),
 												elm$core$Platform$Cmd$none);
 										} else {
-											break _n22$23;
+											break _n22$25;
 										}
 									case 'NotifySubmission':
 										if (_n22.a.$ === 'PlayingGame') {
@@ -9394,7 +9428,7 @@ var author$project$Main$update = F2(
 													elm$core$Platform$Cmd$none);
 											}
 										} else {
-											break _n22$23;
+											break _n22$25;
 										}
 									case 'NotifyNextStep':
 										if (_n22.a.$ === 'PlayingGame') {
@@ -9435,14 +9469,30 @@ var author$project$Main$update = F2(
 													elm$core$Platform$Cmd$none);
 											}
 										} else {
-											break _n22$23;
+											break _n22$25;
 										}
 									default:
 										return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
 								}
 							}
+						case 'CloseWebSocket':
+							var _n46 = _n22.b;
+							var message = _Utils_Tuple2(author$project$Common$Warning, 'WebSocket connection closed (InRoom)');
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{message: message}),
+								elm$core$Platform$Cmd$none);
+						case 'ErrorOfWebSocket':
+							var s = _n22.b.a;
+							var message = _Utils_Tuple2(author$project$Common$Warning, 'WebSocket error (InRoom): ' + s);
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{message: message}),
+								elm$core$Platform$Cmd$none);
 						default:
-							break _n22$23;
+							break _n22$25;
 					}
 				}
 				return _Utils_Tuple2(
