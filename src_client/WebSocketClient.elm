@@ -2,6 +2,8 @@ module WebSocketClient exposing
   ( WebSocket
   , listen
   , onOpen
+  , onClose
+  , onError
   , sendChat
   , sendAck
   , sendHeartbeat
