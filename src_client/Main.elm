@@ -617,6 +617,8 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
       [ WebSocketClient.onOpen
+      , WebSocketClient.onClose
+      , WebSocketClient.onError
       , WebSocketClient.subscribe
       , Time.every Constants.heartbeatIntervalMs (\_ -> Heartbeat)
       , Browser.Events.onResize WindowResized
