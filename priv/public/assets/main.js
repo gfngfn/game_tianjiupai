@@ -5140,10 +5140,24 @@ var author$project$Common$WindowResized = F2(
 		return {$: 'WindowResized', a: a, b: b};
 	});
 var author$project$Constants$heartbeatIntervalMs = 10000.0;
+var author$project$Common$CloseWebSocket = {$: 'CloseWebSocket'};
+var elm$json$Json$Decode$value = _Json_decodeValue;
+var author$project$Port$onCloseWebSocket = _Platform_incomingPort('onCloseWebSocket', elm$json$Json$Decode$value);
+var author$project$WebSocketClient$onClose = author$project$Port$onCloseWebSocket(
+	function (ws) {
+		return author$project$Common$CloseWebSocket;
+	});
+var author$project$Common$ErrorOfWebSocket = function (a) {
+	return {$: 'ErrorOfWebSocket', a: a};
+};
+var author$project$Port$onErrorOfWebSocket = _Platform_incomingPort('onErrorOfWebSocket', elm$json$Json$Decode$string);
+var author$project$WebSocketClient$onError = author$project$Port$onErrorOfWebSocket(
+	function (s) {
+		return author$project$Common$ErrorOfWebSocket(s);
+	});
 var author$project$Common$OpenWebSocket = function (a) {
 	return {$: 'OpenWebSocket', a: a};
 };
-var elm$json$Json$Decode$value = _Json_decodeValue;
 var author$project$Port$onOpenWebSocket = _Platform_incomingPort('onOpenWebSocket', elm$json$Json$Decode$value);
 var author$project$WebSocketClient$onOpen = author$project$Port$onOpenWebSocket(
 	function (ws) {
@@ -6834,6 +6848,8 @@ var author$project$Main$subscriptions = function (model) {
 		_List_fromArray(
 			[
 				author$project$WebSocketClient$onOpen,
+				author$project$WebSocketClient$onClose,
+				author$project$WebSocketClient$onError,
 				author$project$WebSocketClient$subscribe,
 				A2(
 				elm$time$Time$every,
