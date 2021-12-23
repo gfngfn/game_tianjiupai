@@ -2,6 +2,8 @@ module WebSocketClient exposing
   ( WebSocket
   , listen
   , onOpen
+  , onClose
+  , onError
   , sendChat
   , sendAck
   , sendHeartbeat
@@ -29,6 +31,20 @@ onOpen : Sub Msg
 onOpen =
   Port.onOpenWebSocket (\ws ->
     OpenWebSocket ws
+  )
+
+
+onClose : Sub Msg
+onClose =
+  Port.onCloseWebSocket (\ws ->
+    CloseWebSocket
+  )
+
+
+onError : Sub Msg
+onError =
+  Port.onErrorOfWebSocket (\s ->
+    ErrorOfWebSocket s
   )
 
 

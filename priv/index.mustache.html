@@ -88,17 +88,26 @@
           }
         })
 
-        app.ports.listenWebSocket.subscribe(function(url) {
+        app.ports.listenWebSocket.subscribe((url) => {
           var socket = new WebSocket(url);
-          socket.onopen = () => {
+          socket.onopen = (event) => {
+            console.log("on open");
             app.ports.onOpenWebSocket.send({socket: socket});
           };
-          socket.addEventListener("message", function(event) {
+          socket.onclose = (event) => {
+            console.log("on close");
+            app.ports.onCloseWebSocket.send({socket: socket});
+          };
+          socket.onerror = (event) => {
+            const s = JSON.stringify(event);
+            app.ports.onErrorOfWebSocket.send(s);
+          };
+          socket.onmessage = (event) => {
             app.ports.receiveWebSocketMessage.send(event.data);
-          });
+          };
         });
 
-        app.ports.sendWebSocketMessage.subscribe(function(array) {
+        app.ports.sendWebSocketMessage.subscribe((array) => {
           const [{socket: socket}, message] = array;
           socket.send(message);
         });
