@@ -9,7 +9,6 @@ module UserServer :> sig
   open Models
 
   type info :: o
-
   type proc :: o
 
   type user_state = {
@@ -18,23 +17,15 @@ module UserServer :> sig
   }
 
   val start_link<$a> : fun(user_id, binary) -> [$a]result<proc, GenServer.start_link_error>
-
   val get_user_state<$a> : fun(user_id) -> [$a]option<user_state>
-
   val get_name<$a> : fun(user_id) -> [$a]option<binary>
-
   val exists<$a> : fun(user_id) -> [$a]bool
-
+  val delete<$a> : fun(user_id) -> [$a]bool
   val get_room<$a> : fun(user_id) -> [$a]option<room_id>
-
   val set_room<$a> : fun(user_id, option<room_id>) -> [$a]option<unit>
-
   val as_pid : fun(proc) -> pid<info>
-
   val from_pid : fun(pid<info>) -> proc
-
   val get_proc<$a> : fun(user_id) -> [$a]option<proc>
-
 end = struct
   open Stdlib
   open Models
@@ -67,7 +58,7 @@ end = struct
       | UserStateGot(user_state)
 
     type cast_message =
-      | DummyCastMessage
+      | DeleteUser
 
     type info = RawValue.t
 
@@ -140,8 +131,11 @@ end = struct
       end
 
     val handle_cast(msg, state) = act
-      let _ = assert Logger.warning(f'unexpected cast message (message: ~p, state: ~p)', {msg, state}) in
-      no_reply(state)
+      case msg of
+      | DeleteUser ->
+          let _ = assert Logger.info(f'stop (user_id: ~s)', {state.settings.user_id}) in
+          GenServer.no_reply_and_stop(StopReason.normal(), state)
+      end
 
     val is_room_down(mref : MonitorRef.t, state : state) : bool =
       case state.belongs_to of
@@ -193,6 +187,16 @@ end = struct
     case opt of
     | None    -> return(false)
     | Some(_) -> return(true)
+    end
+
+  val delete(user_id) = act
+    do opt <- get_proc(user_id) in
+    case opt of
+    | None ->
+        return(false)
+    | Some(proc) ->
+        do {} <- Impl.cast(proc, Callback.DeleteUser) in
+        return(true)
     end
 
   val start_link<$a>(user_id : user_id, user_name : binary) : [$a]result<proc, GenServer.start_link_error> = act

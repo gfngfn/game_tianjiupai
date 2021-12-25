@@ -42,15 +42,7 @@ end = struct
     UserServer.exists(user_id)
 
   val delete(user_id) = act
-    do proc_opt <- UserServer.get_proc(user_id) in
-    case proc_opt of
-    | None ->
-        return(false)
-
-    | Some(proc) ->
-        do res <- UserServerSup.terminate_child(proc) in
-        return(true)
-    end
+    UserServer.delete(user_id)
 
   val get_name(user_id) = act
     UserServer.get_name(user_id)
