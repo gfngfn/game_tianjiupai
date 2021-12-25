@@ -53,7 +53,12 @@ end = struct
             do res <- RoomServerSup.start_child(-room_id room_id, -room_name room_name) in
             case res of
             | Ok(proc) ->
-                do _ <- MonitorRef.monitor(RoomServer.as_pid(proc)) in
+                do mref <- MonitorRef.monitor(RoomServer.as_pid(proc)) in
+                let _ =
+                  assert Logger.info(
+                    f'increment num_rooms ~p --> ~p (proc: ~p, mref: ~p)',
+                    {num_rooms, num_rooms + 1, proc, mref})
+                in
                 GenServer.reply(RoomAdded(Ok(proc)), { num_rooms = num_rooms + 1 })
             | Error(err) ->
                 GenServer.reply(RoomAdded(Error(err)), state)
@@ -64,8 +69,14 @@ end = struct
       let _ = assert Logger.warning(f'unexpected cast (message: ~p, state: ~p)', {msg, state}) in
       GenServer.no_reply(state)
 
-    val handle_down(_, _, _, state) = act
-      GenServer.no_reply({ num_rooms = state.num_rooms - 1 })
+    val handle_down(mref, pid, reason, state) = act
+      let num_rooms = state.num_rooms in
+      let _ =
+        assert Logger.info(
+          f'decrement num_rooms ~p --> ~p (pid: ~p, mref: ~p, reason: ~p)',
+          {num_rooms, num_rooms - 1, pid, mref, reason})
+      in
+      GenServer.no_reply({ num_rooms = num_rooms - 1 })
 
     val handle_timeout(state) = act
       GenServer.no_reply(state)
