@@ -7,9 +7,18 @@ module Constants = struct
     8
 
   val room_expiration_timeout() =
-    1000 * 60 * 60 * 24  /* one day */
+    1000 * 60 * 60  /* one hour */
 
   val user_expiration_timeout() =
-    1000 * 60 * 60 * 24  /* one day */
+    1000 * 60 * 60  /* one hour */
+
+  val maximum_num_rooms() =
+    1000
+
+  val maximum_num_users() =
+    10000
+
+  val maximum_num_rooms_per_user() =
+    10
 
 end
