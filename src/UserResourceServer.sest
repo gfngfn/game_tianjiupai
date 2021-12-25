@@ -1,0 +1,119 @@
+import Logger
+import Constants
+import Models
+import UserServerSup
+import UserServer
+
+module UserResourceServer :> sig
+  open Stdlib
+  open Models
+
+  type info :: o
+  type proc :: o
+  val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
+  val as_pid : fun(proc) -> pid<info>
+  val add<$a, $b> : fun(-user_id user_id, -user_name binary) -> [$a]result<UserServer.proc, RawValue.t>
+end = struct
+  open Stdlib
+  open Models
+
+  module Callback = struct
+
+    type init_arg = unit
+
+    type request =
+      | AddUser(user_id, binary)
+
+    type response =
+      | UserAdded(result<UserServer.proc, RawValue.t>)
+
+    type cast_message =
+      | CastDummy
+
+    type info =
+      | InfoDummy
+
+    type state = {
+      num_users : int,
+    }
+
+    type global = unit
+
+    val init({}) = act
+      let state = { num_users = 0 } in
+      GenServer.init_ok(state)
+
+    val handle_call(req : request, _, state : state) = act
+      case req of
+      | AddUser(user_id, user_name) ->
+          let num_users = state.num_users in
+          if num_users >= Constants.maximum_num_users() then
+            GenServer.reply(UserAdded(Error(RawValue.forget("capacity exceeded"))), state)
+          else
+            do res <- UserServerSup.start_child(-user_id user_id, -user_name user_name) in
+            case res of
+            | Ok(proc) ->
+                do mref <- MonitorRef.monitor(UserServer.as_pid(proc)) in
+                let _ =
+                  assert Logger.info(
+                    f'increment num_users ~p --> ~p (proc: ~p, mref: ~p)',
+                    {num_users, num_users + 1, proc, mref})
+                in
+                GenServer.reply(UserAdded(Ok(proc)), { num_users = num_users + 1 })
+            | Error(err) ->
+                GenServer.reply(UserAdded(Error(err)), state)
+            end
+      end
+
+    val handle_cast(msg, state) = act
+      let _ = assert Logger.warning(f'unexpected cast (message: ~p, state: ~p)', {msg, state}) in
+      GenServer.no_reply(state)
+
+    val handle_down(mref, pid, reason, state) = act
+      let num_users = state.num_users in
+      let _ =
+        assert Logger.info(
+          f'decrement num_users ~p --> ~p (pid: ~p, mref: ~p, reason: ~p)',
+          {num_users, num_users - 1, pid, mref, reason})
+      in
+      GenServer.no_reply({ num_users = num_users - 1 })
+
+    val handle_timeout(state) = act
+      GenServer.no_reply(state)
+
+    val handle_info(info, state) = act
+      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
+      GenServer.no_reply(state)
+
+    val terminate(reason, state) = act
+      let _ = assert Logger.warning(f'terminate (reason: ~p, state: ~p)', {reason, state}) in
+      return({})
+
+  end
+
+  module Impl = GenServer.Make(Callback)
+
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val start_link() = act
+    Impl.start_link_name({}, -name Global({}))
+
+  val as_pid(proc) =
+    Impl.as_pid(proc)
+
+  val add(-user_id user_id, -user_name user_name) = act
+    do proc_res <- Impl.where_is_global({}) in
+    case proc_res of
+    | Some(proc) ->
+        do call_res <- Impl.call(proc, Callback.AddUser(user_id, user_name)) in
+        case call_res of
+        | Ok(Callback.UserAdded(res)) -> return(res)
+        | Error(err)                  -> return(Error(err))
+        end
+    | None ->
+        return(Error(RawValue.forget("no user resource server")))
+    end
+
+end
