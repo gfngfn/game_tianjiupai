@@ -103,7 +103,13 @@ module Api = struct
               let enc = Models.encode_create_room_response() in
               let resp_body = Json.Encode.run(enc({ room_id = room_id })) in
               return(Some({room_id, resp_body}))
-          | Error(_) ->
+          | Error(reason) ->
+              let _ =
+                assert Logger.info(
+                  f'failed to create room (room_name: ~s, created_by: ~s, reason: ~p)',
+                  {room_name, user_id, reason}
+                )
+              in
               return(None)
           end
         else

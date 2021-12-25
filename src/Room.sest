@@ -1,6 +1,6 @@
 import Models
 import Card
-import RoomServerSup
+import RoomResourceServer
 import RoomServer
 import WebSocketHandler
 import PlazaServer
@@ -33,7 +33,7 @@ end = struct
 
   val create<$a>(room_name : room_name) : [$a]result<room_id, GenServer.start_link_error> = act
     do room_id <- generate_room_id() in
-    do res <- RoomServerSup.start_child(-room_id room_id, -room_name room_name) in
+    do res <- RoomResourceServer.add(-room_id room_id, -room_name room_name) in
     return(Result.map(fun(_) -> room_id end, res))
 
   val get_all_rooms() = act
