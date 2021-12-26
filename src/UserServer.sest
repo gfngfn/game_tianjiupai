@@ -181,13 +181,35 @@ end = struct
           let _ = assert Logger.debug(f'room closed (user_id: ~s, reason: ~p)', {user_id, reason}) in
           return({ state | belongs_to = None })
         else
-          let _ =
-            assert Logger.warning(
-              f'unexpected down (user_id: ~s, mref: ~p, pid: ~p, reason: ~p, state: ~p)',
-              {user_id, mref, pid, reason, state}
-            )
+          let {deleted_room_opt, acc} =
+            List.foldl(
+              fun({deleted_room_opt, acc}, {room_id, mref0}) ->
+                if MonitorRef.equal(mref0, mref) then
+                  {Some(room_id), acc}
+                else
+                  {deleted_room_opt, {room_id, mref0} :: acc}
+              end,
+              {None, []},
+              state.creates)
           in
-          return(state)
+          case deleted_room_opt of
+          | None ->
+              let _ =
+                assert Logger.warning(
+                  f'unexpected down (user_id: ~s, mref: ~p, pid: ~p, reason: ~p, state: ~p)',
+                  {user_id, mref, pid, reason, state}
+                )
+              in
+              return(state)
+          | Some(room_id) ->
+              let _ =
+                assert Logger.debug(
+                  f'room deleted (user_id: ~s, room_id: ~s, mref: ~p, pid: ~p, reason: ~p, state: ~p)',
+                  {user_id, room_id, mref, pid, reason, state}
+                )
+              in
+              return({ state | creates = List.reverse(acc) })
+          end
       in
       no_reply(state)
 
