@@ -9,7 +9,8 @@ module Room :> sig
   open Stdlib
   open Models
 
-  val create<$a> : fun(room_name) -> [$a]result<room_id, GenServer.start_link_error>
+  val create<$a> :
+    fun(-created_by user_id, -room_name room_name) -> [$a]result<room_id, GenServer.start_link_error>
   val get_all_rooms<$a> : fun() -> [$a]list<room_summary>
   val get_whole_state<$a> : fun(room_id) -> [$a]option<room_summary>
   val get_personal_state<$a> : fun(room_id, user_id) -> [$a]option<personal_state>
@@ -31,9 +32,12 @@ end = struct
         list_to_binary(uuid:uuid_to_string(Uuid)).
   ```
 
-  val create<$a>(room_name : room_name) : [$a]result<room_id, GenServer.start_link_error> = act
+  val create<$a>(
+    -created_by user_id,
+    -room_name room_name : room_name,
+  ) : [$a]result<room_id, GenServer.start_link_error> = act
     do room_id <- generate_room_id() in
-    do res <- RoomResourceServer.add(-room_id room_id, -room_name room_name) in
+    do res <- RoomResourceServer.add(-created_by user_id, -room_id room_id, -room_name room_name) in
     return(Result.map(fun(_) -> room_id end, res))
 
   val get_all_rooms() = act

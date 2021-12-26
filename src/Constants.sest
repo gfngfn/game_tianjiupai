@@ -16,7 +16,7 @@ module Constants = struct
     2
 
   val maximum_num_users() =
-    10000
+    2
 
   val maximum_num_rooms_per_user() =
     10

@@ -12,7 +12,8 @@ module RoomResourceServer :> sig
   type proc :: o
   val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
   val as_pid : fun(proc) -> pid<info>
-  val add<$a, $b> : fun(-room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, RawValue.t>
+  val add<$a, $b> :
+    fun(-created_by user_id, -room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, RawValue.t>
 end = struct
   open Stdlib
   open Models
@@ -22,7 +23,7 @@ end = struct
     type init_arg = unit
 
     type request =
-      | AddRoom(room_id, binary)
+      | AddRoom(user_id, room_id, binary)
 
     type response =
       | RoomAdded(result<RoomServer.proc, RawValue.t>)
@@ -43,14 +44,22 @@ end = struct
       let state = { num_rooms = 0 } in
       GenServer.init_ok(state)
 
+    /* Avoids cyclic dependency by using FFI */
+    val user_server_create_room<$a> :
+      fun(user_id, -room_id room_id, -room_name room_name) -> [$a]result<RoomServer.proc, RawValue.t>
+    = external 3 ```
+      user_server_create_room(UserId, RoomId, RoomName) ->
+        'Tianjiupai.UserServer':create_room(UserId, RoomId, RoomName).
+    ```
+
     val handle_call(req : request, _, state : state) = act
       case req of
-      | AddRoom(room_id, room_name) ->
+      | AddRoom(user_id, room_id, room_name) ->
           let num_rooms = state.num_rooms in
           if num_rooms >= Constants.maximum_num_rooms() then
             GenServer.reply(RoomAdded(Error(RawValue.forget("capacity exceeded"))), state)
           else
-            do res <- RoomServerSup.start_child(-room_id room_id, -room_name room_name) in
+            do res <- user_server_create_room(user_id, -room_id room_id, -room_name room_name) in
             case res of
             | Ok(proc) ->
                 do mref <- MonitorRef.monitor(RoomServer.as_pid(proc)) in
@@ -103,11 +112,11 @@ end = struct
   val as_pid(proc) =
     Impl.as_pid(proc)
 
-  val add(-room_id room_id, -room_name room_name) = act
+  val add(-created_by user_id, -room_id room_id, -room_name room_name) = act
     do proc_res <- Impl.where_is_global({}) in
     case proc_res of
     | Some(proc) ->
-        do call_res <- Impl.call(proc, Callback.AddRoom(room_id, room_name)) in
+        do call_res <- Impl.call(proc, Callback.AddRoom(user_id, room_id, room_name)) in
         case call_res of
         | Ok(Callback.RoomAdded(res)) -> return(res)
         | Error(err)                  -> return(Error(err))

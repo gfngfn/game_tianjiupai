@@ -91,7 +91,7 @@ module Api = struct
         let user_id = create_room_request.user_id in
         let room_name = create_room_request.room_name in
         if validator(user_id) then
-          do res <- Room.create(room_name) in
+          do res <- Room.create(-created_by user_id, -room_name room_name) in
           case res of
           | Ok(room_id) ->
               let _ =
