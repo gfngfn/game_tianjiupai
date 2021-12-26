@@ -19,13 +19,14 @@ module UserServer :> sig
   }
 
   val start_link<$a> : fun(user_id, binary) -> [$a]result<proc, GenServer.start_link_error>
-  val get_user_state<$a> : fun(user_id) -> [$a]option<user_state>
-  val get_name<$a> : fun(user_id) -> [$a]option<binary>
+  val get_user_state<$a> : fun(user_id) -> [$a]result<user_state, RawValue.t>
+  val get_name<$a> : fun(user_id) -> [$a]result<binary, RawValue.t>
   val exists<$a> : fun(user_id) -> [$a]bool
   val delete<$a> : fun(user_id) -> [$a]bool
-  val get_room<$a> : fun(user_id) -> [$a]option<room_id>
-  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]option<unit>
-  val create_room<$a> : fun(user_id, -room_id room_id, -room_name binary) -> [$a]option<RoomServer.proc>
+  val get_room<$a> : fun(user_id) -> [$a]result<option<room_id>, RawValue.t>
+  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]result<unit, RawValue.t>
+  val create_room<$a> :
+    fun(user_id, -room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, RawValue.t>
   val as_pid : fun(proc) -> pid<info>
   val from_pid : fun(pid<info>) -> proc
   val get_proc<$a> : fun(user_id) -> [$a]option<proc>
@@ -260,12 +261,12 @@ end = struct
   val call<$a, $ret>(
     user_id : user_id,
     req     : Callback.request,
-    f       : fun(Callback.response) -> [$a]option<$ret>
-  ) : [$a]option<$ret> = act
+    f       : fun(Callback.response) -> [$a]result<$ret, RawValue.t>
+  ) : [$a]result<$ret, RawValue.t> = act
     do proc_opt <- get_proc(user_id) in
     case proc_opt of
     | None ->
-        return(None)
+        return(Error(RawValue.forget({"no proc", user_id})))
     | Some(proc) ->
         do resp_result <- Impl.call(proc, req) in
         case resp_result of
@@ -278,33 +279,30 @@ end = struct
                 {user_id, req, proc, err},
               )
             in
-            return(None)
+            return(Error(err))
         end
     end
 
   val get_user_state(user_id) = act
     call(user_id, Callback.GetUserState,
-      fun(Callback.UserStateGot(user_state)) -> act return(Some(user_state)) end)
+      fun(Callback.UserStateGot(user_state)) -> act return(Ok(user_state)) end)
 
   val get_name(user_id) = act
-    do opt <- get_user_state(user_id) in
-    return(Option.map(fun(u) -> u.user_name end, opt))
+    do res <- get_user_state(user_id) in
+    return(Result.map(fun(u) -> u.user_name end, res))
 
   val get_room(user_id) = act
-    do opt <- get_user_state(user_id) in
-    return(Option.bind(opt, fun(u) -> u.belongs_to end))
+    do res <- get_user_state(user_id) in
+    return(Result.map(fun(u) -> u.belongs_to end, res))
 
   val set_room(user_id, room_id_opt) = act
     call(user_id, Callback.SetRoom(room_id_opt), fun(Callback.RoomSet(success)) -> act
-      if success then return(Some({})) else return(None)
+      if success then return(Ok({})) else return(Error(RawValue.forget("set room failed")))
     end)
 
   val create_room(user_id, -room_id room_id, -room_name room_name) = act
     call(user_id, Callback.CreateRoom(room_id, room_name), fun(Callback.RoomCreated(res)) -> act
-      case res of
-      | Ok(proc) -> return(Some(proc))
-      | Error(_) -> return(None)
-      end
+      return(res)
     end)
 
 end

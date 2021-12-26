@@ -121,8 +121,8 @@ module Api = struct
   val enter_room(user_id : user_id, room_id : room_id, ws_proc : WebSocketHandler.proc) = act
     do res <- User.set_room(user_id, Some(room_id)) in
     case res of
-    | Some({}) ->
-        do Some(user_name) <- User.get_name(user_id) in
+    | Ok({}) ->
+        do Ok(user_name) <- User.get_name(user_id) in
         let user = { user_id = user_id, user_name = user_name } in
         do res <- Room.attend(room_id, user, ws_proc) in
         do {} <- PlazaServer.unsubscribe(user_id) in
@@ -146,14 +146,20 @@ module Api = struct
             return(None)
         end
 
-    | None ->
+    | Error(reason) ->
+        let _ =
+          assert Logger.info(
+            f'failed to attend (user_id: ~s, room_id: ~s, reason: ~p)',
+            {user_id, room_id, reason}
+          )
+        in
         return(None)
     end
 
   val exit_room(user_id : user_id, room_id : room_id, ws_proc : WebSocketHandler.proc) = act
     do res <- User.set_room(user_id, None) in
     case res of
-    | Some({}) ->
+    | Ok({}) ->
         do res <- Room.exit(room_id, user_id) in
         do {} <- PlazaServer.subscribe(user_id, ws_proc) in
         let is_success =
@@ -175,7 +181,13 @@ module Api = struct
         | None ->
             return(None)
         end
-    | None ->
+    | Error(reason) ->
+        let _ =
+          assert Logger.info(
+            f'failed to exit (user_id: ~s, room_id: ~s, reason: ~p)',
+            {user_id, room_id, reason}
+          )
+        in
         return(None)
     end
 
@@ -220,10 +232,11 @@ module Api = struct
   val send_chat(user_id, text) = act
     do user_state_opt <- User.get_info(user_id) in
     case user_state_opt of
-    | None ->
+    | Error(reason) ->
+        let _ = assert Logger.info(f'failed to send chat (user_id: ~s, reason: ~p)', {user_id, reason}) in
         return(None)
 
-    | Some(user_state) ->
+    | Ok(user_state) ->
         case user_state.belongs_to of
         | None ->
             return(None)
@@ -235,23 +248,47 @@ module Api = struct
     end
 
   val ack(user_id, snapshot_id) = act
-    do room_id_opt <- User.get_room(user_id) in
-    case room_id_opt of
-    | None ->
+    do room_id_opt_res <- User.get_room(user_id) in
+    case room_id_opt_res of
+    | Error(reason) ->
+        let _ =
+          assert Logger.warning(
+            f'ack failed (user_id: ~s, snapshot_id: ~s, reason: ~p)',
+            {user_id, snapshot_id, reason}
+          )
+        in
+        return({})
+    | Ok(None) ->
         let _ = assert Logger.warning(f'ack failed (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
         return({})
 
-    | Some(room_id) ->
+    | Ok(Some(room_id)) ->
         do {} <- Room.ack(room_id, user_id, snapshot_id) in
         let _ = assert Logger.debug(f'ack (user_id: ~s, snapshot_id: ~s)', {user_id, snapshot_id}) in
         return({})
     end
 
   val require_next_inning(user_id, snapshot_id) = act
-    do room_id_opt <- User.get_room(user_id) in
-    case room_id_opt of
-    | None          -> return({})
-    | Some(room_id) -> Room.require_next_inning(room_id, user_id, snapshot_id)
+    do room_id_opt_res <- User.get_room(user_id) in
+    case room_id_opt_res of
+    | Error(reason) ->
+        let _ =
+          assert Logger.warning(
+            f'failed to require next inning (user_id: ~s, snapshot_id: ~s, reason: ~p)',
+            {user_id, snapshot_id, reason}
+          )
+        in
+        return({})
+    | Ok(None) ->
+        let _ =
+          assert Logger.warning(
+            f'failed to require next inning (user_id: ~s, snapshot_id: ~s)',
+            {user_id, snapshot_id}
+          )
+        in
+        return({})
+    | Ok(Some(room_id)) ->
+        Room.require_next_inning(room_id, user_id, snapshot_id)
     end
 
   val perform_command(user_id : user_id, data : binary) = act
@@ -296,13 +333,20 @@ module Api = struct
     end
 
   val set_websocket_connection(user_id : user_id, ws_proc : WebSocketHandler.proc) = act
-    do room_opt <- User.get_room(user_id) in
-    case room_opt of
-    | Some(room_id) ->
+    do room_opt_res <- User.get_room(user_id) in
+    case room_opt_res of
+    | Error(reason) ->
+        let _ =
+          assert Logger.warning(
+            f'failed to set websocket connection (user_id: ~s, reason: ~p)',
+            {user_id, reason}
+          )
+        in
+        return({})
+    | Ok(Some(room_id)) ->
         do _ <- Room.set_connection(room_id, user_id, ws_proc) in
         return({})
-
-    | None ->
+    | Ok(None) ->
         do _ <- subscribe_plaza(user_id, ws_proc) in
         return({})
     end
@@ -320,13 +364,19 @@ module Api = struct
       | Some(user_id) ->
           do res <- User.get_info(user_id) in
           case res of
-          | Some(info) ->
+          | Ok(info) ->
               return(Some({
                 id         = user_id,
                 name       = info.user_name,
                 belongs_to = info.belongs_to
               }))
-          | None ->
+          | Error(reason) ->
+              let _ =
+                assert Logger.warning(
+                  f'failed to make flag_user (user_id: ~s, reason: ~p)',
+                  {user_id, reason}
+                )
+              in
               return(None)
           end
       end
