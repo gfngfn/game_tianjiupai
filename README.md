@@ -21,10 +21,20 @@ The following is a capture video of playing the game:
 * Elm
 * [APBuf](https://github.com/gfngfn/apbuf)
   - Used for generating a JSON encoder/decoder from `model.apbuf`.
-  - Can be intalled via OPAM pin.
+  - Can be installed via OPAM pin:
+    ```console
+    $ git clone git@github.com:gfngfn/apbuf
+    $ cd apbuf
+    $ opam pin add apbuf .
+    ```
 * [Sesterl](https://github.com/gfngfn/Sesterl)
   - A statically-typed Erlang.
-  - Can be intalled via OPAM pin.
+  - Can be installed via OPAM pin.
+    ```console
+    $ git clone git@github.com:gfngfn/Sesterl
+    $ cd Sesterl
+    $ opam pin add sesterl .
+    ```
 
 
 ### How to build
