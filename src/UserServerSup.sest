@@ -40,7 +40,10 @@ end = struct
     val init(_) : [info]SD.initialized<info, start_arg, child_info> = act
       let sup_flags = SD.make_sup_flags() in
       let child_spec =
-        SD.make_child_spec(-start (freeze start_child_impl(_)))
+        SD.make_child_spec(
+          -start (freeze start_child_impl(_)),
+          ?restart Supervisor.Temporary,
+        )
       in
       SD.init_ok(sup_flags, child_spec)
 

@@ -1,0 +1,128 @@
+import Logger
+import Constants
+import Models
+import RoomServerSup
+import RoomServer
+
+module RoomResourceServer :> sig
+  open Stdlib
+  open Models
+
+  type info :: o
+  type proc :: o
+  val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
+  val as_pid : fun(proc) -> pid<info>
+  val add<$a, $b> :
+    fun(-created_by user_id, -room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, RawValue.t>
+end = struct
+  open Stdlib
+  open Models
+
+  module Callback = struct
+
+    type init_arg = unit
+
+    type request =
+      | AddRoom(user_id, room_id, binary)
+
+    type response =
+      | RoomAdded(result<RoomServer.proc, RawValue.t>)
+
+    type cast_message =
+      | CastDummy
+
+    type info =
+      | InfoDummy
+
+    type state = {
+      num_rooms : int,
+    }
+
+    type global = unit
+
+    val init({}) = act
+      let state = { num_rooms = 0 } in
+      GenServer.init_ok(state)
+
+    /* Avoids cyclic dependency by using FFI */
+    val user_server_create_room<$a> :
+      fun(user_id, -room_id room_id, -room_name room_name) -> [$a]result<RoomServer.proc, RawValue.t>
+    = external 3 ```
+      user_server_create_room(UserId, RoomId, RoomName) ->
+        'Tianjiupai.UserServer':create_room(UserId, RoomId, RoomName).
+    ```
+
+    val handle_call(req : request, _, state : state) = act
+      case req of
+      | AddRoom(user_id, room_id, room_name) ->
+          let num_rooms = state.num_rooms in
+          if num_rooms >= Constants.maximum_num_rooms() then
+            GenServer.reply(RoomAdded(Error(RawValue.forget("capacity exceeded"))), state)
+          else
+            do res <- user_server_create_room(user_id, -room_id room_id, -room_name room_name) in
+            case res of
+            | Ok(proc) ->
+                do mref <- MonitorRef.monitor(RoomServer.as_pid(proc)) in
+                let _ =
+                  assert Logger.info(
+                    f'increment num_rooms ~p --> ~p (proc: ~p, mref: ~p)',
+                    {num_rooms, num_rooms + 1, proc, mref})
+                in
+                GenServer.reply(RoomAdded(Ok(proc)), { num_rooms = num_rooms + 1 })
+            | Error(err) ->
+                GenServer.reply(RoomAdded(Error(err)), state)
+            end
+      end
+
+    val handle_cast(msg, state) = act
+      let _ = assert Logger.warning(f'unexpected cast (message: ~p, state: ~p)', {msg, state}) in
+      GenServer.no_reply(state)
+
+    val handle_down(mref, pid, reason, state) = act
+      let num_rooms = state.num_rooms in
+      let _ =
+        assert Logger.info(
+          f'decrement num_rooms ~p --> ~p (pid: ~p, mref: ~p, reason: ~p)',
+          {num_rooms, num_rooms - 1, pid, mref, reason})
+      in
+      GenServer.no_reply({ num_rooms = num_rooms - 1 })
+
+    val handle_timeout(state) = act
+      GenServer.no_reply(state)
+
+    val handle_info(info, state) = act
+      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
+      GenServer.no_reply(state)
+
+    val terminate(reason, state) = act
+      let _ = assert Logger.warning(f'terminate (reason: ~p, state: ~p)', {reason, state}) in
+      return({})
+
+  end
+
+  module Impl = GenServer.Make(Callback)
+
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val start_link() = act
+    Impl.start_link_name({}, -name Global({}))
+
+  val as_pid(proc) =
+    Impl.as_pid(proc)
+
+  val add(-created_by user_id, -room_id room_id, -room_name room_name) = act
+    do proc_res <- Impl.where_is_global({}) in
+    case proc_res of
+    | Some(proc) ->
+        do call_res <- Impl.call(proc, Callback.AddRoom(user_id, room_id, room_name)) in
+        case call_res of
+        | Ok(Callback.RoomAdded(res)) -> return(res)
+        | Error(err)                  -> return(Error(err))
+        end
+    | None ->
+        return(Error(RawValue.forget("no room resource server")))
+    end
+
+end

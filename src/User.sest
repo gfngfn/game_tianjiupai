@@ -2,6 +2,7 @@ import Logger
 import Models
 import UserServerSup
 import UserServer
+import UserResourceServer
 import WebSocketHandler
 
 module User :> sig
@@ -9,19 +10,12 @@ module User :> sig
   open Models
 
   val create<$a> : fun(binary) -> [$a]result<user_id, GenServer.start_link_error>
-
   val exists<$a> : fun(user_id) -> [$a]bool
-
   val delete<$a> : fun(user_id) -> [$a]bool
-
-  val get_name<$a> : fun(user_id) -> [$a]option<binary>
-
-  val get_info<$a> : fun(user_id) -> [$a]option<UserServer.user_state>
-
-  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]option<unit>
-
-  val get_room<$a> : fun(user_id) -> [$a]option<room_id>
-
+  val get_name<$a> : fun(user_id) -> [$a]result<binary, RawValue.t>
+  val get_info<$a> : fun(user_id) -> [$a]result<UserServer.user_state, RawValue.t>
+  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]result<unit, RawValue.t>
+  val get_room<$a> : fun(user_id) -> [$a]result<option<room_id>, RawValue.t>
 end = struct
   open Stdlib
   open Models
@@ -34,22 +28,14 @@ end = struct
 
   val create(user_name) = act
     do user_id <- generate_user_id() in
-    do res <- UserServerSup.start_child(-user_id user_id, -user_name user_name) in
+    do res <- UserResourceServer.add(-user_id user_id, -user_name user_name) in
     return(Result.map(fun(_) -> user_id end, res))
 
   val exists(user_id) = act
     UserServer.exists(user_id)
 
   val delete(user_id) = act
-    do proc_opt <- UserServer.get_proc(user_id) in
-    case proc_opt of
-    | None ->
-        return(false)
-
-    | Some(proc) ->
-        do res <- UserServerSup.terminate_child(proc) in
-        return(true)
-    end
+    UserServer.delete(user_id)
 
   val get_name(user_id) = act
     UserServer.get_name(user_id)
