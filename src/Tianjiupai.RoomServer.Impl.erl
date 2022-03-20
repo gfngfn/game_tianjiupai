@@ -1,7 +1,7 @@
 -module('Tianjiupai.RoomServer.Impl').
 -behaviour(gen_server).
 -export(['init_impl'/1, 'init'/1, 'handle_call_impl'/3, 'handle_call'/3, 'handle_cast_impl'/2, 'arrange_no_reply_result'/1, 'handle_cast'/2, 'handle_info_impl'/2, 'handle_timeout_impl'/1, 'handle_down_impl'/4, 'handle_info'/2, 'terminate_impl'/2, 'terminate'/2, 'call'/2, 'call'/3, 'cast'/2, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'stop'/1, 'send_info'/2]).
-'init_impl'(S2039Arg) -> 'Tianjiupai.RoomServer.Callback':'init'(S2039Arg).
+'init_impl'(S2042Arg) -> 'Tianjiupai.RoomServer.Callback':'init'(S2042Arg).
       init(Args) ->
           case ?MODULE:init_impl(Args) of
               {ok, {State, MaybeTimeout}} ->
@@ -13,7 +13,7 @@
                   {stop, Reason}
           end.
     
-'handle_call_impl'(S2042Req, S2043Pid, S2044State) -> 'Tianjiupai.RoomServer.Callback':'handle_call'(S2042Req, S2043Pid, S2044State).
+'handle_call_impl'(S2045Req, S2046Pid, S2047State) -> 'Tianjiupai.RoomServer.Callback':'handle_call'(S2045Req, S2046Pid, S2047State).
       handle_call(Msg, From, State0) ->
           {Pid, _} = From,
           case ?MODULE:handle_call_impl(Msg, Pid, State0) of
@@ -26,7 +26,7 @@
                   {stop, Reason, Response, State2}
           end.
     
-'handle_cast_impl'(S2047Msg, S2048State) -> 'Tianjiupai.RoomServer.Callback':'handle_cast'(S2047Msg, S2048State).
+'handle_cast_impl'(S2050Msg, S2051State) -> 'Tianjiupai.RoomServer.Callback':'handle_cast'(S2050Msg, S2051State).
       arrange_no_reply_result(Result) ->
           case Result of
               {no_reply_impl, State1, MaybeTimeout} ->
@@ -42,9 +42,9 @@
           Result = ?MODULE:handle_cast_impl(Msg, State0),
           ?MODULE:arrange_no_reply_result(Result).
     
-'handle_info_impl'(S2052Info, S2053State) -> 'Tianjiupai.RoomServer.Callback':'handle_info'(S2052Info, S2053State).
-'handle_timeout_impl'(S2055State) -> 'Tianjiupai.RoomServer.Callback':'handle_timeout'(S2055State).
-'handle_down_impl'(S2057Mref, S2058Pid, S2059Reason, S2060State) -> 'Tianjiupai.RoomServer.Callback':'handle_down'(S2057Mref, S2058Pid, S2059Reason, S2060State).
+'handle_info_impl'(S2055Info, S2056State) -> 'Tianjiupai.RoomServer.Callback':'handle_info'(S2055Info, S2056State).
+'handle_timeout_impl'(S2058State) -> 'Tianjiupai.RoomServer.Callback':'handle_timeout'(S2058State).
+'handle_down_impl'(S2060Mref, S2061Pid, S2062Reason, S2063State) -> 'Tianjiupai.RoomServer.Callback':'handle_down'(S2060Mref, S2061Pid, S2062Reason, S2063State).
       handle_info(Msg, State0) ->
           Result =
               case Msg of
@@ -54,7 +54,7 @@
               end,
           ?MODULE:arrange_no_reply_result(Result).
     
-'terminate_impl'(S2063Reason, S2064State) -> 'Tianjiupai.RoomServer.Callback':'terminate'(S2063Reason, S2064State).
+'terminate_impl'(S2066Reason, S2067State) -> 'Tianjiupai.RoomServer.Callback':'terminate'(S2066Reason, S2067State).
       terminate(Reason, State) ->
           terminate_impl(Reason, State).
     
@@ -80,8 +80,8 @@
       cast(Pid, Msg) ->
           gen_server:cast(Pid, Msg).
     
-'as_pid'(S2069Proc) -> S2069Proc.
-'from_pid'(S2071Pid) -> S2071Pid.
+'as_pid'(S2072Proc) -> S2072Proc.
+'from_pid'(S2074Pid) -> S2074Pid.
       start_link(Args) ->
           Result = gen_server:start_link(?MODULE, Args, []),
           % io:format("debug L('o' )J returns: ~p~n", [Result]),
@@ -115,4 +115,4 @@
       stop(Pid) ->
           gen_server:stop(Pid).
     
-'send_info'(S2078Pid, S2079Info) -> sesterl_internal_prim:'send'(S2078Pid, S2079Info).
+'send_info'(S2081Pid, S2082Info) -> sesterl_internal_prim:'send'(S2081Pid, S2082Info).

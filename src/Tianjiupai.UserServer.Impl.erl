@@ -1,7 +1,7 @@
 -module('Tianjiupai.UserServer.Impl').
 -behaviour(gen_server).
 -export(['init_impl'/1, 'init'/1, 'handle_call_impl'/3, 'handle_call'/3, 'handle_cast_impl'/2, 'arrange_no_reply_result'/1, 'handle_cast'/2, 'handle_info_impl'/2, 'handle_timeout_impl'/1, 'handle_down_impl'/4, 'handle_info'/2, 'terminate_impl'/2, 'terminate'/2, 'call'/2, 'call'/3, 'cast'/2, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'stop'/1, 'send_info'/2]).
-'init_impl'(S2296Arg) -> 'Tianjiupai.UserServer.Callback':'init'(S2296Arg).
+'init_impl'(S2408Arg) -> 'Tianjiupai.UserServer.Callback':'init'(S2408Arg).
       init(Args) ->
           case ?MODULE:init_impl(Args) of
               {ok, {State, MaybeTimeout}} ->
@@ -13,7 +13,7 @@
                   {stop, Reason}
           end.
     
-'handle_call_impl'(S2299Req, S2300Pid, S2301State) -> 'Tianjiupai.UserServer.Callback':'handle_call'(S2299Req, S2300Pid, S2301State).
+'handle_call_impl'(S2411Req, S2412Pid, S2413State) -> 'Tianjiupai.UserServer.Callback':'handle_call'(S2411Req, S2412Pid, S2413State).
       handle_call(Msg, From, State0) ->
           {Pid, _} = From,
           case ?MODULE:handle_call_impl(Msg, Pid, State0) of
@@ -26,7 +26,7 @@
                   {stop, Reason, Response, State2}
           end.
     
-'handle_cast_impl'(S2304Msg, S2305State) -> 'Tianjiupai.UserServer.Callback':'handle_cast'(S2304Msg, S2305State).
+'handle_cast_impl'(S2416Msg, S2417State) -> 'Tianjiupai.UserServer.Callback':'handle_cast'(S2416Msg, S2417State).
       arrange_no_reply_result(Result) ->
           case Result of
               {no_reply_impl, State1, MaybeTimeout} ->
@@ -42,9 +42,9 @@
           Result = ?MODULE:handle_cast_impl(Msg, State0),
           ?MODULE:arrange_no_reply_result(Result).
     
-'handle_info_impl'(S2309Info, S2310State) -> 'Tianjiupai.UserServer.Callback':'handle_info'(S2309Info, S2310State).
-'handle_timeout_impl'(S2312State) -> 'Tianjiupai.UserServer.Callback':'handle_timeout'(S2312State).
-'handle_down_impl'(S2314Mref, S2315Pid, S2316Reason, S2317State) -> 'Tianjiupai.UserServer.Callback':'handle_down'(S2314Mref, S2315Pid, S2316Reason, S2317State).
+'handle_info_impl'(S2421Info, S2422State) -> 'Tianjiupai.UserServer.Callback':'handle_info'(S2421Info, S2422State).
+'handle_timeout_impl'(S2424State) -> 'Tianjiupai.UserServer.Callback':'handle_timeout'(S2424State).
+'handle_down_impl'(S2426Mref, S2427Pid, S2428Reason, S2429State) -> 'Tianjiupai.UserServer.Callback':'handle_down'(S2426Mref, S2427Pid, S2428Reason, S2429State).
       handle_info(Msg, State0) ->
           Result =
               case Msg of
@@ -54,7 +54,7 @@
               end,
           ?MODULE:arrange_no_reply_result(Result).
     
-'terminate_impl'(S2320Reason, S2321State) -> 'Tianjiupai.UserServer.Callback':'terminate'(S2320Reason, S2321State).
+'terminate_impl'(S2432Reason, S2433State) -> 'Tianjiupai.UserServer.Callback':'terminate'(S2432Reason, S2433State).
       terminate(Reason, State) ->
           terminate_impl(Reason, State).
     
@@ -80,8 +80,8 @@
       cast(Pid, Msg) ->
           gen_server:cast(Pid, Msg).
     
-'as_pid'(S2326Proc) -> S2326Proc.
-'from_pid'(S2328Pid) -> S2328Pid.
+'as_pid'(S2438Proc) -> S2438Proc.
+'from_pid'(S2440Pid) -> S2440Pid.
       start_link(Args) ->
           Result = gen_server:start_link(?MODULE, Args, []),
           % io:format("debug L('o' )J returns: ~p~n", [Result]),
@@ -115,4 +115,4 @@
       stop(Pid) ->
           gen_server:stop(Pid).
     
-'send_info'(S2335Pid, S2336Info) -> sesterl_internal_prim:'send'(S2335Pid, S2336Info).
+'send_info'(S2447Pid, S2448Info) -> sesterl_internal_prim:'send'(S2447Pid, S2448Info).
