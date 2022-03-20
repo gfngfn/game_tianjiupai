@@ -47,7 +47,7 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
     (?LOGGER:info(
         {"websocket_init (user_id: ~s)", 1},
         {MaybeUserId}
-    ))(erlang:atom_to_binary(?MODULE), ?LINE),
+    ))(erlang:atom_to_binary(?MODULE, utf8), ?LINE),
     case {MaybeUserId, MaybeInfo} of
         {undefined, _} ->
             {stop, user_id_unavailable};
@@ -62,13 +62,13 @@ websocket_init({MaybeUserId, MaybeInfo}) ->
                     (?LOGGER:info(
                         {"succeeded in registration (user_id: ~s)", 1},
                         {UserId}
-                    ))(erlang:atom_to_binary(?MODULE), ?LINE),
+                    ))(erlang:atom_to_binary(?MODULE, utf8), ?LINE),
                     {ok, State};
                 false ->
                     (?LOGGER:info(
                         {"failed to register (user_id: ~s)", 1},
                         {UserId}
-                    ))(erlang:atom_to_binary(?MODULE), ?LINE),
+                    ))(erlang:atom_to_binary(?MODULE, utf8), ?LINE),
                     {stop, register_name_failed}
             end;
         _ ->
@@ -102,7 +102,7 @@ websocket_info(Msg, State) ->
             (?LOGGER:debug(
                 {"room closed (user_id: ~s)", 1},
                 {UserId}
-            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ))(erlang:atom_to_binary(?MODULE, utf8), ?LINE),
             ?FRONT:subscribe_plaza(UserId, self()),
             Bin = ?FRONT:encode_notification(notify_room_close),
             Chunks = [{text, Bin}],
@@ -111,7 +111,7 @@ websocket_info(Msg, State) ->
             (?LOGGER:warning(
                 {"unknown message (message: ~p)", 1},
                 {Msg}
-            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ))(erlang:atom_to_binary(?MODULE, utf8), ?LINE),
             {ok, State}
     end.
 
@@ -129,7 +129,7 @@ notify(UserId, Notifications) ->
             (?LOGGER:warning(
                 {"failed to notify (user_id: ~s, notifications: ~p, class: ~p, reason: ~p)", 4},
                 {UserId, Notifications, Class, Reason}
-            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ))(erlang:atom_to_binary(?MODULE, utf8), ?LINE),
             ok
     end.
 
@@ -149,7 +149,7 @@ notify_room_close(UserId) ->
             (?LOGGER:warning(
                 {"failed to notify room close (user_id: ~s, class: ~p, reason: ~p)", 3},
                 {UserId, Class, Reason}
-            ))(erlang:atom_to_binary(?MODULE), ?LINE),
+            ))(erlang:atom_to_binary(?MODULE, utf8), ?LINE),
             ok
     end.
 

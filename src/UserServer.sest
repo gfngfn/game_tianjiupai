@@ -2,6 +2,8 @@ import Logger
 import Models
 import Constants
 import Room
+import RoomServer
+import RoomServerSup
 import WebSocketHandler
 
 module UserServer :> sig
@@ -9,7 +11,6 @@ module UserServer :> sig
   open Models
 
   type info :: o
-
   type proc :: o
 
   type user_state = {
@@ -18,23 +19,17 @@ module UserServer :> sig
   }
 
   val start_link<$a> : fun(user_id, binary) -> [$a]result<proc, GenServer.start_link_error>
-
-  val get_user_state<$a> : fun(user_id) -> [$a]option<user_state>
-
-  val get_name<$a> : fun(user_id) -> [$a]option<binary>
-
+  val get_user_state<$a> : fun(user_id) -> [$a]result<user_state, RawValue.t>
+  val get_name<$a> : fun(user_id) -> [$a]result<binary, RawValue.t>
   val exists<$a> : fun(user_id) -> [$a]bool
-
-  val get_room<$a> : fun(user_id) -> [$a]option<room_id>
-
-  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]option<unit>
-
+  val delete<$a> : fun(user_id) -> [$a]bool
+  val get_room<$a> : fun(user_id) -> [$a]result<option<room_id>, RawValue.t>
+  val set_room<$a> : fun(user_id, option<room_id>) -> [$a]result<unit, RawValue.t>
+  val create_room<$a> :
+    fun(user_id, -room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, RawValue.t>
   val as_pid : fun(proc) -> pid<info>
-
   val from_pid : fun(pid<info>) -> proc
-
   val get_proc<$a> : fun(user_id) -> [$a]option<proc>
-
 end = struct
   open Stdlib
   open Models
@@ -56,18 +51,21 @@ end = struct
     type state = {
       settings   : settings,
       belongs_to : option<{room_id, MonitorRef.t}>,
+      creates    : list<{room_id, MonitorRef.t}>,
     }
 
     type request =
       | SetRoom(option<room_id>)
       | GetUserState
+      | CreateRoom(room_id, room_name)
 
     type response =
       | RoomSet(bool)
       | UserStateGot(user_state)
+      | RoomCreated(result<RoomServer.proc, RawValue.t>)
 
     type cast_message =
-      | DummyCastMessage
+      | DeleteUser
 
     type info = RawValue.t
 
@@ -80,6 +78,7 @@ end = struct
         {
           settings   = settings,
           belongs_to = None,
+          creates    = [],
         }
       in
       GenServer.init_ok(state, ?timeout Constants.user_expiration_timeout())
@@ -137,11 +136,34 @@ end = struct
                   reply(RoomSet(true), state)
               end
           end
+
+      | CreateRoom(room_id, room_name) ->
+          let creates = state.creates in
+          if List.length(creates) >= Constants.maximum_num_rooms_per_user() then
+            reply(RoomCreated(Error(RawValue.forget("capacity per user exceeded"))), state)
+          else
+            do res <- RoomServerSup.start_child(-room_id room_id, -room_name room_name) in
+            case res of
+            | Ok(proc) ->
+                do mref <- MonitorRef.monitor(RoomServer.as_pid(proc)) in
+                let _ =
+                  let settings = state.settings in
+                  assert Logger.debug(
+                    f'create room (room_id: ~s, user_id: ~s, user_name: ~s)',
+                    {room_id, settings.user_id, settings.user_name})
+                in
+                reply(RoomCreated(Ok(proc)), { state | creates = {room_id, mref} :: creates })
+            | Error(err) ->
+                reply(RoomCreated(Error(err)), state)
+            end
       end
 
     val handle_cast(msg, state) = act
-      let _ = assert Logger.warning(f'unexpected cast message (message: ~p, state: ~p)', {msg, state}) in
-      no_reply(state)
+      case msg of
+      | DeleteUser ->
+          let _ = assert Logger.info(f'stop (user_id: ~s)', {state.settings.user_id}) in
+          GenServer.no_reply_and_stop(StopReason.normal(), state)
+      end
 
     val is_room_down(mref : MonitorRef.t, state : state) : bool =
       case state.belongs_to of
@@ -160,13 +182,35 @@ end = struct
           let _ = assert Logger.debug(f'room closed (user_id: ~s, reason: ~p)', {user_id, reason}) in
           return({ state | belongs_to = None })
         else
-          let _ =
-            assert Logger.warning(
-              f'unexpected down (user_id: ~s, mref: ~p, pid: ~p, reason: ~p, state: ~p)',
-              {user_id, mref, pid, reason, state}
-            )
+          let {deleted_room_opt, acc} =
+            List.foldl(
+              fun({deleted_room_opt, acc}, {room_id, mref0}) ->
+                if MonitorRef.equal(mref0, mref) then
+                  {Some(room_id), acc}
+                else
+                  {deleted_room_opt, {room_id, mref0} :: acc}
+              end,
+              {None, []},
+              state.creates)
           in
-          return(state)
+          case deleted_room_opt of
+          | None ->
+              let _ =
+                assert Logger.warning(
+                  f'unexpected down (user_id: ~s, mref: ~p, pid: ~p, reason: ~p, state: ~p)',
+                  {user_id, mref, pid, reason, state}
+                )
+              in
+              return(state)
+          | Some(room_id) ->
+              let _ =
+                assert Logger.debug(
+                  f'room deleted (user_id: ~s, room_id: ~s, mref: ~p, pid: ~p, reason: ~p, state: ~p)',
+                  {user_id, room_id, mref, pid, reason, state}
+                )
+              in
+              return({ state | creates = List.reverse(acc) })
+          end
       in
       no_reply(state)
 
@@ -195,6 +239,16 @@ end = struct
     | Some(_) -> return(true)
     end
 
+  val delete(user_id) = act
+    do opt <- get_proc(user_id) in
+    case opt of
+    | None ->
+        return(false)
+    | Some(proc) ->
+        do {} <- Impl.cast(proc, Callback.DeleteUser) in
+        return(true)
+    end
+
   val start_link<$a>(user_id : user_id, user_name : binary) : [$a]result<proc, GenServer.start_link_error> = act
     Impl.start_link_name({user_id, user_name}, -name Global(user_id))
 
@@ -207,12 +261,12 @@ end = struct
   val call<$a, $ret>(
     user_id : user_id,
     req     : Callback.request,
-    f       : fun(Callback.response) -> [$a]option<$ret>
-  ) : [$a]option<$ret> = act
+    f       : fun(Callback.response) -> [$a]result<$ret, RawValue.t>
+  ) : [$a]result<$ret, RawValue.t> = act
     do proc_opt <- get_proc(user_id) in
     case proc_opt of
     | None ->
-        return(None)
+        return(Error(RawValue.forget({"no proc", user_id})))
     | Some(proc) ->
         do resp_result <- Impl.call(proc, req) in
         case resp_result of
@@ -225,25 +279,30 @@ end = struct
                 {user_id, req, proc, err},
               )
             in
-            return(None)
+            return(Error(err))
         end
     end
 
   val get_user_state(user_id) = act
     call(user_id, Callback.GetUserState,
-      fun(Callback.UserStateGot(user_state)) -> act return(Some(user_state)) end)
+      fun(Callback.UserStateGot(user_state)) -> act return(Ok(user_state)) end)
 
   val get_name(user_id) = act
-    do opt <- get_user_state(user_id) in
-    return(Option.map(fun(u) -> u.user_name end, opt))
+    do res <- get_user_state(user_id) in
+    return(Result.map(fun(u) -> u.user_name end, res))
 
   val get_room(user_id) = act
-    do opt <- get_user_state(user_id) in
-    return(Option.bind(opt, fun(u) -> u.belongs_to end))
+    do res <- get_user_state(user_id) in
+    return(Result.map(fun(u) -> u.belongs_to end, res))
 
   val set_room(user_id, room_id_opt) = act
     call(user_id, Callback.SetRoom(room_id_opt), fun(Callback.RoomSet(success)) -> act
-      if success then return(Some({})) else return(None)
+      if success then return(Ok({})) else return(Error(RawValue.forget("set room failed")))
+    end)
+
+  val create_room(user_id, -room_id room_id, -room_name room_name) = act
+    call(user_id, Callback.CreateRoom(room_id, room_name), fun(Callback.RoomCreated(res)) -> act
+      return(res)
     end)
 
 end
