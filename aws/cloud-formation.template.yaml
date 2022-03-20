@@ -8,6 +8,11 @@ Parameters:
     Default: "t2.micro"
     AllowedValues:
       - "t2.micro"
+  "IAMRole":
+    Description: "EC2 attached IAM role"
+    Type: String
+    Default: "CloudWatchAgentAdminRole"
+    ConstraintDescription: "must be an existing IAM role which will be attached to EC2 instance."
   "AMI":
     Description: "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20210621"
     Type: "String"
@@ -107,6 +112,8 @@ Resources:
         Ref: "AMI"
       InstanceType:
         Ref: "InstanceTypeParameter"
+      IamInstanceProfile:
+        Ref: "IAMRole"
       SecurityGroupIds:
         - Fn::GetAtt:
           - "ServerSecurityGroup"
@@ -117,30 +124,20 @@ Resources:
         Ref: "KeyName"
       UserData:
         Fn::Base64:
-          Fn::Join:
-            - ""
-            -
-              - |-
-                #!/bin/bash -xe
-                echo "==== Starting UserData ===="
-                STACK_NAME=
-
-              - Ref: "AWS::StackName"
-              - "\n"
-              - |-
-                REGION=
-
-              - Ref: "AWS::Region"
-              - "\n"
-              - |
-                sudo apt-get update
-                sudo apt-get install -y python-setuptools
-                sudo mkdir -p /opt/aws/bin
-                wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-                sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
-                /opt/aws/bin/cfn-init --verbose --resource ServerInstance --stack $STACK_NAME --region $REGION
-                /opt/aws/bin/cfn-signal --exit-code $? --resource ServerInstance --stack $STACK_NAME --region $REGION
-                echo "==== End UserData ===="
+          Fn::Sub: |
+            #!/bin/bash -xe
+            echo "==== Starting UserData ===="
+            wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
+            dpkg -i /tmp/amazon-cloudwatch-agent.deb
+            sudo apt-get update -y
+            sudo apt-get install -y python-pip
+            sudo apt-get install -y python-setuptools
+            sudo mkdir -p /opt/aws/bin
+            wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+            sudo python3 -m easy_install --script-dir /opt/aws/bin aws-cfn-bootstrap-py3-latest.tar.gz
+            /opt/aws/bin/cfn-init --verbose --resource ServerInstance --stack ${AWS::StackName} --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal --exit-code $? --resource ServerInstance --stack ${AWS::StackName} --region ${AWS::Region}
+            echo "==== End UserData ===="
 
     Metadata:
       AWS::CloudFormation::Init:
@@ -245,6 +242,57 @@ Resources:
                         echo "cannot recognize '$1'"
                 esac
                 exit 0
+
+            "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json":
+              content:
+                Fn::Sub: |
+                  {
+                    "agent": {
+                      "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+                    },
+                    "metrics": {
+                      "append_dimensions": {
+                        "AutoScalingGroupName": "${!aws:AutoScalingGroupName}",
+                        "ImageId": "${!aws:ImageId}",
+                        "InstanceId": "${!aws:InstanceId}",
+                        "InstanceType": "${!aws:InstanceType}"
+                      },
+                      "metrics_collected": {
+                        "mem": {
+                          "measurement": [
+                            "mem_used_percent"
+                          ]
+                        },
+                        "swap": {
+                          "measurement": [
+                            "swap_used_percent"
+                          ]
+                        }
+                      }
+                    },
+                    "logs": {
+                      "logs_collected": {
+                        "files": {
+                          "collect_list": [
+                            {
+                              "file_path": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log",
+                              "log_group_name": "amazon-cloudwatch-agent.log",
+                              "log_stream_name": "amazon-cloudwatch-agent.log",
+                              "timestamp_format": "%Y-%m-%d %H:%M:%S",
+                              "timezone": "Local"
+                            },
+                            {
+                              "file_path": "/var/log/nginx/access.log",
+                              "log_group_name": "access.log",
+                              "log_stream_name": "access.log",
+                              "timestamp_format": "%Y-%m-%d %H:%M:%S",
+                              "timezone": "Local"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
 
           commands:
             "install":
