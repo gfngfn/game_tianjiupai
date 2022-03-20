@@ -48,7 +48,7 @@ Resources:
       VpcId:
         Ref: "VPC"
 
-  VPCGatewayAttachment:
+  "VPCGatewayAttachment":
     Type: "AWS::EC2::VPCGatewayAttachment"
     Properties:
       VpcId:
