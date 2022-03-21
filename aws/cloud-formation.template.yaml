@@ -174,8 +174,11 @@ Resources:
                 echo "==== Releasing the project ===="
                 cd "${PROJECT_PATH}" && sudo make image-assets && sudo rebar3 as prod release
                 sudo chown -R ubuntu:ubuntu "${PROJECT_PATH}"
+                echo "==== Set CloudWatch Agent ===="
+                sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
                 echo "==== Starting ===="
                 sudo systemctl enable erlang-app
+                sudo systemctl enable amazon-cloudwatch-agent.service
                 echo "==== Reboot after installation ===="
                 sleep 10 && sudo reboot &
                 exit 0
