@@ -11,7 +11,7 @@ Parameters:
   "IAMRole":
     Description: "EC2 attached IAM role"
     Type: String
-    Default: "CloudWatchAgentAdminRole"
+    Default: "CloudWatchAgentServerRole"
     ConstraintDescription: "must be an existing IAM role which will be attached to EC2 instance."
   "AMI":
     Description: "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20210621"
@@ -130,7 +130,6 @@ Resources:
             wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
             dpkg -i /tmp/amazon-cloudwatch-agent.deb
             sudo apt-get update -y
-            sudo apt-get install -y python-pip
             sudo apt-get install -y python-setuptools
             sudo mkdir -p /opt/aws/bin
             wget https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
