@@ -289,6 +289,20 @@ Resources:
                               "log_stream_name": "access.log",
                               "timestamp_format": "%Y-%m-%d %H:%M:%S",
                               "timezone": "Local"
+                            },
+                            {
+                              "file_path": "/var/log/nginx/error.log",
+                              "log_group_name": "error.log",
+                              "log_stream_name": "error.log",
+                              "timestamp_format": "%Y-%m-%d %H:%M:%S",
+                              "timezone": "Local"
+                            },
+                            {
+                              "file_path": "/var/log/tianjiupai/application.log",
+                              "log_group_name": "application.log",
+                              "log_stream_name": "application.log",
+                              "timestamp_format": "%Y-%m-%d %H:%M:%S",
+                              "timezone": "Local"
                             }
                           ]
                         }
