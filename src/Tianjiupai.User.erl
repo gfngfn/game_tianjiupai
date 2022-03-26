@@ -4,10 +4,10 @@
         Uuid = uuid:get_v4(),
         list_to_binary(uuid:uuid_to_string(Uuid)).
   
-'create'(S2639UserName) -> begin S2640UserId = 'Tianjiupai.User':'generate_user_id'(), begin S2641Res = 'Tianjiupai.UserResourceServer':'add'(S2640UserId, S2639UserName), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'(fun(_) -> S2640UserId end, S2641Res)) end end.
-'exists'(S2643UserId) -> 'Tianjiupai.UserServer':'exists'(S2643UserId).
-'delete'(S2645UserId) -> 'Tianjiupai.UserServer':'delete'(S2645UserId).
-'get_name'(S2647UserId) -> 'Tianjiupai.UserServer':'get_name'(S2647UserId).
-'get_info'(S2649UserId) -> 'Tianjiupai.UserServer':'get_user_state'(S2649UserId).
-'set_room'(S2651UserId, S2652RoomIdOpt) -> 'Tianjiupai.UserServer':'set_room'(S2651UserId, S2652RoomIdOpt).
-'get_room'(S2654UserId) -> 'Tianjiupai.UserServer':'get_room'(S2654UserId).
+'create'(S2659UserName) -> begin S2660UserId = 'Tianjiupai.User':'generate_user_id'(), begin S2661Res = 'Tianjiupai.UserResourceServer':'add'(S2660UserId, S2659UserName), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'(fun(_) -> S2660UserId end, S2661Res)) end end.
+'exists'(S2663UserId) -> 'Tianjiupai.UserServer':'exists'(S2663UserId).
+'delete'(S2665UserId) -> 'Tianjiupai.UserServer':'delete'(S2665UserId).
+'get_name'(S2667UserId) -> 'Tianjiupai.UserServer':'get_name'(S2667UserId).
+'get_info'(S2669UserId) -> 'Tianjiupai.UserServer':'get_user_state'(S2669UserId).
+'set_room'(S2671UserId, S2672RoomIdOpt) -> 'Tianjiupai.UserServer':'set_room'(S2671UserId, S2672RoomIdOpt).
+'get_room'(S2674UserId) -> 'Tianjiupai.UserServer':'get_room'(S2674UserId).

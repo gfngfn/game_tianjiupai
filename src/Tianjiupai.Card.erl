@@ -1,10 +1,10 @@
 -module('Tianjiupai.Card').
 -export(['wen_greater'/2, 'wen_equal'/2, 'wu_number_greater'/2, 'wu_greater'/2, 'wu_equal'/2, 'big_greater'/2, 'sort'/1, 'big_to_wen_and_wu'/1, 'wen_and_wu_to_big'/2]).
-'wen_greater'(S971Wen1, S972Wen2) -> (S971Wen1 > S972Wen2).
-'wen_equal'(S974Wen1, S975Wen2) -> (S974Wen1 == S975Wen2).
-'wu_number_greater'(S977Wunum1, S978Wunum2) -> (S977Wunum1 > S978Wunum2).
-'wu_greater'(S980Wu1, S981Wu2) -> (maps:get(number, S980Wu1) > maps:get(number, S981Wu2)).
-'wu_equal'(S983Wu1, S984Wu2) -> (maps:get(number, S983Wu1) == maps:get(number, S984Wu2)).
+'wen_greater'(S977Wen1, S978Wen2) -> (S977Wen1 > S978Wen2).
+'wen_equal'(S980Wen1, S981Wen2) -> (S980Wen1 == S981Wen2).
+'wu_number_greater'(S983Wunum1, S984Wunum2) -> (S983Wunum1 > S984Wunum2).
+'wu_greater'(S986Wu1, S987Wu2) -> (maps:get(number, S986Wu1) > maps:get(number, S987Wu2)).
+'wu_equal'(S989Wu1, S990Wu2) -> (maps:get(number, S989Wu1) == maps:get(number, S990Wu2)).
     big_greater(Big1, Big2) ->
         Big1 > Big2.
   
@@ -28,5 +28,5 @@
             end,
             Cards).
   
-'big_to_wen_and_wu'(S988Big) -> case S988Big of 'big_a' -> {8, 5}; 'big_b' -> {9, 7}; 'big_c' -> {10, 8}; 'big_d' -> {11, 9} end.
-'wen_and_wu_to_big'(S990Wen, S991Wunum) -> case {S990Wen, S991Wunum} of {8, 5} -> {'ok', 'big_a'}; {9, 7} -> {'ok', 'big_b'}; {10, 8} -> {'ok', 'big_c'}; {11, 9} -> {'ok', 'big_d'}; _ -> 'error' end.
+'big_to_wen_and_wu'(S994Big) -> case S994Big of 'big_a' -> {8, 5}; 'big_b' -> {9, 7}; 'big_c' -> {10, 8}; 'big_d' -> {11, 9} end.
+'wen_and_wu_to_big'(S996Wen, S997Wunum) -> case {S996Wen, S997Wunum} of {8, 5} -> {'ok', 'big_a'}; {9, 7} -> {'ok', 'big_b'}; {10, 8} -> {'ok', 'big_c'}; {11, 9} -> {'ok', 'big_d'}; _ -> 'error' end.

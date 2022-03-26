@@ -12,4 +12,4 @@
     notify_room_close(UserId) ->
         tianjiupai_websocket:notify_room_close(UserId).
   
-'monitor'(S1072WsProc) -> 'SesterlStdlib.MonitorRef':'monitor'(S1072WsProc).
+'monitor'(S1078WsProc) -> 'SesterlStdlib.MonitorRef':'monitor'(S1078WsProc).

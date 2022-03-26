@@ -1,7 +1,7 @@
 -module('Tianjiupai.UserResourceServer.Impl').
 -behaviour(gen_server).
 -export(['init_impl'/1, 'init'/1, 'handle_call_impl'/3, 'handle_call'/3, 'handle_cast_impl'/2, 'arrange_no_reply_result'/1, 'handle_cast'/2, 'handle_info_impl'/2, 'handle_timeout_impl'/1, 'handle_down_impl'/4, 'handle_info'/2, 'terminate_impl'/2, 'terminate'/2, 'call'/2, 'call'/3, 'cast'/2, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'stop'/1, 'send_info'/2]).
-'init_impl'(S2576Arg) -> 'Tianjiupai.UserResourceServer.Callback':'init'(S2576Arg).
+'init_impl'(S2590Arg) -> 'Tianjiupai.UserResourceServer.Callback':'init'(S2590Arg).
       init(Args) ->
           case ?MODULE:init_impl(Args) of
               {ok, {State, MaybeTimeout}} ->
@@ -13,7 +13,7 @@
                   {stop, Reason}
           end.
     
-'handle_call_impl'(S2579Req, S2580Pid, S2581State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_call'(S2579Req, S2580Pid, S2581State).
+'handle_call_impl'(S2593Req, S2594Pid, S2595State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_call'(S2593Req, S2594Pid, S2595State).
       handle_call(Msg, From, State0) ->
           {Pid, _} = From,
           case ?MODULE:handle_call_impl(Msg, Pid, State0) of
@@ -26,7 +26,7 @@
                   {stop, Reason, Response, State2}
           end.
     
-'handle_cast_impl'(S2584Msg, S2585State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_cast'(S2584Msg, S2585State).
+'handle_cast_impl'(S2598Msg, S2599State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_cast'(S2598Msg, S2599State).
       arrange_no_reply_result(Result) ->
           case Result of
               {no_reply_impl, State1, MaybeTimeout} ->
@@ -42,9 +42,9 @@
           Result = ?MODULE:handle_cast_impl(Msg, State0),
           ?MODULE:arrange_no_reply_result(Result).
     
-'handle_info_impl'(S2589Info, S2590State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_info'(S2589Info, S2590State).
-'handle_timeout_impl'(S2592State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_timeout'(S2592State).
-'handle_down_impl'(S2594Mref, S2595Pid, S2596Reason, S2597State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_down'(S2594Mref, S2595Pid, S2596Reason, S2597State).
+'handle_info_impl'(S2603Info, S2604State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_info'(S2603Info, S2604State).
+'handle_timeout_impl'(S2606State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_timeout'(S2606State).
+'handle_down_impl'(S2608Mref, S2609Pid, S2610Reason, S2611State) -> 'Tianjiupai.UserResourceServer.Callback':'handle_down'(S2608Mref, S2609Pid, S2610Reason, S2611State).
       handle_info(Msg, State0) ->
           Result =
               case Msg of
@@ -54,7 +54,7 @@
               end,
           ?MODULE:arrange_no_reply_result(Result).
     
-'terminate_impl'(S2600Reason, S2601State) -> 'Tianjiupai.UserResourceServer.Callback':'terminate'(S2600Reason, S2601State).
+'terminate_impl'(S2614Reason, S2615State) -> 'Tianjiupai.UserResourceServer.Callback':'terminate'(S2614Reason, S2615State).
       terminate(Reason, State) ->
           terminate_impl(Reason, State).
     
@@ -80,8 +80,8 @@
       cast(Pid, Msg) ->
           gen_server:cast(Pid, Msg).
     
-'as_pid'(S2606Proc) -> S2606Proc.
-'from_pid'(S2608Pid) -> S2608Pid.
+'as_pid'(S2620Proc) -> S2620Proc.
+'from_pid'(S2622Pid) -> S2622Pid.
       start_link(Args) ->
           Result = gen_server:start_link(?MODULE, Args, []),
           % io:format("debug L('o' )J returns: ~p~n", [Result]),
@@ -115,4 +115,4 @@
       stop(Pid) ->
           gen_server:stop(Pid).
     
-'send_info'(S2615Pid, S2616Info) -> sesterl_internal_prim:'send'(S2615Pid, S2616Info).
+'send_info'(S2629Pid, S2630Info) -> sesterl_internal_prim:'send'(S2629Pid, S2630Info).
