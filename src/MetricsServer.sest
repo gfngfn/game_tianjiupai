@@ -73,20 +73,35 @@ end = struct
     ```
 
     val handle_timeout(state : state) = act
-      do num_rooms <- RoomResourceServer.get_number_of_rooms() in
-      do num_users <- UserResourceServer.get_number_of_users() in
-      let _ = assert Logger.debug(f'num_rooms: ~p, num_users: ~p', {num_rooms, num_users}) in
-      do timestamp <- now_milliseconds() in
-      let data =
-        format(
-          f'{\"_aws\": {\"Timestamp\": ~p, \"CloudWatchMetrics\": [{\"Namespace\": \"game-server-metrics\", \"Dimensions\": [[\"functionVersion\"]], \"Metrics\": [{\"Name\": \"num_rooms\": \"Unit\": \"Count\"}, {\"Name\": \"num_users\", \"Unit\": \"Count\"}]}]}, \"functionVersion\": \"$LATEST\", \"num_rooms\": ~p, \"num_users\": ~p}',
-          {timestamp, num_rooms, num_users},
-        )
-      in
-      do Ok({}) <-
-        case state.socket of
-        | Some(socket) -> Socket.send(socket, Binary.from_list(data))
-        | None         -> return(Ok({}))
+      do res_rooms <- RoomResourceServer.get_number_of_rooms() in
+      do res_users <- UserResourceServer.get_number_of_users() in
+      do {} <-
+        case {res_rooms, res_users} of
+        | {Ok(num_rooms), Ok(num_users)} ->
+            let _ = assert Logger.debug(f'num_rooms: ~p, num_users: ~p', {num_rooms, num_users}) in
+            do timestamp <- now_milliseconds() in
+            let data =
+              format(
+                f'{\"_aws\": {\"Timestamp\": ~p, \"CloudWatchMetrics\": [{\"Namespace\": \"game-server-metrics\", \"Dimensions\": [[\"functionVersion\"]], \"Metrics\": [{\"Name\": \"num_rooms\": \"Unit\": \"Count\"}, {\"Name\": \"num_users\", \"Unit\": \"Count\"}]}]}, \"functionVersion\": \"$LATEST\", \"num_rooms\": ~p, \"num_users\": ~p}',
+                {timestamp, num_rooms, num_users},
+              )
+            in
+            case state.socket of
+            | Some(socket) ->
+                do res <- Socket.send(socket, Binary.from_list(data)) in
+                case res of
+                | Ok({}) ->
+                    return({})
+                | Error(err) ->
+                    let _ = assert Logger.warning(f'failed to send metrics (reason: ~p)', {err}) in
+                    return({})
+                end
+            | None ->
+                return({})
+            end
+        | _ ->
+            let _ = assert Logger.warning(f'res_rooms: ~p, res_users: ~p', {res_rooms, res_users}) in
+            return({})
         end
       in
       GenServer.no_reply(state, ?timeout Constants.metrics_interval())
