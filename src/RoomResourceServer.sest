@@ -14,6 +14,7 @@ module RoomResourceServer :> sig
   val as_pid : fun(proc) -> pid<info>
   val add<$a, $b> :
     fun(-created_by user_id, -room_id room_id, -room_name binary) -> [$a]result<RoomServer.proc, RawValue.t>
+  val get_number_of_rooms<$a> : fun() -> [$a]result<int, RawValue.t>
 end = struct
   open Stdlib
   open Models
@@ -24,9 +25,11 @@ end = struct
 
     type request =
       | AddRoom(user_id, room_id, binary)
+      | GetNumRooms
 
     type response =
       | RoomAdded(result<RoomServer.proc, RawValue.t>)
+      | NumRoomsGot(int)
 
     type cast_message =
       | CastDummy
@@ -72,6 +75,9 @@ end = struct
             | Error(err) ->
                 GenServer.reply(RoomAdded(Error(err)), state)
             end
+
+      | GetNumRooms ->
+          GenServer.reply(NumRoomsGot(state.num_rooms), state)
       end
 
     val handle_cast(msg, state) = act
@@ -119,6 +125,19 @@ end = struct
         do call_res <- Impl.call(proc, Callback.AddRoom(user_id, room_id, room_name)) in
         case call_res of
         | Ok(Callback.RoomAdded(res)) -> return(res)
+        | Error(err)                  -> return(Error(err))
+        end
+    | None ->
+        return(Error(RawValue.forget("no room resource server")))
+    end
+
+  val get_number_of_rooms() = act
+    do proc_res <- Impl.where_is_global({}) in
+    case proc_res of
+    | Some(proc) ->
+        do call_res <- Impl.call(proc, Callback.GetNumRooms) in
+        case call_res of
+        | Ok(Callback.NumRoomsGot(n)) -> return(Ok(n))
         | Error(err)                  -> return(Error(err))
         end
     | None ->

@@ -21,4 +21,7 @@ module Constants = struct
   val maximum_num_rooms_per_user() =
     10
 
+  val metrics_interval() =
+    1000 * 60 /* one minute */
+
 end

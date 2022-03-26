@@ -1,0 +1,115 @@
+import Logger
+import Constants
+import Socket
+import RoomResourceServer
+import UserResourceServer
+
+module MetricsServer :> sig
+  open Stdlib
+
+  type info :: o
+
+  type proc :: o
+
+  val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
+
+  val as_pid : fun(proc) -> pid<info>
+
+end = struct
+  open Stdlib
+
+  module Callback = struct
+
+    type init_arg = unit
+
+    type request =
+      | RequestDummy
+
+    type response =
+      | ResponseDummy
+
+    type cast_message =
+      | CastDummy
+
+    type info =
+      | InfoDummy
+
+    type state = {
+      socket : option<Socket.t>,
+    }
+
+    type global = unit
+
+    val init({}) = act
+      do res <- Socket.connect(-address {127, 0, 0, 1}, -port 25888) in
+      let socket_opt =
+        case res of
+        | Ok(socket) ->
+            Some(socket)
+        | Error(err) ->
+            let _ = assert Logger.warning(f'failed to connect (reason: ~p)', {err}) in
+            None
+        end
+      in
+      let state = { socket = socket_opt } in
+      GenServer.init_ok(state, ?timeout Constants.metrics_interval())
+
+    val handle_call(RequestDummy, from, state) = act
+      let _ = assert Logger.warning(f'unexpected call (from: ~p, state: ~p)', {from, state}) in
+      GenServer.reply(ResponseDummy, state)
+
+    val handle_cast(CastDummy, state) = act
+      let _ = assert Logger.warning(f'unexpected cast (state: ~p)', {state}) in
+      GenServer.no_reply(state)
+
+    val handle_down(mref, pid, reason, state) = act
+      let tuple = {mref, pid, reason} in
+      let _ = assert Logger.warning(f'unexpected down (tuple: ~p, state: ~p)', {tuple, state}) in
+      GenServer.no_reply(state)
+
+    val now_milliseconds<$a> : fun() -> [$a]int = external 0 ```
+      now_milliseconds() ->
+          os:system_time(milli_seconds).
+    ```
+
+    val handle_timeout(state : state) = act
+      do num_rooms <- RoomResourceServer.get_number_of_rooms() in
+      do num_users <- UserResourceServer.get_number_of_users() in
+      do timestamp <- now_milliseconds() in
+      let data =
+        format(
+          f'{\"_aws\": {\"Timestamp\": ~p, \"CloudWatchMetrics\": [{\"Namespace\": \"game-server-metrics\", \"Dimensions\": [[\"functionVersion\"]], \"Metrics\": [{\"Name\": \"num_rooms\": \"Unit\": \"Count\"}, {\"Name\": \"num_users\", \"Unit\": \"Count\"}]}]}, \"functionVersion\": \"$LATEST\", \"num_rooms\": ~p, \"num_users\": ~p}',
+          {timestamp, num_rooms, num_users},
+        )
+      in
+      do Ok({}) <-
+        case state.socket of
+        | Some(socket) -> Socket.send(socket, Binary.from_list(data))
+        | None         -> return(Ok({}))
+        end
+      in
+      GenServer.no_reply(state, ?timeout Constants.metrics_interval())
+
+    val handle_info(info, state : state) = act
+      let _ = assert Logger.warning(f'unexpected info (info: ~p, state: ~p)', {info, state}) in
+      GenServer.no_reply(state)
+
+    val terminate(reason, state) = act
+      let _ = assert Logger.warning(f'terminate (reason: ~p, state: ~p)', {reason, state}) in
+      return({})
+
+  end
+
+  module Impl = GenServer.Make(Callback)
+
+  type info = Callback.info
+
+  type proc = Impl.proc
+
+  val start_link() = act
+    Impl.start_link_name({}, -name Global({}))
+
+  val as_pid(proc) =
+    Impl.as_pid(proc)
+
+end
