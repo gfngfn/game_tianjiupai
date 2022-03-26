@@ -1,7 +1,7 @@
 -module('Tianjiupai.MetricsServer.Impl').
 -behaviour(gen_server).
 -export(['init_impl'/1, 'init'/1, 'handle_call_impl'/3, 'handle_call'/3, 'handle_cast_impl'/2, 'arrange_no_reply_result'/1, 'handle_cast'/2, 'handle_info_impl'/2, 'handle_timeout_impl'/1, 'handle_down_impl'/4, 'handle_info'/2, 'terminate_impl'/2, 'terminate'/2, 'call'/2, 'call'/3, 'cast'/2, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'stop'/1, 'send_info'/2]).
-'init_impl'(S2711Arg) -> 'Tianjiupai.MetricsServer.Callback':'init'(S2711Arg).
+'init_impl'(S2715Arg) -> 'Tianjiupai.MetricsServer.Callback':'init'(S2715Arg).
       init(Args) ->
           case ?MODULE:init_impl(Args) of
               {ok, {State, MaybeTimeout}} ->
@@ -13,7 +13,7 @@
                   {stop, Reason}
           end.
     
-'handle_call_impl'(S2714Req, S2715Pid, S2716State) -> 'Tianjiupai.MetricsServer.Callback':'handle_call'(S2714Req, S2715Pid, S2716State).
+'handle_call_impl'(S2718Req, S2719Pid, S2720State) -> 'Tianjiupai.MetricsServer.Callback':'handle_call'(S2718Req, S2719Pid, S2720State).
       handle_call(Msg, From, State0) ->
           {Pid, _} = From,
           case ?MODULE:handle_call_impl(Msg, Pid, State0) of
@@ -26,7 +26,7 @@
                   {stop, Reason, Response, State2}
           end.
     
-'handle_cast_impl'(S2719Msg, S2720State) -> 'Tianjiupai.MetricsServer.Callback':'handle_cast'(S2719Msg, S2720State).
+'handle_cast_impl'(S2723Msg, S2724State) -> 'Tianjiupai.MetricsServer.Callback':'handle_cast'(S2723Msg, S2724State).
       arrange_no_reply_result(Result) ->
           case Result of
               {no_reply_impl, State1, MaybeTimeout} ->
@@ -42,9 +42,9 @@
           Result = ?MODULE:handle_cast_impl(Msg, State0),
           ?MODULE:arrange_no_reply_result(Result).
     
-'handle_info_impl'(S2724Info, S2725State) -> 'Tianjiupai.MetricsServer.Callback':'handle_info'(S2724Info, S2725State).
-'handle_timeout_impl'(S2727State) -> 'Tianjiupai.MetricsServer.Callback':'handle_timeout'(S2727State).
-'handle_down_impl'(S2729Mref, S2730Pid, S2731Reason, S2732State) -> 'Tianjiupai.MetricsServer.Callback':'handle_down'(S2729Mref, S2730Pid, S2731Reason, S2732State).
+'handle_info_impl'(S2728Info, S2729State) -> 'Tianjiupai.MetricsServer.Callback':'handle_info'(S2728Info, S2729State).
+'handle_timeout_impl'(S2731State) -> 'Tianjiupai.MetricsServer.Callback':'handle_timeout'(S2731State).
+'handle_down_impl'(S2733Mref, S2734Pid, S2735Reason, S2736State) -> 'Tianjiupai.MetricsServer.Callback':'handle_down'(S2733Mref, S2734Pid, S2735Reason, S2736State).
       handle_info(Msg, State0) ->
           Result =
               case Msg of
@@ -54,7 +54,7 @@
               end,
           ?MODULE:arrange_no_reply_result(Result).
     
-'terminate_impl'(S2735Reason, S2736State) -> 'Tianjiupai.MetricsServer.Callback':'terminate'(S2735Reason, S2736State).
+'terminate_impl'(S2739Reason, S2740State) -> 'Tianjiupai.MetricsServer.Callback':'terminate'(S2739Reason, S2740State).
       terminate(Reason, State) ->
           terminate_impl(Reason, State).
     
@@ -80,8 +80,8 @@
       cast(Pid, Msg) ->
           gen_server:cast(Pid, Msg).
     
-'as_pid'(S2741Proc) -> S2741Proc.
-'from_pid'(S2743Pid) -> S2743Pid.
+'as_pid'(S2745Proc) -> S2745Proc.
+'from_pid'(S2747Pid) -> S2747Pid.
       start_link(Args) ->
           Result = gen_server:start_link(?MODULE, Args, []),
           % io:format("debug L('o' )J returns: ~p~n", [Result]),
@@ -115,4 +115,4 @@
       stop(Pid) ->
           gen_server:stop(Pid).
     
-'send_info'(S2750Pid, S2751Info) -> sesterl_internal_prim:'send'(S2750Pid, S2751Info).
+'send_info'(S2754Pid, S2755Info) -> sesterl_internal_prim:'send'(S2754Pid, S2755Info).
