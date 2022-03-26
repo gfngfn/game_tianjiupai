@@ -13,6 +13,7 @@ module UserResourceServer :> sig
   val start_link<$a> : fun() -> [$a]result<proc, GenServer.start_link_error>
   val as_pid : fun(proc) -> pid<info>
   val add<$a, $b> : fun(-user_id user_id, -user_name binary) -> [$a]result<UserServer.proc, RawValue.t>
+  val get_number_of_users<$a> : fun() -> [$a]result<int, RawValue.t>
 end = struct
   open Stdlib
   open Models
@@ -23,9 +24,11 @@ end = struct
 
     type request =
       | AddUser(user_id, binary)
+      | GetNumUsers
 
     type response =
       | UserAdded(result<UserServer.proc, RawValue.t>)
+      | NumUsersGot(int)
 
     type cast_message =
       | CastDummy
@@ -63,6 +66,9 @@ end = struct
             | Error(err) ->
                 GenServer.reply(UserAdded(Error(err)), state)
             end
+
+      | GetNumUsers ->
+          GenServer.reply(NumUsersGot(state.num_users), state)
       end
 
     val handle_cast(msg, state) = act
@@ -110,6 +116,19 @@ end = struct
         do call_res <- Impl.call(proc, Callback.AddUser(user_id, user_name)) in
         case call_res of
         | Ok(Callback.UserAdded(res)) -> return(res)
+        | Error(err)                  -> return(Error(err))
+        end
+    | None ->
+        return(Error(RawValue.forget("no user resource server")))
+    end
+
+  val get_number_of_users() = act
+    do proc_res <- Impl.where_is_global({}) in
+    case proc_res of
+    | Some(proc) ->
+        do call_res <- Impl.call(proc, Callback.GetNumUsers) in
+        case call_res of
+        | Ok(Callback.NumUsersGot(n)) -> return(Ok(n))
         | Error(err)                  -> return(Error(err))
         end
     | None ->

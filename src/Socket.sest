@@ -1,0 +1,26 @@
+module Socket :> sig
+  open Stdlib
+
+  type t :: o
+
+  val connect<$a> : fun(-address {int, int, int, int}, -port int) -> [$a]result<t, RawValue.t>
+
+  val send<$a> : fun(t, binary) -> [$a]result<unit, RawValue.t>
+
+end = struct
+  open Stdlib
+
+  type t =
+    | SocketDummy
+
+  val connect<$a> : fun(-address {int, int, int, int}, -port int) -> [$a]result<t, RawValue.t> = external 2 ```
+    connect(Address, Port) ->
+        gen_tcp:connect(#{family => inet, port => Port, addr => Address}).
+  ```
+
+  val send<$a> : fun(t, binary) -> [$a]result<unit, RawValue.t> = external 2 ```
+    send(Socket, Packet) ->
+        gen_tcp:send(Socket, Packet).
+  ```
+
+end
