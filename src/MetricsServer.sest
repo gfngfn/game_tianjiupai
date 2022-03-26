@@ -59,7 +59,7 @@ end = struct
       GenServer.no_reply(state)
 
     val now_milliseconds<$a> : fun() -> [$a]int = external 0 ```
-      get_timestamp_milliseconds() ->
+      now_milliseconds() ->
           os:system_time(milli_seconds).
     ```
 
@@ -69,7 +69,9 @@ end = struct
       do timestamp <- now_milliseconds() in
       let data =
         format(
-          f'{"_aws": {"Timestamp": ~p, "CloudWatchMetrics": [{"Namespace": "game-server-metrics", "Dimensions": [["functionVersion"]], "Metrics": [{"Name": "num_rooms": "Unit": "Count"}, {"Name": "num_users", "Unit": "Count"}]}]}, "functionVersion": "$LATEST", "num_rooms": ~p, "num_users": ~p}', {timestamp, num_rooms, num_users})
+          f'{\"_aws\": {\"Timestamp\": ~p, \"CloudWatchMetrics\": [{\"Namespace\": \"game-server-metrics\", \"Dimensions\": [[\"functionVersion\"]], \"Metrics\": [{\"Name\": \"num_rooms\": \"Unit\": \"Count\"}, {\"Name\": \"num_users\", \"Unit\": \"Count\"}]}]}, \"functionVersion\": \"$LATEST\", \"num_rooms\": ~p, \"num_users\": ~p}',
+          {timestamp, num_rooms, num_users},
+        )
       in
       do Ok({}) <- Socket.send(state.socket, Binary.from_list(data)) in
       GenServer.no_reply(state, ?timeout Constants.metrics_interval())
