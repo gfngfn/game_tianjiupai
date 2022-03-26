@@ -15,7 +15,7 @@ end = struct
 
   val connect<$a> : fun(-address {int, int, int, int}, -port int) -> [$a]result<t, RawValue.t> = external 2 ```
     connect(Address, Port) ->
-        gen_tcp:connect(#{family => inet, port => Port, addr => Address}).
+        gen_tcp:connect(Address, Port, []).
   ```
 
   val send<$a> : fun(t, binary) -> [$a]result<unit, RawValue.t> = external 2 ```
