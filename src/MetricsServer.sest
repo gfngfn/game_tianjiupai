@@ -75,6 +75,7 @@ end = struct
     val handle_timeout(state : state) = act
       do num_rooms <- RoomResourceServer.get_number_of_rooms() in
       do num_users <- UserResourceServer.get_number_of_users() in
+      let _ = assert Logger.debug(f'num_rooms: ~p, num_users: ~p', {num_rooms, num_users}) in
       do timestamp <- now_milliseconds() in
       let data =
         format(

@@ -20,7 +20,11 @@ end = struct
 
   val send<$a> : fun(t, binary) -> [$a]result<unit, RawValue.t> = external 2 ```
     send(Socket, Packet) ->
-        gen_tcp:send(Socket, Packet).
+        Result = gen_tcp:send(Socket, Packet),
+        case Result of
+            ok         -> {ok, ok};
+            {error, _} -> Result
+        end.
   ```
 
 end
