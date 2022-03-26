@@ -3,6 +3,7 @@ import UserServerSup
 import PlazaServer
 import RoomResourceServer
 import UserResourceServer
+import MetricsServer
 
 module Sup = struct
   open Stdlib
@@ -46,6 +47,12 @@ module Sup = struct
         return(Result.map(UserResourceServer.as_pid, res))
       end)
 
+    val start_metrics_server() = act
+      SS.make_child_proc(fun() -> act
+        do res <- MetricsServer.start_link() in
+        return(Result.map(MetricsServer.as_pid, res))
+      end)
+
     val init(_) = act
       let sup_flags = SS.make_sup_flags(?strategy SS.OneForAll) in
       let child_specs =
@@ -73,6 +80,11 @@ module Sup = struct
           SS.make_child_spec(
             -id    "user_resource_server",
             -start (freeze start_user_resource_server()),
+            ?type  Supervisor.Worker
+          ),
+          SS.make_child_spec(
+            -id    "metrics_server",
+            -start (freeze start_metrics_server()),
             ?type  Supervisor.Worker
           ),
         ]
