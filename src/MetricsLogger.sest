@@ -1,0 +1,36 @@
+module MetricsLogger :> sig
+
+  type unix_timestamp_milliseconds = int
+
+  val put<$a> :
+    fun(
+      -timestamp unix_timestamp_milliseconds,
+      -num_rooms int,
+      -num_users int,
+    ) ->
+      [$a]unit
+
+end = struct
+  open Stdlib
+
+  type unix_timestamp_milliseconds = int
+
+  val put_impl<$a> : fun(list<char>) -> [$a]unit = external 1 ```
+    put_impl(Msg) ->
+        logger:log(info, Msg, [], #{ message_only => "yes", file => "", line => 0 }).
+  ```
+
+  val put(
+    -timestamp timestamp,
+    -num_rooms num_rooms,
+    -num_users num_users,
+  ) = act
+    let data =
+      format(
+        f'{\"_aws\": {\"Timestamp\": ~p, \"CloudWatchMetrics\": [{\"Namespace\": \"game-server-metrics\", \"Dimensions\": [[\"functionVersion\"]], \"Metrics\": [{\"Name\": \"num_rooms\": \"Unit\": \"Count\"}, {\"Name\": \"num_users\", \"Unit\": \"Count\"}]}]}, \"functionVersion\": \"$LATEST\", \"num_rooms\": ~p, \"num_users\": ~p}',
+        {timestamp, num_rooms, num_users},
+      )
+    in
+    put_impl(data)
+
+end
