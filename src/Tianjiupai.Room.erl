@@ -4,15 +4,15 @@
         Uuid = uuid:get_v4(),
         list_to_binary(uuid:uuid_to_string(Uuid)).
   
-'create'(S2303UserId, S2304RoomName) -> begin S2305RoomId = 'Tianjiupai.Room':'generate_room_id'(), begin S2306Res = 'Tianjiupai.RoomResourceServer':'add'(S2303UserId, S2305RoomId, S2304RoomName), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'(fun(_) -> S2305RoomId end, S2306Res)) end end.
+'create'(S2311UserId, S2312RoomName) -> begin S2313RoomId = 'Tianjiupai.Room':'generate_room_id'(), begin S2314Res = 'Tianjiupai.RoomResourceServer':'add'(S2311UserId, S2313RoomId, S2312RoomName), sesterl_internal_prim:'return'('SesterlStdlib.Result':'map'(fun(_) -> S2313RoomId end, S2314Res)) end end.
 'get_all_rooms'() -> 'Tianjiupai.PlazaServer':'get_all_rooms'().
-'get_whole_state'(S2309RoomId) -> 'Tianjiupai.RoomServer':'get_whole_state'(S2309RoomId).
-'get_personal_state'(S2311RoomId, S2312UserId) -> 'Tianjiupai.RoomServer':'get_personal_state'(S2311RoomId, S2312UserId).
-'attend'(S2314RoomId, S2315User, S2316WsProc) -> 'Tianjiupai.RoomServer':'attend'(S2314RoomId, S2315User, S2316WsProc).
-'exit'(S2318RoomId, S2319UserId) -> 'Tianjiupai.RoomServer':'exit'(S2318RoomId, S2319UserId).
-'send_chat'(S2321RoomId, S2322From, S2323Text) -> 'Tianjiupai.RoomServer':'send_chat'(S2321RoomId, S2322From, S2323Text).
-'submit'(S2325RoomId, S2326UserId, S2327Cards) -> 'Tianjiupai.RoomServer':'submit'(S2325RoomId, S2326UserId, S2327Cards).
-'ack'(S2329RoomId, S2330UserId, S2331SnapshotId) -> 'Tianjiupai.RoomServer':'ack'(S2329RoomId, S2330UserId, S2331SnapshotId).
-'require_next_inning'(S2333RoomId, S2334UserId, S2335SnapshotId) -> 'Tianjiupai.RoomServer':'require_next_inning'(S2333RoomId, S2334UserId, S2335SnapshotId).
-'set_connection'(S2337RoomId, S2338UserId, S2339WsProc) -> 'Tianjiupai.RoomServer':'set_connection'(S2337RoomId, S2338UserId, S2339WsProc).
-'monitor'(S2341RoomId) -> 'Tianjiupai.RoomServer':'monitor'(S2341RoomId).
+'get_whole_state'(S2317RoomId) -> 'Tianjiupai.RoomServer':'get_whole_state'(S2317RoomId).
+'get_personal_state'(S2319RoomId, S2320UserId) -> 'Tianjiupai.RoomServer':'get_personal_state'(S2319RoomId, S2320UserId).
+'attend'(S2322RoomId, S2323User, S2324WsProc) -> 'Tianjiupai.RoomServer':'attend'(S2322RoomId, S2323User, S2324WsProc).
+'exit'(S2326RoomId, S2327UserId) -> 'Tianjiupai.RoomServer':'exit'(S2326RoomId, S2327UserId).
+'send_chat'(S2329RoomId, S2330From, S2331Text) -> 'Tianjiupai.RoomServer':'send_chat'(S2329RoomId, S2330From, S2331Text).
+'submit'(S2333RoomId, S2334UserId, S2335Cards) -> 'Tianjiupai.RoomServer':'submit'(S2333RoomId, S2334UserId, S2335Cards).
+'ack'(S2337RoomId, S2338UserId, S2339SnapshotId) -> 'Tianjiupai.RoomServer':'ack'(S2337RoomId, S2338UserId, S2339SnapshotId).
+'require_next_inning'(S2341RoomId, S2342UserId, S2343SnapshotId) -> 'Tianjiupai.RoomServer':'require_next_inning'(S2341RoomId, S2342UserId, S2343SnapshotId).
+'set_connection'(S2345RoomId, S2346UserId, S2347WsProc) -> 'Tianjiupai.RoomServer':'set_connection'(S2345RoomId, S2346UserId, S2347WsProc).
+'monitor'(S2349RoomId) -> 'Tianjiupai.RoomServer':'monitor'(S2349RoomId).

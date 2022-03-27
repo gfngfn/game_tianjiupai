@@ -1,7 +1,7 @@
 -module('Tianjiupai.RoomResourceServer.Impl').
 -behaviour(gen_server).
 -export(['init_impl'/1, 'init'/1, 'handle_call_impl'/3, 'handle_call'/3, 'handle_cast_impl'/2, 'arrange_no_reply_result'/1, 'handle_cast'/2, 'handle_info_impl'/2, 'handle_timeout_impl'/1, 'handle_down_impl'/4, 'handle_info'/2, 'terminate_impl'/2, 'terminate'/2, 'call'/2, 'call'/3, 'cast'/2, 'as_pid'/1, 'from_pid'/1, 'start_link'/1, 'start_link_name'/2, 'where_is_local'/1, 'where_is_global'/1, 'stop'/1, 'send_info'/2]).
-'init_impl'(S2228Arg) -> 'Tianjiupai.RoomResourceServer.Callback':'init'(S2228Arg).
+'init_impl'(S2236Arg) -> 'Tianjiupai.RoomResourceServer.Callback':'init'(S2236Arg).
       init(Args) ->
           case ?MODULE:init_impl(Args) of
               {ok, {State, MaybeTimeout}} ->
@@ -13,7 +13,7 @@
                   {stop, Reason}
           end.
     
-'handle_call_impl'(S2231Req, S2232Pid, S2233State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_call'(S2231Req, S2232Pid, S2233State).
+'handle_call_impl'(S2239Req, S2240Pid, S2241State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_call'(S2239Req, S2240Pid, S2241State).
       handle_call(Msg, From, State0) ->
           {Pid, _} = From,
           case ?MODULE:handle_call_impl(Msg, Pid, State0) of
@@ -26,7 +26,7 @@
                   {stop, Reason, Response, State2}
           end.
     
-'handle_cast_impl'(S2236Msg, S2237State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_cast'(S2236Msg, S2237State).
+'handle_cast_impl'(S2244Msg, S2245State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_cast'(S2244Msg, S2245State).
       arrange_no_reply_result(Result) ->
           case Result of
               {no_reply_impl, State1, MaybeTimeout} ->
@@ -42,9 +42,9 @@
           Result = ?MODULE:handle_cast_impl(Msg, State0),
           ?MODULE:arrange_no_reply_result(Result).
     
-'handle_info_impl'(S2241Info, S2242State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_info'(S2241Info, S2242State).
-'handle_timeout_impl'(S2244State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_timeout'(S2244State).
-'handle_down_impl'(S2246Mref, S2247Pid, S2248Reason, S2249State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_down'(S2246Mref, S2247Pid, S2248Reason, S2249State).
+'handle_info_impl'(S2249Info, S2250State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_info'(S2249Info, S2250State).
+'handle_timeout_impl'(S2252State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_timeout'(S2252State).
+'handle_down_impl'(S2254Mref, S2255Pid, S2256Reason, S2257State) -> 'Tianjiupai.RoomResourceServer.Callback':'handle_down'(S2254Mref, S2255Pid, S2256Reason, S2257State).
       handle_info(Msg, State0) ->
           Result =
               case Msg of
@@ -54,7 +54,7 @@
               end,
           ?MODULE:arrange_no_reply_result(Result).
     
-'terminate_impl'(S2252Reason, S2253State) -> 'Tianjiupai.RoomResourceServer.Callback':'terminate'(S2252Reason, S2253State).
+'terminate_impl'(S2260Reason, S2261State) -> 'Tianjiupai.RoomResourceServer.Callback':'terminate'(S2260Reason, S2261State).
       terminate(Reason, State) ->
           terminate_impl(Reason, State).
     
@@ -80,8 +80,8 @@
       cast(Pid, Msg) ->
           gen_server:cast(Pid, Msg).
     
-'as_pid'(S2258Proc) -> S2258Proc.
-'from_pid'(S2260Pid) -> S2260Pid.
+'as_pid'(S2266Proc) -> S2266Proc.
+'from_pid'(S2268Pid) -> S2268Pid.
       start_link(Args) ->
           Result = gen_server:start_link(?MODULE, Args, []),
           % io:format("debug L('o' )J returns: ~p~n", [Result]),
@@ -115,4 +115,4 @@
       stop(Pid) ->
           gen_server:stop(Pid).
     
-'send_info'(S2267Pid, S2268Info) -> sesterl_internal_prim:'send'(S2267Pid, S2268Info).
+'send_info'(S2275Pid, S2276Info) -> sesterl_internal_prim:'send'(S2275Pid, S2276Info).
