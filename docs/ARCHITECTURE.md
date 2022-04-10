@@ -60,7 +60,7 @@ sequenceDiagram
       RoomServer -->> RoomServerSup : End init
       RoomServerSup -->> UserServer : Ok(pid)
       UserServer -->> RoomResourceServer : RoomCreated(result := Ok(_))
-      deactivate
+      deactivate RoomServer
       %% the deactivation above is needed only because of the end of this alt-branch.
     else
       UserServer -->> RoomResourceServer : RoomCreated(result := Error(_))
