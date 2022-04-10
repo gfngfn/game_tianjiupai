@@ -13,7 +13,7 @@ sequenceDiagram
   activate tianjiupai_rest
   tianjiupai_rest ->> tianjiupai_rest : Generate user_id
   tianjiupai_rest ->> UserResourceServer : AddUser(user_id, user_name)
-  alt current # of users < maximum # of users
+  alt current number of users < maximum number of users
     UserResourceServer ->> UserServerSup : start_child
     UserServerSup ->> UserServer : start_link
     activate UserServer
@@ -39,9 +39,9 @@ sequenceDiagram
   User ->> tianjiupai_rest : POST /rooms
   activate tianjiupai_rest
   tianjiupai_rest ->> RoomResourceServer : AddRoom(user_id, room_id, room_name)
-  alt current # of rooms < maximum # of rooms
+  alt current number of rooms < maximum number of rooms
     RoomResourceServer ->> UserServer : CreateRoom(room_id, room_name)
-    alt current # of rooms created by the user of user_id < maximum # of rooms per user
+    alt current number of rooms created by the user of user_id < maximum number of rooms per user
       UserServer ->> RoomServerSup : start_child
       RoomServerSup ->> RoomServer : start_link
       activate RoomServer
