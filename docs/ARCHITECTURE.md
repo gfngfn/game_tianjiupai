@@ -136,15 +136,22 @@ sequenceDiagram
 sequenceDiagram
   actor User1
   participant tianjiupai_websocket1
+  participant tianjiupai_rest1
   participant PlazaServer
   participant RoomServer
+  participant RoomResourceServer
   participant tianjiupai_websocket2
   actor User2
   activate tianjiupai_websocket1
   activate PlazaServer
   activate RoomServer
+  activate RoomResourceServer
   activate tianjiupai_websocket2
 
+  loop for every room member
+    User1 ->> tianjiupai_websocket1 : CommandNextInning(snapshot_id)
+    tianjiupai_websocket1 ->> RoomServer : cast RequireNextInning(user_id, snapshot_id)
+  end
   RoomServer ->> PlazaServer : call DeleteRoomSync(room_id)
   PlazaServer ->> PlazaServer : Demonitor the room process and remove the room from the publisher list
   loop for every user at the plaza
@@ -154,6 +161,14 @@ sequenceDiagram
   PlazaServer -->> RoomServer : RoomDeleted
   loop for every room member
     RoomServer ->> tianjiupai_websocket1 : Notify the room members about the room close
+    tianjiupai_websocket1 ->> User1 : Notify the room members about the room close
+    tianjiupai_websocket1 ->> PlazaServer : subscribe
+    User1 ->> tianjiupai_rest1 : GET /rooms
+    activate tianjiupai_rest1
+    tianjiupai_rest1 ->> PlazaServer : call GetRoomList
+    PlazaServer -->> tianjiupai_rest1 : RoomListGot(_)
+    tianjiupai_rest1 -->> User1 : response
+    deactivate tianjiupai_rest1
   end
   deactivate RoomServer
   RoomServer ->> RoomResourceServer : DOWN
