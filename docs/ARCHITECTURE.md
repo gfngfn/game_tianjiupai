@@ -16,8 +16,8 @@ sequenceDiagram
   User ->> tianjiupai_rest : POST /users
   activate tianjiupai_rest
   tianjiupai_rest ->> tianjiupai_rest : Generate user_id
-  tianjiupai_rest ->> UserResourceServer : AddUser(user_id, user_name)
-  alt current number of users < maximum number of users
+  tianjiupai_rest ->> UserResourceServer : call AddUser(user_id, user_name)
+  alt if the current number of users < the maximum number of users
     UserResourceServer ->> UserServerSup : start_child
     UserServerSup ->> UserServer : start_link
     activate UserServer
@@ -44,19 +44,24 @@ sequenceDiagram
   participant UserServer
   participant RoomServerSup
   participant RoomServer
+  participant PlazaServer
+  actor AnotherUser
   activate tianjiupai_rest
   activate RoomResourceServer
   activate UserServer
+  activate PlazaServer
 
   User ->> tianjiupai_rest : POST /rooms
   activate tianjiupai_rest
-  tianjiupai_rest ->> RoomResourceServer : AddRoom(user_id, room_id, room_name)
+  tianjiupai_rest ->> RoomResourceServer : call AddRoom(user_id, room_id, room_name)
   alt current number of rooms < maximum number of rooms
-    RoomResourceServer ->> UserServer : CreateRoom(room_id, room_name)
-    alt current number of rooms created by the user of user_id < maximum number of rooms per user
+    RoomResourceServer ->> UserServer : call CreateRoom(room_id, room_name)
+    alt if the current number of rooms created by the user of user_id < the maximum number of rooms per user
       UserServer ->> RoomServerSup : start_child
       RoomServerSup ->> RoomServer : start_link
       activate RoomServer
+      RoomServer ->> PlazaServer : cast UpdateRoom(_)
+      PlazaServer ->> AnotherUser : Notify users about the room update
       RoomServer -->> RoomServerSup : End init
       RoomServerSup -->> UserServer : Ok(pid)
       UserServer -->> RoomResourceServer : RoomCreated(result := Ok(_))
@@ -71,6 +76,57 @@ sequenceDiagram
   end
   tianjiupai_rest ->> User : response
   deactivate tianjiupai_rest
+```
+
+
+### WebSocket接続の確立
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant tianjiupai_websocket
+  participant PlazaServer
+  activate PlazaServer
+
+  User ->> tianjiupai_websocket : /websocket/{user_id}
+  activate tianjiupai_websocket
+  alt if the authorization failed (i.e. the request lacks a cookie or contains an invalid cookie)
+    tianjiupai_websocket -->> User : failed
+  else
+    tianjiupai_websocket ->> UserServer : call GetRoom(user_id)
+    alt if the user does not belong to any room
+      UserServer -->> tianjiupai_websocket : RoomGot(Ok(None))
+      tianjiupai_websocket ->> PlazaServer : subscribe
+    else
+      UserServer -->> tianjiupai_websocket : RoomGot(Ok(Some(room_id)))
+      tianjiupai_websocket ->> RoomServer : cast SetConnection(user_id, _)
+    end
+    tianjiupai_websocket -->> User : succeeded
+  end
+```
+
+
+### WebSocket接続の解除
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant tianjiupai_websocket
+  participant PlazaServer
+  participant RoomServer
+  activate PlazaServer
+  activate RoomServer
+
+  activate tianjiupai_websocket
+  User ->> tianjiupai_websocket : Close the connection
+  deactivate tianjiupai_websocket
+  alt if the user does not belong to any room
+    tianjiupai_websocket ->> PlazaServer : DOWN
+    PlazaServer ->> PlazaServer : Remove the WebSocket process from the subscriber list
+  else
+    tianjiupai_websocket ->> RoomServer : DOWN
+    RoomServer ->> RoomServer : Set the user as disconnected and start a timer for timeout
+  end
 ```
 
 
