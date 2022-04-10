@@ -130,12 +130,12 @@ sequenceDiagram
         tianjiupai_rest1 ->> RoomServer : call Attend(user_id, _)
         loop for each member other than the newcomer
           RoomServer ->> tianjiupai_websocket2 : Notify the member about the newcomer
-          tianjiupai_websocket2 ->> User2 : Notify the member about the newcomer
+          tianjiupai_websocket2 ->> User2 : NotifyEntered(_) / NotifyEnteredMidway(_)
         end
         RoomServer ->> PlazaServer : update
         loop for each user at the plaza
           PlazaServer ->> tianjiupai_websocket3 : Notify the user about the room update
-          tianjiupai_websocket3 ->> User3 : Notify the user about the room update
+          tianjiupai_websocket3 ->> User3 : NotifyPlazaUpdate(_)
         end
         RoomServer -->> tianjiupai_rest1 : Attended(_)
         tianjiupai_rest1 ->> PlazaServer : unsubscribe
@@ -187,12 +187,12 @@ sequenceDiagram
         else
           loop for each member other than the exiting user
             RoomServer ->> tianjiupai_websocket2 : Notify the member about the exit
-            tianjiupai_websocket2 ->> User2 : Notify the member about the exit
+            tianjiupai_websocket2 ->> User2 : NotifyExited(_)
           end
           RoomServer ->> PlazaServer : update
           loop for each user at the plaza
             PlazaServer ->> tianjiupai_websocket3 : Notify the user about the room update
-            tianjiupai_websocket3 ->> User3 : Notify the user about the room update
+            tianjiupai_websocket3 ->> User3 : NotifyPlazaUpdate(_)
           end
           RoomServer -->> tianjiupai_rest1 : Exited(true)
         end
@@ -201,6 +201,59 @@ sequenceDiagram
     end
   end
   deactivate tianjiupai_rest1
+```
+
+
+### 牌を出す処理
+
+```mermaid
+sequenceDiagram
+  actor User1
+  participant tianjiupai_rest1
+  participant RoomServer
+  participant tianjiupai_websocket2
+  actor User2
+  activate RoomServer
+  activate tianjiupai_websocket2
+
+  User1 ->> PATCH /rooms/{room_id} RoomRequestToSubmitCards(_)
+  alt if unable to decode the request body
+    tianjiupai_rest1 -->> User1 : failed
+  else
+    alt if the authorization failed (i.e. the request lacks a cookie or contains an invalid cookie)
+      tianjiupai_rest1 -->> User1 : failed
+    else
+      tianjiupai_rest1 ->> RoomServer : Submit(user_id, cards)
+      alt if the room is waiting for a start or there exists a disconnected member
+        RoomServer -->> tianjiupai_rest1 : SubmissionDone(None)
+      else
+        alt if the submitted cards are invalid
+          RoomServer -->> tianjiupai_rest1 : SubmissionDone(None)
+        else
+          RoomServer ->> RoomServer : Update the table state
+          loop for each member other than the submitter
+            RoomServer ->> tianjiupai_websocket2 : Notify the member about the updated table state
+            tianjiupai_websocket2 ->> User2 : NotifySubmission(_)
+          end
+          RoomServer -->> tianjiupai_rest1 : SubmissionDone(Some(_))
+        end
+      end
+    end
+  end
+  tianjiupai_rest1 -->> User1 : response
+  deactivate tianjiupai_rest1
+  opt if the submission has successfully been done
+    User1 ->> tianjiupai_websocket1 : CommandAck
+    tianjiupai_websocket1 ->> RoomServer : cast Ack
+    loop for each member other than the submitter
+      User2 ->> tianjiupai_websocket2 : CommandAck
+      tianjiupai_websocket2 ->> RoomServer : cast Ack
+    end
+    loop for each member (including the submitter)
+      RoomServer ->> tianjiupai_websocket2 : Notify the user about the next step
+      tianjiupai_websocket2 ->> User2 : NotifyNextStep
+    end
+  end
 ```
 
 
@@ -281,13 +334,13 @@ sequenceDiagram
   PlazaServer ->> PlazaServer : Demonitor the room process and remove the room from the publisher list
   loop for every user at the plaza
     PlazaServer ->> tianjiupai_websocket2 : Notify the user about the room list update
-    tianjiupai_websocket2 ->> User2 : Notify the user about the room list update
+    tianjiupai_websocket2 ->> User2 : NotifyPlazaUpdate(_)
   end
   PlazaServer -->> RoomServer : RoomDeleted
   loop for every room member
     RoomServer ->> tianjiupai_websocket1 : Notify the room members about the room close
     tianjiupai_websocket1 ->> PlazaServer : subscribe
-    tianjiupai_websocket1 ->> User1 : Notify the room members about the room close
+    tianjiupai_websocket1 ->> User1 : NotifyRoomClose
     User1 ->> tianjiupai_rest1 : GET /rooms
     activate tianjiupai_rest1
     tianjiupai_rest1 ->> PlazaServer : call GetRoomList
