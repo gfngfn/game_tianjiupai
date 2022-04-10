@@ -21,7 +21,11 @@ sequenceDiagram
     UserResourceServer ->> UserServerSup : start_child
     UserServerSup ->> UserServer : start_link
     activate UserServer
+    UserServer -->> UserServerSup : End init
+    UserServerSup -->> UserResourceServer : Ok(pid)
     UserResourceServer -->> tianjiupai_rest : UserAdded(Ok(_))
+    deactivate UserServer
+    %% the deactivation above is needed only because of the end of this alt-branch.
   else
     UserResourceServer -->> tianjiupai_rest : UserAdded(Error(_))
   end
@@ -56,6 +60,8 @@ sequenceDiagram
       RoomServer -->> RoomServerSup : End init
       RoomServerSup -->> UserServer : Ok(pid)
       UserServer -->> RoomResourceServer : RoomCreated(result := Ok(_))
+      deactivate
+      %% the deactivation above is needed only because of the end of this alt-branch.
     else
       UserServer -->> RoomResourceServer : RoomCreated(result := Error(_))
     end
