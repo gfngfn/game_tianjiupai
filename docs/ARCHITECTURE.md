@@ -1,3 +1,64 @@
+## 通信フローチャート
+
+### ユーザ作成
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant tianjiupai_rest
+  participant UserResourceServer
+  participant UserServerSup
+  participant UserServer
+  User ->> tianjiupai_rest : POST /user
+  activate tianjiupai_rest
+  tianjiupai_rest ->> tianjiupai_rest : Generate user_id
+  tianjiupai_rest ->> UserResourceServer : AddUser(user_id, user_name)
+  alt current # of users < maximum # of users
+    UserResourceServer ->> UserServerSup : start_child
+    UserServerSup ->> UserServer : start_link
+    activate UserServer
+    UserResourceServer ->> tianjiupai_rest : UserAdded(Ok(_))
+  else
+    UserResourceServer ->> tianjiupai_rest : UserAdded(Error(_))
+  end
+  tianjiupai_rest ->> User : response
+  deactivate tianjiupai_rest
+```
+
+
+### 部屋作成
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant tianjiupai_rest
+  participant RoomResourceServer
+  participant UserServer
+  participant RoomServerSup
+  participant RoomServer
+  User ->> tianjiupai_rest : POST /rooms
+  activate tianjiupai_rest
+  tianjiupai_rest ->> RoomResourceServer : AddRoom(user_id, room_id, room_name)
+  alt current # of rooms < maximum # of rooms
+    RoomResourceServer ->> UserServer : CreateRoom(room_id, room_name)
+    alt current # of rooms created by the user of user_id < maximum # of rooms per user
+      UserServer ->> RoomServerSup : start_child
+      RoomServerSup ->> RoomServer : start_link
+      activate RoomServer
+      UserServer ->> RoomResourceServer : RoomCreated(Ok(_))
+      RoomResourceServer ->> tianjiupai_rest : RoomAdded(Ok(_))
+    else
+      UserServer ->> RoomResourceServer : RoomCreated(Error(_))
+      RoomResourceServer ->> tianjiupai_rest : RoomAdded(Error(_))
+    end
+  else
+    RoomResourceServer ->> tianjiupai_rest : RoomAdded(Error(_))
+  end
+  tianjiupai_rest ->> User : response
+  deactivate tianjiupai_rest
+```
+
+
 ## プロセス構成
 
 * `UserServerSup` プロセス
