@@ -130,6 +130,33 @@ sequenceDiagram
 ```
 
 
+### 対局終了で部屋が消えるとき
+
+```mermaid
+sequenceDiagram
+  actor User1
+  participant tianjiupai_websocket1
+  participant PlazaServer
+  participant RoomServer
+  participant tianjiupai_websocket2
+  actor User2
+
+  RoomServer ->> PlazaServer : call DeleteRoomSync(room_id)
+  PlazaServer ->> PlazaServer : Demonitor the room process and remove the room from the publisher list
+  loop for every user at the plaza
+    PlazaServer ->> tianjiupai_websocket2 : Notify the user about the room list update
+    tianjiupai_websocket2 ->> User2 : Notify the user about the room list update
+  end
+  PlazaServer -->> RoomServer : RoomDeleted
+  loop for every room member
+    RoomServer ->> tianjiupai_websocket1 : Notify the room members about the room close
+  end
+  deactivate RoomServer
+  RoomServer ->> RoomResourceServer : DOWN
+  RoomResourceServer ->> RoomResourceServer : Decrement the number of rooms
+```
+
+
 ## プロセス構成
 
 * `UserServerSup` プロセス
@@ -226,7 +253,8 @@ sequenceDiagram
     * `RoomServer` から：
       - publisher登録
       - 部屋の状況変化通知
-      - `DOWN`： publisher解除
+      - publisher解除（正常終了の場合はこれで通知される）
+      - `DOWN`（異常終了の場合はこれで通知される．扱いはpublisher解除と同じ）
     * `tianjiupai_websocket` から：
       - subscriber登録
       - subscriber解除
