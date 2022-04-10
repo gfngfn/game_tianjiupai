@@ -116,8 +116,8 @@ sequenceDiagram
   participant RoomServer
   activate PlazaServer
   activate RoomServer
-
   activate tianjiupai_websocket
+
   User ->> tianjiupai_websocket : Close the connection
   deactivate tianjiupai_websocket
   alt if the user does not belong to any room
@@ -140,6 +140,10 @@ sequenceDiagram
   participant RoomServer
   participant tianjiupai_websocket2
   actor User2
+  activate tianjiupai_websocket1
+  activate PlazaServer
+  activate RoomServer
+  activate tianjiupai_websocket2
 
   RoomServer ->> PlazaServer : call DeleteRoomSync(room_id)
   PlazaServer ->> PlazaServer : Demonitor the room process and remove the room from the publisher list
