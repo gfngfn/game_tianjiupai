@@ -217,6 +217,7 @@ sequenceDiagram
   activate tianjiupai_websocket2
 
   User1 ->> tianjiupai_rest1 : PATCH /rooms/{room_id} RoomRequestToSubmitCards(_)
+  activate tianjiupai_rest1
   alt if unable to decode the request body
     tianjiupai_rest1 -->> User1 : failed
   else
