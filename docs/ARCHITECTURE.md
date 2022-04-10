@@ -9,7 +9,11 @@ sequenceDiagram
   participant UserResourceServer
   participant UserServerSup
   participant UserServer
-  User ->> tianjiupai_rest : POST /user
+  activate UserResourceServer
+  activate UserServerSup
+  activate UserServer
+
+  User ->> tianjiupai_rest : POST /users
   activate tianjiupai_rest
   tianjiupai_rest ->> tianjiupai_rest : Generate user_id
   tianjiupai_rest ->> UserResourceServer : AddUser(user_id, user_name)
@@ -17,11 +21,11 @@ sequenceDiagram
     UserResourceServer ->> UserServerSup : start_child
     UserServerSup ->> UserServer : start_link
     activate UserServer
-    UserResourceServer ->> tianjiupai_rest : UserAdded(Ok(_))
+    UserResourceServer -->> tianjiupai_rest : UserAdded(Ok(_))
   else
-    UserResourceServer ->> tianjiupai_rest : UserAdded(Error(_))
+    UserResourceServer -->> tianjiupai_rest : UserAdded(Error(_))
   end
-  tianjiupai_rest ->> User : response
+  tianjiupai_rest -->> User : response
   deactivate tianjiupai_rest
 ```
 
@@ -36,6 +40,10 @@ sequenceDiagram
   participant UserServer
   participant RoomServerSup
   participant RoomServer
+  activate tianjiupai_rest
+  activate RoomResourceServer
+  activate UserServer
+
   User ->> tianjiupai_rest : POST /rooms
   activate tianjiupai_rest
   tianjiupai_rest ->> RoomResourceServer : AddRoom(user_id, room_id, room_name)
@@ -45,12 +53,13 @@ sequenceDiagram
       UserServer ->> RoomServerSup : start_child
       RoomServerSup ->> RoomServer : start_link
       activate RoomServer
-      UserServer ->> RoomResourceServer : RoomCreated(Ok(_))
-      RoomResourceServer ->> tianjiupai_rest : RoomAdded(Ok(_))
+      RoomServer -->> RoomServerSup : End init
+      RoomServerSup -->> UserServer : Ok(pid)
+      UserServer -->> RoomResourceServer : RoomCreated(result := Ok(_))
     else
-      UserServer ->> RoomResourceServer : RoomCreated(Error(_))
-      RoomResourceServer ->> tianjiupai_rest : RoomAdded(Error(_))
+      UserServer -->> RoomResourceServer : RoomCreated(result := Error(_))
     end
+    RoomResourceServer -->> tianjiupai_rest : RoomAdded(result)
   else
     RoomResourceServer ->> tianjiupai_rest : RoomAdded(Error(_))
   end
