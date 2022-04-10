@@ -129,8 +129,8 @@ sequenceDiagram
         UserServer -->> tianjiupai_rest1 : UserStateGot(_)
         tianjiupai_rest1 ->> RoomServer : call Attend(user_id, _)
         loop for each member other than the newcomer
-          RoomServer ->> tianjiupai_websocket2 : Notify the member about the exit
-          tianjiupai_websocket2 ->> User2 : Notify the member about the exit
+          RoomServer ->> tianjiupai_websocket2 : Notify the member about the newcomer
+          tianjiupai_websocket2 ->> User2 : Notify the member about the newcomer
         end
         RoomServer ->> PlazaServer : update
         loop for each user at the plaza
@@ -185,9 +185,9 @@ sequenceDiagram
         alt if the user is not in the room
           RoomServer -->> tianjiupai_rest1 : Exited(false)
         else
-          loop for each member other than the newcomer
-            RoomServer ->> tianjiupai_websocket2 : Notify the member about the newcomer
-            tianjiupai_websocket2 ->> User2 : Notify the member about the newcomer
+          loop for each member other than the exiting user
+            RoomServer ->> tianjiupai_websocket2 : Notify the member about the exit
+            tianjiupai_websocket2 ->> User2 : Notify the member about the exit
           end
           RoomServer ->> PlazaServer : update
           loop for each user at the plaza
