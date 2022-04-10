@@ -53,29 +53,154 @@ sequenceDiagram
 
   User ->> tianjiupai_rest : POST /rooms
   activate tianjiupai_rest
-  tianjiupai_rest ->> RoomResourceServer : call AddRoom(user_id, room_id, room_name)
-  alt current number of rooms < maximum number of rooms
-    RoomResourceServer ->> UserServer : call CreateRoom(room_id, room_name)
-    alt if the current number of rooms created by the user of user_id < the maximum number of rooms per user
-      UserServer ->> RoomServerSup : start_child
-      RoomServerSup ->> RoomServer : start_link
-      activate RoomServer
-      RoomServer ->> PlazaServer : cast UpdateRoom(_)
-      PlazaServer ->> AnotherUser : Notify users about the room update
-      RoomServer -->> RoomServerSup : End init
-      RoomServerSup -->> UserServer : Ok(pid)
-      UserServer -->> RoomResourceServer : RoomCreated(result := Ok(_))
-      deactivate RoomServer
-      %% the deactivation above is needed only because of the end of this alt-branch.
-    else
-      UserServer -->> RoomResourceServer : RoomCreated(result := Error(_))
-    end
-    RoomResourceServer -->> tianjiupai_rest : RoomAdded(result)
+  alt if the authorization failed (i.e. the request lacks a cookie or contains an invalid cookie)
+    tianjiupai_rest -->> User : failed
   else
-    RoomResourceServer ->> tianjiupai_rest : RoomAdded(Error(_))
+    tianjiupai_rest ->> RoomResourceServer : call AddRoom(user_id, room_id, room_name)
+    alt current number of rooms < maximum number of rooms
+      RoomResourceServer ->> UserServer : call CreateRoom(room_id, room_name)
+      alt if the current number of rooms created by the user of user_id < the maximum number of rooms per user
+        UserServer ->> RoomServerSup : start_child
+        RoomServerSup ->> RoomServer : start_link
+        activate RoomServer
+        RoomServer ->> PlazaServer : cast UpdateRoom(_)
+        PlazaServer ->> AnotherUser : Notify users about the room update
+        RoomServer -->> RoomServerSup : End init
+        RoomServerSup -->> UserServer : Ok(pid)
+        UserServer -->> RoomResourceServer : RoomCreated(result := Ok(_))
+        deactivate RoomServer
+        %% the deactivation above is needed only because of the end of this alt-branch.
+      else
+        UserServer -->> RoomResourceServer : RoomCreated(result := Error(_))
+      end
+      RoomResourceServer -->> tianjiupai_rest : RoomAdded(result)
+    else
+      RoomResourceServer ->> tianjiupai_rest : RoomAdded(Error(_))
+    end
+    tianjiupai_rest ->> User : response
   end
-  tianjiupai_rest ->> User : response
   deactivate tianjiupai_rest
+```
+
+
+### 入室
+
+※これは典型的には正常に動作するが，複数リクエストのタイミングがきわどいと競合状態に陥りうる実装になっていそうなので，いずれ修正する．
+
+```mermaid
+sequenceDiagram
+  actor User1
+  participant tianjiupai_rest1
+  participant UserServer
+  participant RoomServer
+  participant PlazaServer
+  participant tianjiupai_websocket2
+  actor User2
+  participant tianjiupai_websocket3
+  actor User3
+  activate UserServer
+  activate RoomServer
+  activate PlazaServer
+  activate tianjiupai_websocket2
+  activate tianjiupai_websocket3
+
+  User1 ->> tianjiupai_rest1 : PATCH /rooms/{room_id} RoomRequestToEnterRoom(_)
+  activate tianjiupai_rest1
+  alt if unable to decode the request body
+    tianjiupai_rest1 -->> User1 : failed
+  else
+    alt if the authorization failed (i.e. the request lacks a cookie or contains an invalid cookie)
+      tianjiupai_rest1 -->> User1 : failed
+    else
+      alt if the corresponding WebSocket handler does not exist
+        tianjiupai_rest1 -->> User1 : failed
+      else
+        tianjiupai_rest1 ->> UserServer : call SetRoom(Some(room_id))
+        alt if the room process corresponding to room_id does not exist
+          UserServer -->> tianjiupai_rest1 : RoomSet(false)
+        else
+          opt if the user has already entered another room
+            UserServer ->> UserServer : Demonitor the previous room
+          end
+          UserServer ->> UserServer : Monitor the room process of room_id
+          UserServer -->> tianjiupai_rest1 : RoomSet(true)
+        end
+        tianjiupai_rest1 ->> UserServer : call GetUserState(user_id)
+        UserServer -->> tianjiupai_rest1 : UserStateGot(_)
+        tianjiupai_rest1 ->> RoomServer : call Attend(user_id, _)
+        loop for each member other than the newcomer
+          RoomServer ->> tianjiupai_websocket2 : Notify the member about the exit
+          tianjiupai_websocket2 ->> User2 : Notify the member about the exit
+        end
+        RoomServer ->> PlazaServer : update
+        loop for each user at the plaza
+          PlazaServer ->> tianjiupai_websocket3 : Notify the user about the room update
+          tianjiupai_websocket3 ->> User3 : Notify the user about the room update
+        end
+        RoomServer -->> tianjiupai_rest1 : Attended(_)
+        tianjiupai_rest1 ->> PlazaServer : unsubscribe
+        tianjiupai_rest1 -->> User1 : response
+      end
+    end
+  end
+  deactivate tianjiupai_rest1
+```
+
+
+### 退室
+
+※これは典型的には正常に動作するが，複数リクエストのタイミングがきわどいと競合状態に陥りうる実装になっていそうなので，いずれ修正する．
+
+```mermaid
+sequenceDiagram
+  actor User1
+  participant tianjiupai_rest1
+  participant UserServer
+  participant RoomServer
+  participant PlazaServer
+  participant tianjiupai_websocket2
+  actor User2
+  participant tianjiupai_websocket3
+  actor User3
+  activate UserServer
+  activate RoomServer
+  activate PlazaServer
+  activate tianjiupai_websocket2
+  activate tianjiupai_websocket3
+
+  User1 ->> tianjiupai_rest1 : PATCH /rooms/{room_id} RoomRequestToEnterRoom(_)
+  activate tianjiupai_rest1
+  alt if unable to decode the request body
+    tianjiupai_rest1 -->> User1 : failed
+  else
+    alt if the authorization failed (i.e. the request lacks a cookie or contains an invalid cookie)
+      tianjiupai_rest1 -->> User1 : failed
+    else
+      alt if the corresponding WebSocket handler does not exist
+        tianjiupai_rest1 -->> User1 : failed
+      else
+        tianjiupai_rest1 ->> UserServer : call SetRoom(None)
+        UserServer -->> tianjiupai_rest1 : RoomSet(true)
+        tianjiupai_rest1 ->> RoomServer : Exit(user_id)
+        alt if the user is not in the room
+          RoomServer -->> tianjiupai_rest1 : Exited(false)
+        else
+          loop for each member other than the newcomer
+            RoomServer ->> tianjiupai_websocket2 : Notify the member about the newcomer
+            tianjiupai_websocket2 ->> User2 : Notify the member about the newcomer
+          end
+          RoomServer ->> PlazaServer : update
+          loop for each user at the plaza
+            PlazaServer ->> tianjiupai_websocket3 : Notify the user about the room update
+            tianjiupai_websocket3 ->> User3 : Notify the user about the room update
+          end
+          RoomServer -->> tianjiupai_rest1 : Exited(true)
+        end
+        tianjiupai_rest1 -->> User1 : response
+      end
+    end
+  end
+  deactivate tianjiupai_rest1
 ```
 
 
@@ -161,8 +286,8 @@ sequenceDiagram
   PlazaServer -->> RoomServer : RoomDeleted
   loop for every room member
     RoomServer ->> tianjiupai_websocket1 : Notify the room members about the room close
-    tianjiupai_websocket1 ->> User1 : Notify the room members about the room close
     tianjiupai_websocket1 ->> PlazaServer : subscribe
+    tianjiupai_websocket1 ->> User1 : Notify the room members about the room close
     User1 ->> tianjiupai_rest1 : GET /rooms
     activate tianjiupai_rest1
     tianjiupai_rest1 ->> PlazaServer : call GetRoomList
